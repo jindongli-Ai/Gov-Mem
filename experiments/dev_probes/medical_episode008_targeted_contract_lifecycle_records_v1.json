@@ -1,0 +1,16 @@
+{
+  "suite_name": "medical-episode008-targeted-contract-lifecycle-records-v1",
+  "version": 1,
+  "purpose": "Targeted regression probe for three independently diagnosed framework mechanisms: query contract recovery, dynamic record realization, and mixed active/deleted lifecycle handling.",
+  "selection_policy": {
+    "selection_basis": "pre-registered diagnostic checkpoint IDs from the prior fixed medical development probe",
+    "uses_answer_fields": false,
+    "uses_query_type_fields": false,
+    "uses_scorer_fields": false
+  },
+  "entries": [
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_02"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_06"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_09"}
+  ]
+}

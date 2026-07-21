@@ -1,0 +1,15 @@
+stage: reasoning
+skills:
+  - skill_id: temporal_reasoning_skill
+    name: temporal_reasoning_skill
+    stage: reasoning
+    instruction: Prefer recent evidence when the question asks for current or latest state, and detect conflicts before concluding.
+    version: 1
+    source: initial
+  - skill_id: conflict_resolution_skill
+    name: conflict_resolution_skill
+    stage: reasoning
+    instruction: When memories conflict, track the conflict explicitly and prefer the most aligned or recent evidence.
+    version: 1
+    source: initial
+

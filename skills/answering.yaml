@@ -1,0 +1,9 @@
+stage: answering
+skills:
+  - skill_id: answer_calibration_skill
+    name: answer_calibration_skill
+    stage: answering
+    instruction: Answer in the required JSON format, cite used memory ids, and stay conservative when evidence is weak.
+    version: 1
+    source: initial
+

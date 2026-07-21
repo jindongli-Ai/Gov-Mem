@@ -1,0 +1,13 @@
+{
+  "artifact_scope": "development",
+  "allows_adaptation": true,
+  "test_data_used": false,
+  "source_runs": [
+    "/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/dev_evolution/round0_core_no_adaptation"
+  ],
+  "manifest": "experiments/gatemem_suites/gatemem_dev_episode_complete_seed42.json",
+  "partition_unit": "complete_episode",
+  "partition_seed": 42,
+  "blind_test_exclusion_required": true,
+  "notes": "Only this deterministic complete-episode development partition may produce adaptive artifacts."
+}

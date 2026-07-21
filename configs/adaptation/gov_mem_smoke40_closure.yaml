@@ -1,0 +1,22 @@
+base_config: configs/gov_mem_v4_skill_runtime_with_updates.yaml
+suite_manifest: experiments/gatemem_suites/gatemem_smoke40.json
+output_root: outputs/adaptation/smoke40_closure
+variants:
+  - name: adapt_disabled
+    label: Adaptation Disabled
+    overrides:
+      use_skill_library: false
+      use_experience_memory: false
+      use_self_evolving_update: false
+  - name: frozen_skill_only
+    label: Frozen Skill Library
+    overrides:
+      use_skill_library: true
+      use_experience_memory: false
+      use_self_evolving_update: false
+  - name: frozen_skill_plus_experience
+    label: Frozen Skill + Experience
+    overrides:
+      use_skill_library: true
+      use_experience_memory: true
+      use_self_evolving_update: false

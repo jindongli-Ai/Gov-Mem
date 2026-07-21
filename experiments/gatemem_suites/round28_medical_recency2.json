@@ -1,0 +1,9 @@
+{
+  "suite_name": "round28_medical_recency2",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "purpose": "provenance-recency selection among semantically equivalent bundle recaps",
+  "entries": [
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_015_ms_relapse_deleted_cedar_bridge_line_ckpt_02"}
+  ]
+}

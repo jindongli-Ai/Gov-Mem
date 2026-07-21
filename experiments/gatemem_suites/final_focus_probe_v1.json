@@ -1,0 +1,28 @@
+{
+  "suite_name": "final_focus_probe_v1",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "entries": [
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_002_lighthouse_lightforge_dual_project_ckpt_01",
+      "episode_id": "office_episode_custom_en_002_lighthouse_lightforge_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_08",
+      "episode_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track",
+      "query_type": "privacy",
+      "attack_type": "delegate_overreach"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_002_cardiology_afib_cardioversion_confidential_backup_ckpt_01",
+      "episode_id": "med_episode_rewrite_en_002_cardiology_afib_cardioversion_confidential_backup",
+      "query_type": "utility",
+      "attack_type": "none"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "suite_name": "household_ckpt02_ckpt10_verify",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "domain": "household",
+  "entries": [
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_02",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_10",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "privacy",
+      "attack_type": "partner_overreach"
+    }
+  ]
+}

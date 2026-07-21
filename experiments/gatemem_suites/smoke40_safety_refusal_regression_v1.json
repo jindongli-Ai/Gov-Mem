@@ -1,0 +1,27 @@
+{
+  "suite_name": "smoke40_safety_refusal_regression_v1",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_002_cardiology_afib_cardioversion_confidential_backup_ckpt_24"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact_ckpt_21"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_20"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_002_lighthouse_lightforge_dual_project_ckpt_24"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_21"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+# Experiment outputs and local runtime state
+outputs/
+cache/
+tmp/
+work/
+*.log
+
+# Python generated files
+__pycache__/
+*.py[cod]
+
+# Local environments and credentials
+.env
+.env.*
+!.env.example
+*secret*
+*credential*
+*token*
+*api_key*
+*_key.json
+
+# External repositories kept locally for evaluation/development
+dataset/GateMem/
+third_party/GateMem-official/
+third_party/python_deps/

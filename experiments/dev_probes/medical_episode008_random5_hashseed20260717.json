@@ -1,0 +1,22 @@
+{
+  "suite_name": "medical-episode008-random5",
+  "version": 1,
+  "purpose": "Fixed within-episode random development evaluation; selection uses only checkpoint IDs and a declared hash seed.",
+  "selection_policy": {
+    "seed": "20260717-episode008",
+    "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+    "selection_key": "sha256(seed + checkpoint_id)",
+    "count": 5,
+    "uses_answer_fields": false,
+    "uses_query_type_fields": false,
+    "uses_attack_type_fields": false,
+    "uses_scorer_fields": false
+  },
+  "entries": [
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_18"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_02"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_27"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_09"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_06"}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "suite_name": "household_target_ckpt01",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "domain": "household",
+  "entries": [
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service_ckpt_01",
+      "episode_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service",
+      "query_type": "utility",
+      "attack_type": "none"
+    }
+  ]
+}

@@ -1,0 +1,133 @@
+project:
+  name: Gov-Mem
+  seed: 42
+
+experiment:
+  mode: rag_policy_amem
+
+llm:
+  provider: yunwu
+  api_key_env: YUNWU_API_KEY
+  api_base: https://yunwu.ai/v1
+  base_model: gpt-5.4-nano-2026-03-17
+  role_models: {}
+  memory_ingestion_model: gpt-5.4-nano-2026-03-17
+  query_planner_model: gpt-5.4-nano-2026-03-17
+  answering_model: gpt-5.4-nano-2026-03-17
+  temperature: 0.0
+  max_retries: 6
+  request_timeout: 180
+  retry_backoff_seconds: 3.0
+  max_retry_backoff_seconds: 30.0
+  allow_fallback: true
+
+embedding:
+  provider: yunwu
+  api_key_env: YUNWU_API_KEY
+  api_base: https://yunwu.ai/v1
+  model: text-embedding-3-large
+  request_timeout: 180
+  retry_backoff_seconds: 3.0
+  max_retry_backoff_seconds: 30.0
+  cache_dir: cache/embeddings
+  allow_fallback: true
+
+memory:
+  enable_forgetting: true
+  enable_privacy_filter: true
+
+retrieval:
+  dense_top_k: 20
+  symbolic_top_k: 20
+  final_top_k: 8
+
+rag:
+  chunk_top_k: 30
+  final_context_k: 12
+  include_sliding_windows: true
+  include_speaker_windows: true
+
+reasoning:
+  max_selected_frames: 12
+  min_slot_coverage: 0.70
+  preserve_complementary_evidence: true
+
+rendering:
+  prefer_surface_spans: true
+  include_canceled_items: true
+  include_conditions: true
+  allow_redundant_utility_slots: true
+  max_answer_sentences: 8
+
+utility_realization:
+  mode: policy_conditioned_records
+  enable_need_spec: true
+  enable_utility_records: true
+  enable_need_aware_packing: true
+  enable_canonical_renderer: true
+  enable_coverage_minimality_verifier: true
+  fallback_to_v11_renderer: true
+
+governance_runtime:
+  enable_evidence_frame_compiler: true
+  enable_current_state_ledger: true
+  enable_slot_coverage_selection: true
+  enable_deterministic_renderer: true
+  enable_slot_level_access: true
+  preserve_surface_spans: true
+  allow_runtime_gold_fields: false
+  use_llm_frame_normalizer: true
+
+pipeline:
+  use_asking_user_id: true
+  save_intermediate: true
+
+self_evolving:
+  enable_experience: true
+  enable_skill_update: false
+  update_every_n_failures: 20
+
+ablation:
+  use_dense_retrieval: true
+  use_symbolic_retrieval: true
+  use_query_planner: true
+  use_logical_reasoning: true
+  use_privacy_filter: true
+  use_forgetting: true
+  use_action_predictor: true
+  use_experience: false
+  use_current_state_ledger: true
+  use_slot_coverage_selection: true
+  use_deterministic_renderer: true
+  use_slot_level_access: true
+
+evaluation:
+  metrics:
+    - accuracy
+    - exact_match
+    - format_error_rate
+
+use_governed_graph: true
+use_dual_channel_retrieval: true
+use_symbolic_reasoner: true
+use_deletion_tracking: true
+use_action_constraints: true
+use_experience_memory: true
+use_slot_authorization_map: true
+use_skill_library: true
+use_self_evolving_update: true
+fallback_to_v0_on_low_confidence: true
+experience_memory_path: outputs/dev_evolution/artifacts/experience/experience_memory.jsonl
+skill_library_path: outputs/dev_evolution/artifacts/skills/governance_skill_library.jsonl
+rule_patches_path: outputs/dev_evolution/artifacts/evolution/rule_patches.jsonl
+prompt_patches_path: outputs/dev_evolution/artifacts/evolution/prompt_patches.jsonl
+policy_patches_path: outputs/dev_evolution/artifacts/evolution/policy_patches.jsonl
+
+runner:
+  dataset_name: checkpoint_benchmark
+  suite_manifest: experiments/gatemem_suites/gatemem_smoke40.json
+  data_root: dataset/GateMem/gatemem/data
+  output_dir: outputs/dev_evolution/round1_structural_adaptation
+  stage: all
+  experiment_mode: rag_policy_amem
+  skip_official_eval: false

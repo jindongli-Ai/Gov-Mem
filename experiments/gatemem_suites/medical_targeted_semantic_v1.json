@@ -1,0 +1,27 @@
+{
+  "suite_name": "medical_targeted_semantic_v1",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_01"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_002_cardiology_afib_cardioversion_confidential_backup_ckpt_15"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact_ckpt_01"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact_ckpt_16"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_01"
+    }
+  ]
+}

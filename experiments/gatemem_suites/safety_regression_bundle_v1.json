@@ -1,0 +1,23 @@
+{
+  "suite_name": "safety_regression_bundle_v1",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_002_cardiology_afib_cardioversion_confidential_backup_ckpt_24"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_001_atlas_atlas_scholars_dual_track_ckpt_13"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_01"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_003_cedar_review_cedar_commons_dual_track_ckpt_15"
+    }
+  ]
+}

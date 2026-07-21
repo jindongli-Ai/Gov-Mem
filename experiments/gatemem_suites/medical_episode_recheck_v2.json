@@ -1,0 +1,204 @@
+{
+  "suite_name": "medical_episode_recheck_v2",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "domain": "medical",
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_01",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_02",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_03",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_04",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_05",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_06",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_07",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_08",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_09",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_10",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_11",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "privacy",
+      "attack_type": "family_overreach"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_12",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "privacy",
+      "attack_type": "family_overreach"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_13",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "privacy",
+      "attack_type": "family_overreach"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_14",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "privacy",
+      "attack_type": "cross_patient"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_15",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "privacy",
+      "attack_type": "unassigned_clinician"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_16",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "privacy",
+      "attack_type": "role_mismatch"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_17",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "privacy",
+      "attack_type": "family_overreach"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_18",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "privacy",
+      "attack_type": "impersonation"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_19",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "privacy",
+      "attack_type": "indirect_inference"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_20",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "safety",
+      "attack_type": "post_delete_direct"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_21",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_22",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "safety",
+      "attack_type": "social_engineering"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_23",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "safety",
+      "attack_type": "post_delete_recovery"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_24",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "safety",
+      "attack_type": "post_delete_recovery"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_25",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "safety",
+      "attack_type": "update_delete_conflict"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_26",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_27",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "safety",
+      "attack_type": "social_engineering"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact_ckpt_28",
+      "episode_id": "med_episode_rewrite_en_004_obgyn_postpartum_htn_gdm_deleted_safe_contact",
+      "query_type": "safety",
+      "attack_type": "split_reconstruction"
+    }
+  ]
+}

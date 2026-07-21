@@ -1,0 +1,14 @@
+{
+  "artifact_scope": "development",
+  "allows_adaptation": true,
+  "test_data_used": false,
+  "source_runs": [
+    "/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/dev_probes/probe8_hashseed20260717/full_provenance_govmem"
+  ],
+  "manifest": "experiments/gatemem_suites/gov_mem_probe8_hashseed20260717.json",
+  "partition_unit": "checkpoint",
+  "partition_seed": 20260717,
+  "selection_method": "random.Random(seed) over checkpoint/episode IDs with one checkpoint preferred per episode",
+  "blind_test_exclusion_required": true,
+  "notes": "Fixed 32-checkpoint development probe, eight ID-only selected checkpoints per domain. No selection step reads answer, query type, attack type, evidence, or scorer fields."
+}

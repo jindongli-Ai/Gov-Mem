@@ -1,0 +1,10 @@
+{
+  "suite_name": "round23_record_bundle_probe2",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "purpose": "record-bundle query contract probe across medical and household",
+  "entries": [
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_015_ms_relapse_deleted_cedar_bridge_line_ckpt_01"},
+    {"domain": "household", "checkpoint_id": "household_episode_custom_en_017_apricot_archive_apricot_adapter_media_backup_private_note_ckpt_01"}
+  ]
+}

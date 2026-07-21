@@ -1,0 +1,9 @@
+stage: retrieval
+skills:
+  - skill_id: hybrid_retrieval_skill
+    name: hybrid_retrieval_skill
+    stage: retrieval
+    instruction: Combine symbolic filters and semantic retrieval, then favor evidence aligned with user, entity, and memory type.
+    version: 1
+    source: initial
+

@@ -1,0 +1,32 @@
+{
+    "suite_name":  "round13_education_utility6",
+    "dataset_name":  "gatemem",
+    "version":  1,
+    "purpose":  "six-checkpoint utility regression after temporal canonicalization",
+    "entries":  [
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_01"
+                    },
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_02"
+                    },
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_03"
+                    },
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_04"
+                    },
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_05"
+                    },
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_06"
+                    }
+                ]
+}

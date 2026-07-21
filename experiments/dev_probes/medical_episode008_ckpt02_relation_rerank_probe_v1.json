@@ -1,0 +1,13 @@
+{
+  "suite_name": "medical-episode008-ckpt02-relation-rerank-probe-v1",
+  "version": 1,
+  "purpose": "Single fixed probe for fact-owner-first relation closure and record-level rerank certification.",
+  "selection_policy": {
+    "selection_basis": "fixed prior authorized-staff rerank failure",
+    "uses_answer_fields": false,
+    "uses_scorer_fields": false
+  },
+  "entries": [
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_02"}
+  ]
+}

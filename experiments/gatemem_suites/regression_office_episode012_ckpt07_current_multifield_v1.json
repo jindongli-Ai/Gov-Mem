@@ -1,0 +1,12 @@
+{
+  "suite_name": "regression_office_episode012_ckpt07_current_multifield_v1",
+  "version": 1,
+  "purpose": "Targeted regression for a source-grounded current multi-field operational request; not a paper aggregate.",
+  "entries": [
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_012_timber_timberlane_dual_project",
+      "checkpoint_id": "office_episode_custom_en_012_timber_timberlane_dual_project_ckpt_07"
+    }
+  ]
+}

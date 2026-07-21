@@ -1,0 +1,42 @@
+base_config: configs/gov_mem_governance_contract_experimental.yaml
+suite_manifest: experiments/gatemem_suites/gov_mem_dev_episode_hashseed20260715.json
+output_root: outputs/dev_evolution/claimalignment_hashseed20260716
+variants:
+  - name: full_provenance_govmem
+    label: Gov-Mem (claim-level provenance chain)
+    overrides:
+      use_governed_graph: true
+      use_dual_channel_retrieval: true
+      enable_graph_typed_slot_realization: true
+      governance_runtime:
+        use_llm_policy_frame_compiler: true
+  - name: no_governed_graph
+    label: w/o Versioned Governed Graph
+    overrides:
+      use_governed_graph: false
+      use_dual_channel_retrieval: false
+      enable_graph_typed_slot_realization: false
+  - name: no_governance_channel
+    label: w/o Governance Retrieval Channel
+    overrides:
+      use_governed_graph: true
+      use_dual_channel_retrieval: false
+      enable_graph_typed_slot_realization: false
+      governance_runtime:
+        use_llm_policy_frame_compiler: true
+  - name: no_typed_slot_realization
+    label: w/o Graph Typed-Slot Realization
+    overrides:
+      use_governed_graph: true
+      use_dual_channel_retrieval: true
+      enable_graph_typed_slot_realization: false
+      governance_runtime:
+        use_llm_policy_frame_compiler: true
+  - name: no_policy_frame_compiler
+    label: w/o Cited Policy-Frame Compiler
+    overrides:
+      use_governed_graph: true
+      use_dual_channel_retrieval: true
+      enable_graph_typed_slot_realization: false
+      governance_runtime:
+        use_llm_policy_frame_compiler: false

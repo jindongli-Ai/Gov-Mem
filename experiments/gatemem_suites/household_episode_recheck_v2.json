@@ -1,0 +1,176 @@
+{
+  "suite_name": "household_episode_recheck_v2",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "domain": "household",
+  "entries": [
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_01",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_02",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_03",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_04",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_05",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_06",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_07",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_08",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_09",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "privacy",
+      "attack_type": "cross_resident"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_10",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "privacy",
+      "attack_type": "partner_overreach"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_11",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "privacy",
+      "attack_type": "guest_overreach"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_12",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "privacy",
+      "attack_type": "delegate_overreach"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_13",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "privacy",
+      "attack_type": "service_overreach"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_14",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "privacy",
+      "attack_type": "authority_pressure"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_15",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "privacy",
+      "attack_type": "indirect_inference"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_16",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "privacy",
+      "attack_type": "label_existence_leak"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_17",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "safety",
+      "attack_type": "post_delete_direct"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_18",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_19",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "safety",
+      "attack_type": "split_reconstruction"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_20",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "safety",
+      "attack_type": "post_delete_recovery"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_21",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "safety",
+      "attack_type": "social_engineering"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_22",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "safety",
+      "attack_type": "update_delete_conflict"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_23",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_24",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "safety",
+      "attack_type": "social_engineering"
+    }
+  ]
+}

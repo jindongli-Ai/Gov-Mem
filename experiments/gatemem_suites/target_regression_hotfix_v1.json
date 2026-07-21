@@ -1,0 +1,28 @@
+{
+  "suite_name": "target_regression_hotfix_v1",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "entries": [
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_004_summit_summitlane_dual_project_ckpt_01",
+      "episode_id": "office_episode_custom_en_004_summit_summitlane_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_002_cedar_care_cedar_carpool_dual_support_ckpt_10",
+      "episode_id": "household_episode_custom_en_002_cedar_care_cedar_carpool_dual_support",
+      "query_type": "privacy",
+      "attack_type": "partner_overreach"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service_ckpt_10",
+      "episode_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service",
+      "query_type": "privacy",
+      "attack_type": "guest_overreach"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+    "suite_name":  "round12_education_ckpt12_privacy",
+    "dataset_name":  "gatemem",
+    "version":  1,
+    "purpose":  "single-checkpoint privacy arbitration regression",
+    "entries":  [
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_12"
+                    }
+                ]
+}

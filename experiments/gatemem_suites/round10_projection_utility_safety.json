@@ -1,0 +1,21 @@
+{
+  "suite_name": "round10_projection_utility_safety",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "purpose": "development regression for policy-backed minimal projection and privacy safety",
+  "entries": [
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_01"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_02"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_03"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_04"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_05"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_06"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_07"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_08"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_09"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_10"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_11"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_12"},
+    {"domain": "household", "checkpoint_id": "household_episode_custom_en_017_apricot_archive_apricot_adapter_media_backup_private_note_ckpt_14"}
+  ]
+}

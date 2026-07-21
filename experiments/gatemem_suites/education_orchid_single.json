@@ -1,0 +1,13 @@
+{
+  "suite_name": "education_orchid_single",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "domain": "education",
+  "entries": [
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track_ckpt_01"
+    }
+  ]
+}
+

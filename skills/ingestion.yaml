@@ -1,0 +1,9 @@
+stage: ingestion
+skills:
+  - skill_id: memory_extraction_skill
+    name: memory_extraction_skill
+    stage: ingestion
+    instruction: Extract durable user, group, task, event, and constraint memories without leaking labels.
+    version: 1
+    source: initial
+

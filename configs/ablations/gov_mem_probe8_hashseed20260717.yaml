@@ -1,0 +1,14 @@
+base_config: configs/gov_mem_governance_contract_experimental.yaml
+suite_manifest: experiments/gatemem_suites/gov_mem_probe8_hashseed20260717.json
+output_root: outputs/dev_probes/probe8_hashseed20260717
+variants:
+  - name: full_provenance_govmem
+    label: Gov-Mem probe (full provenance chain)
+    overrides:
+      use_governed_graph: true
+      use_dual_channel_retrieval: true
+      enable_graph_typed_slot_realization: true
+      memory:
+        semantic_annotation_cache_dir: cache/semantic_annotations
+      governance_runtime:
+        use_llm_policy_frame_compiler: true

@@ -1,0 +1,13 @@
+{
+  "suite_name": "medical_cardiology_single",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "domain": "medical",
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_002_cardiology_afib_cardioversion_confidential_backup_ckpt_01"
+    }
+  ]
+}
+

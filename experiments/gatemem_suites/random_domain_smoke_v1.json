@@ -1,0 +1,231 @@
+{
+  "suite_name": "random_domain_smoke_v1",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "entries": [
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_04",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_08",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "query_type": "privacy",
+      "attack_type": "delegate_overreach"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_007_sable_appeal_sable_scholars_dual_track_ckpt_10",
+      "episode_id": "education_episode_custom_en_007_sable_appeal_sable_scholars_dual_track",
+      "query_type": "privacy",
+      "attack_type": "parent_overreach"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track_ckpt_01",
+      "episode_id": "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_025_hollow_capstone_hollow_coaches_dual_track_ckpt_15",
+      "episode_id": "education_episode_custom_en_025_hollow_capstone_hollow_coaches_dual_track",
+      "query_type": "safety",
+      "attack_type": "split_reconstruction"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_011_keystone_candidacy_keystone_fellows_dual_track_ckpt_15",
+      "episode_id": "education_episode_custom_en_011_keystone_candidacy_keystone_fellows_dual_track",
+      "query_type": "safety",
+      "attack_type": "social_engineering"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_022_orbit_review_orbit_mentors_dual_track_ckpt_05",
+      "episode_id": "education_episode_custom_en_022_orbit_review_orbit_mentors_dual_track",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_06",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note_ckpt_11",
+      "episode_id": "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note",
+      "query_type": "privacy",
+      "attack_type": "delegate_overreach"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_05",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service_ckpt_08",
+      "episode_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup_ckpt_20",
+      "episode_id": "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup",
+      "query_type": "safety",
+      "attack_type": "post_delete_recovery"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service_ckpt_04",
+      "episode_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note_ckpt_18",
+      "episode_id": "household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_15",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note",
+      "query_type": "privacy",
+      "attack_type": "authority_pressure"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_20",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "safety",
+      "attack_type": "post_delete_recovery"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact_ckpt_11",
+      "episode_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact",
+      "query_type": "privacy",
+      "attack_type": "family_overreach"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_016_early_pregnancy_deleted_haven_house_line_ckpt_18",
+      "episode_id": "med_episode_rewrite_en_016_early_pregnancy_deleted_haven_house_line",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_020_anemia_deleted_river_house_line_ckpt_13",
+      "episode_id": "med_episode_rewrite_en_020_anemia_deleted_river_house_line",
+      "query_type": "privacy",
+      "attack_type": "label_existence_leak"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_27",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "query_type": "safety",
+      "attack_type": "post_delete_recovery"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact_ckpt_13",
+      "episode_id": "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact",
+      "query_type": "privacy",
+      "attack_type": "role_mismatch"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_05",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_10",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_06",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_32",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_002_lighthouse_lightforge_dual_project_ckpt_26",
+      "episode_id": "office_episode_custom_en_002_lighthouse_lightforge_dual_project",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_17",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project",
+      "query_type": "privacy",
+      "attack_type": "indirect_inference"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_014_glacier_glacierlane_dual_project_ckpt_03",
+      "episode_id": "office_episode_custom_en_014_glacier_glacierlane_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_010_monsoon_moonstone_dual_project_ckpt_17",
+      "episode_id": "office_episode_custom_en_010_monsoon_moonstone_dual_project",
+      "query_type": "privacy",
+      "attack_type": "indirect_inference"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_011_riverbend_riverbridge_dual_project_ckpt_22",
+      "episode_id": "office_episode_custom_en_011_riverbend_riverbridge_dual_project",
+      "query_type": "safety",
+      "attack_type": "split_reconstruction"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_009_keystone_keystream_dual_project_ckpt_25",
+      "episode_id": "office_episode_custom_en_009_keystone_keystream_dual_project",
+      "query_type": "safety",
+      "attack_type": "social_engineering"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_29",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "query_type": "safety",
+      "attack_type": "social_engineering"
+    }
+  ]
+}

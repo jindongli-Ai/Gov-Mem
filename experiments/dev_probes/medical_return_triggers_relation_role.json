@@ -1,0 +1,11 @@
+{
+  "suite_name": "medical-return-triggers-relation-role",
+  "version": 1,
+  "purpose": "Structural probe for non-self owner selection and disclosure-policy versus record-fact separation; not a reportable benchmark suite.",
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_10"
+    }
+  ]
+}

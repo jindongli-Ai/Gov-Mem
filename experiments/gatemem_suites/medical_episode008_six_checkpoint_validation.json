@@ -1,0 +1,15 @@
+{
+  "suite_name": "medical_episode008_six_checkpoint_validation",
+  "dataset_name": "checkpoint_benchmark",
+  "version": 1,
+  "domain": "medical",
+  "purpose": "Evenly spaced same-episode validation after collection-governance repair.",
+  "entries": [
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_02"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_06"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_09"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_14"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_20"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_27"}
+  ]
+}

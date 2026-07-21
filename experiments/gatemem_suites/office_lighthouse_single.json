@@ -1,0 +1,13 @@
+{
+  "suite_name": "office_lighthouse_single",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "domain": "office",
+  "entries": [
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_002_lighthouse_lightforge_dual_project_ckpt_01"
+    }
+  ]
+}
+

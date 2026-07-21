@@ -1,0 +1,9 @@
+{
+  "artifact_scope": "development",
+  "allows_adaptation": true,
+  "test_data_used": false,
+  "source_runs": [
+    "/absolute/path/to/development-run-only"
+  ],
+  "notes": "Copy this template for a dev-only analysis workflow. Do not list official test or final-evaluation runs."
+}

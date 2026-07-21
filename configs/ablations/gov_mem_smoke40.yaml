@@ -1,0 +1,93 @@
+base_config: configs/gov_mem_v4_skill_runtime_with_updates.yaml
+suite_manifest: experiments/gatemem_suites/gatemem_smoke40.json
+output_root: outputs/ablation/smoke40
+variants:
+  - name: full_gov_mem
+    label: Gov-Mem
+    overrides:
+      use_governed_graph: true
+      use_dual_channel_retrieval: true
+      use_symbolic_reasoner: true
+      use_deletion_tracking: true
+      use_action_constraints: true
+      use_slot_authorization_map: true
+      use_experience_memory: true
+      use_skill_library: true
+      use_self_evolving_update: true
+      experience_memory_path: outputs/experience/experience_memory.jsonl
+  - name: no_governed_graph
+    label: w/o Governed Graph
+    overrides:
+      use_governed_graph: false
+      use_experience_memory: true
+      use_self_evolving_update: true
+      use_slot_authorization_map: true
+      use_deletion_tracking: true
+      experience_memory_path: outputs/experience/experience_memory.jsonl
+  - name: no_governance_retrieval_channel
+    label: w/o Governance Retrieval Channel
+    overrides:
+      use_dual_channel_retrieval: false
+      use_experience_memory: true
+      use_self_evolving_update: true
+      use_slot_authorization_map: true
+      use_deletion_tracking: true
+      experience_memory_path: outputs/experience/experience_memory.jsonl
+  - name: no_symbolic_governance_reasoner
+    label: w/o Symbolic Governance Reasoner
+    overrides:
+      use_symbolic_reasoner: false
+      use_experience_memory: true
+      use_self_evolving_update: true
+      use_slot_authorization_map: true
+      use_deletion_tracking: true
+      experience_memory_path: outputs/experience/experience_memory.jsonl
+  - name: no_deletion_tombstone_tracking
+    label: w/o Deletion/Tombstone Tracking
+    overrides:
+      use_deletion_tracking: false
+      use_experience_memory: true
+      use_self_evolving_update: true
+      use_slot_authorization_map: true
+      experience_memory_path: outputs/experience/experience_memory.jsonl
+  - name: no_slot_authorization_map
+    label: w/o Slot Authorization Map
+    overrides:
+      use_slot_authorization_map: false
+      use_experience_memory: true
+      use_self_evolving_update: true
+      use_deletion_tracking: true
+      experience_memory_path: outputs/experience/experience_memory.jsonl
+  - name: no_action_constrained_realization
+    label: w/o Action-Constrained Realization
+    overrides:
+      use_action_constraints: false
+      use_experience_memory: true
+      use_self_evolving_update: true
+      use_slot_authorization_map: true
+      use_deletion_tracking: true
+      experience_memory_path: outputs/experience/experience_memory.jsonl
+  - name: no_experience_memory
+    label: w/o Experience Memory
+    overrides:
+      use_experience_memory: false
+      use_self_evolving_update: true
+      use_slot_authorization_map: true
+      use_deletion_tracking: true
+  - name: no_skill_retrieval
+    label: w/o Skill Retrieval
+    overrides:
+      use_skill_library: false
+      use_experience_memory: true
+      use_self_evolving_update: true
+      use_slot_authorization_map: true
+      use_deletion_tracking: true
+      experience_memory_path: outputs/experience/experience_memory.jsonl
+  - name: no_self_evolving_update
+    label: w/o Self-Evolving Update
+    overrides:
+      use_self_evolving_update: false
+      use_experience_memory: true
+      use_slot_authorization_map: true
+      use_deletion_tracking: true
+      experience_memory_path: outputs/experience/experience_memory.jsonl

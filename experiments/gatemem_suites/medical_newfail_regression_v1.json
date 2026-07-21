@@ -1,0 +1,23 @@
+{
+  "suite_name": "medical_newfail_regression_v1",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_006_hyperkalemia_deleted_harbor_house_alias_ckpt_19"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_12"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_01"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_01"
+    }
+  ]
+}

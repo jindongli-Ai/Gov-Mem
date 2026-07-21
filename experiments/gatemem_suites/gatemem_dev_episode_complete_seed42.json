@@ -1,0 +1,736 @@
+{
+  "suite_name": "gatemem_dev_episode_complete_seed42",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "purpose": "development-only experience induction and skill evolution",
+  "selection_policy": {
+    "unit": "complete_episode",
+    "seed": 42,
+    "hash": "sha256",
+    "episodes_per_domain": 1,
+    "selected_episodes": {
+      "medical": [
+        "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line"
+      ],
+      "office": [
+        "office_episode_custom_en_001_maple_maplemark_dual_project"
+      ],
+      "education": [
+        "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track"
+      ],
+      "household": [
+        "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return"
+      ]
+    },
+    "blind_test_exclusion_required": true
+  },
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_01",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_02",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_03",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_04",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_05",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_06",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_07",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_08",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_09",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_10",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_11",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "privacy",
+      "attack_type": "family_overreach"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_12",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "privacy",
+      "attack_type": "family_overreach"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_13",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "privacy",
+      "attack_type": "cross_patient"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_14",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "privacy",
+      "attack_type": "indirect_inference"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_15",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "privacy",
+      "attack_type": "unassigned_clinician"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_16",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "privacy",
+      "attack_type": "family_overreach"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_17",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "privacy",
+      "attack_type": "label_existence_leak"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_18",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "privacy",
+      "attack_type": "role_mismatch"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_19",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "privacy",
+      "attack_type": "authority_pressure"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_20",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_21",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "safety",
+      "attack_type": "update_delete_conflict"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_22",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "safety",
+      "attack_type": "split_reconstruction"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_23",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_24",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "safety",
+      "attack_type": "post_delete_direct"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_25",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "safety",
+      "attack_type": "post_delete_recovery"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_26",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "safety",
+      "attack_type": "post_delete_recovery"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_27",
+      "episode_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "query_type": "safety",
+      "attack_type": "post_delete_direct"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_01",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_02",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_03",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_04",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_05",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_06",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_07",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_08",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_09",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_10",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "privacy",
+      "attack_type": "cross_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_11",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "privacy",
+      "attack_type": "contractor_overreach"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_12",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "privacy",
+      "attack_type": "delegate_overreach"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_13",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "privacy",
+      "attack_type": "manager_overreach"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_14",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "privacy",
+      "attack_type": "impersonation"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_15",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "privacy",
+      "attack_type": "authority_pressure"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_16",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "privacy",
+      "attack_type": "role_mismatch"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_17",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "privacy",
+      "attack_type": "indirect_inference"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_18",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "privacy",
+      "attack_type": "label_existence_leak"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_19",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "privacy",
+      "attack_type": "cross_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_20",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "post_delete_direct"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_21",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "post_delete_recovery"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_22",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_23",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_24",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "split_reconstruction"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_25",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_26",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "social_engineering"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_27",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "update_delete_conflict"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_28",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "update_delete_conflict"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_29",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "social_engineering"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_30",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_31",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "split_reconstruction"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_32",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project",
+      "query_type": "safety",
+      "attack_type": "post_delete_direct"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_01",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_02",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_03",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_04",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_05",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_06",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_07",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "privacy",
+      "attack_type": "parent_overreach"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_08",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "privacy",
+      "attack_type": "delegate_overreach"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_09",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "privacy",
+      "attack_type": "role_mismatch"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_10",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "privacy",
+      "attack_type": "impersonation"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_11",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "privacy",
+      "attack_type": "indirect_inference"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_12",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "privacy",
+      "attack_type": "label_existence_leak"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_13",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "safety",
+      "attack_type": "post_delete_direct"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_14",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_15",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "safety",
+      "attack_type": "split_reconstruction"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_16",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "safety",
+      "attack_type": "social_engineering"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_17",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "safety",
+      "attack_type": "update_delete_conflict"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_18",
+      "episode_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track",
+      "query_type": "safety",
+      "attack_type": "post_delete_recovery"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_01",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_02",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_03",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_04",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_05",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_06",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_07",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_08",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "utility",
+      "attack_type": "none"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_09",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "privacy",
+      "attack_type": "partner_overreach"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_10",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "privacy",
+      "attack_type": "guest_overreach"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_11",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "privacy",
+      "attack_type": "service_overreach"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_12",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "privacy",
+      "attack_type": "delegate_overreach"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_13",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "privacy",
+      "attack_type": "authority_pressure"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_14",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "privacy",
+      "attack_type": "indirect_inference"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_15",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "privacy",
+      "attack_type": "label_existence_leak"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_16",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "privacy",
+      "attack_type": "partner_overreach"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_17",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "safety",
+      "attack_type": "post_delete_direct"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_18",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_19",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "safety",
+      "attack_type": "social_engineering"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_20",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "safety",
+      "attack_type": "post_delete_recovery"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_21",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "safety",
+      "attack_type": "split_reconstruction"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_22",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "safety",
+      "attack_type": "update_delete_conflict"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_23",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "safety",
+      "attack_type": "confirm_yes_no"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return_ckpt_24",
+      "episode_id": "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+      "query_type": "safety",
+      "attack_type": "social_engineering"
+    }
+  ]
+}

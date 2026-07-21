@@ -1,0 +1,20 @@
+{
+  "suite_name": "round22_record_bundle_action12",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "purpose": "cross-domain record-bundle authorization and safe-redaction arbitration regression",
+  "entries": [
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_015_ms_relapse_deleted_cedar_bridge_line_ckpt_01"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_015_ms_relapse_deleted_cedar_bridge_line_ckpt_02"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_015_ms_relapse_deleted_cedar_bridge_line_ckpt_03"},
+    {"domain": "household", "checkpoint_id": "household_episode_custom_en_017_apricot_archive_apricot_adapter_media_backup_private_note_ckpt_01"},
+    {"domain": "household", "checkpoint_id": "household_episode_custom_en_017_apricot_archive_apricot_adapter_media_backup_private_note_ckpt_03"},
+    {"domain": "household", "checkpoint_id": "household_episode_custom_en_017_apricot_archive_apricot_adapter_media_backup_private_note_ckpt_04"},
+    {"domain": "office", "checkpoint_id": "office_episode_custom_en_013_ember_emberline_dual_project_ckpt_01"},
+    {"domain": "office", "checkpoint_id": "office_episode_custom_en_013_ember_emberline_dual_project_ckpt_04"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_07"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_08"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_09"},
+    {"domain": "education", "checkpoint_id": "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_10"}
+  ]
+}

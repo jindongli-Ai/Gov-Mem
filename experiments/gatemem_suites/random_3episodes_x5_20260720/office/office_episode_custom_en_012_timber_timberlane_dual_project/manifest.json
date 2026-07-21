@@ -1,0 +1,66 @@
+{
+  "suite_name": "random_3episodes_x5_20260720:office:office_episode_custom_en_012_timber_timberlane_dual_project",
+  "dataset_name": "checkpoint_benchmark",
+  "version": 1,
+  "purpose": "Fixed random blind cross-domain probe; no answer or scorer fields used.",
+  "selection_policy": {
+    "seed": 20260720,
+    "domains": [
+      "medical",
+      "office",
+      "education",
+      "household"
+    ],
+    "episodes_per_domain": 3,
+    "checkpoints_per_episode": 5,
+    "selected_episodes": {
+      "medical": [
+        "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact",
+        "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+        "med_episode_rewrite_en_020_anemia_deleted_river_house_line"
+      ],
+      "office": [
+        "office_episode_custom_en_001_maple_maplemark_dual_project",
+        "office_episode_custom_en_012_timber_timberlane_dual_project",
+        "office_episode_custom_en_011_riverbend_riverbridge_dual_project"
+      ],
+      "education": [
+        "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+        "education_episode_custom_en_025_hollow_capstone_hollow_coaches_dual_track",
+        "education_episode_custom_en_022_orbit_review_orbit_mentors_dual_track"
+      ],
+      "household": [
+        "household_episode_custom_en_007_juniper_paws_juniper_parcel_pet_courier",
+        "household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note",
+        "household_episode_custom_en_012_birch_booth_birch_bins_yardsale_donation_private_note"
+      ]
+    }
+  },
+  "entries": [
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_012_timber_timberlane_dual_project",
+      "checkpoint_id": "office_episode_custom_en_012_timber_timberlane_dual_project_ckpt_02"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_012_timber_timberlane_dual_project",
+      "checkpoint_id": "office_episode_custom_en_012_timber_timberlane_dual_project_ckpt_04"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_012_timber_timberlane_dual_project",
+      "checkpoint_id": "office_episode_custom_en_012_timber_timberlane_dual_project_ckpt_08"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_012_timber_timberlane_dual_project",
+      "checkpoint_id": "office_episode_custom_en_012_timber_timberlane_dual_project_ckpt_28"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_012_timber_timberlane_dual_project",
+      "checkpoint_id": "office_episode_custom_en_012_timber_timberlane_dual_project_ckpt_32"
+    }
+  ]
+}

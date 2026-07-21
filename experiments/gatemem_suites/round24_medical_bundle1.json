@@ -1,0 +1,9 @@
+{
+  "suite_name": "round24_medical_bundle1",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "purpose": "normal planner record-bundle routing verification",
+  "entries": [
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_015_ms_relapse_deleted_cedar_bridge_line_ckpt_01"}
+  ]
+}

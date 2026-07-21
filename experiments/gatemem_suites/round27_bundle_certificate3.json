@@ -1,0 +1,11 @@
+{
+  "suite_name": "round27_bundle_certificate3",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "purpose": "owner record-bundle certificate and medical bundle generalization",
+  "entries": [
+    {"domain": "household", "checkpoint_id": "household_episode_custom_en_017_apricot_archive_apricot_adapter_media_backup_private_note_ckpt_01"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_015_ms_relapse_deleted_cedar_bridge_line_ckpt_02"},
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_015_ms_relapse_deleted_cedar_bridge_line_ckpt_03"}
+  ]
+}

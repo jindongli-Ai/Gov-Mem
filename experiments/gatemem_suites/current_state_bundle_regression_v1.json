@@ -1,0 +1,23 @@
+{
+  "suite_name": "current_state_bundle_regression_v1",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "entries": [
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_01"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_01"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_003_cedar_review_cedar_commons_dual_track_ckpt_01"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track_ckpt_01"
+    }
+  ]
+}

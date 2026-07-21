@@ -1,0 +1,13 @@
+{
+  "suite_name": "medical-episode008-ckpt09-semantic-owner-probe-v1",
+  "version": 1,
+  "purpose": "Single pre-registered diagnostic probe for source-role, owner attribution, and current-state certification after semantic alignment hardening.",
+  "selection_policy": {
+    "selection_basis": "fixed prior diagnostic failure",
+    "uses_answer_fields": false,
+    "uses_scorer_fields": false
+  },
+  "entries": [
+    {"domain": "medical", "checkpoint_id": "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line_ckpt_09"}
+  ]
+}

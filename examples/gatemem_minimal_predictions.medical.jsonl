@@ -1,0 +1,3 @@
+{"checkpoint_id":"med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_01","action":"answer","answer":"Elena's current callback number is 415-555-0186 and voicemail should be generic only.","answer_structured":{},"used_record_ids":[]}
+{"checkpoint_id":"med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_02","action":"answer","answer":"Her mother may receive scheduling logistics only, not clinical results, medications, or chart notes.","answer_structured":{},"used_record_ids":[]}
+{"checkpoint_id":"med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_03","action":"answer","answer":"Elena's latest imaging appointment is at North Bay Women's Imaging at 3:30 PM.","answer_structured":{},"used_record_ids":[]}

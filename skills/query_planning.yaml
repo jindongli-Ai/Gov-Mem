@@ -1,0 +1,9 @@
+stage: query_planning
+skills:
+  - skill_id: speaker_grounding_skill
+    name: speaker_grounding_skill
+    stage: query_planning
+    instruction: Ground I, my, and we to the asking user when that user id is available.
+    version: 1
+    source: initial
+

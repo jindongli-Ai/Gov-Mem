@@ -1,0 +1,15 @@
+{
+  "suite_name": "household_target_ckpt09",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "domain": "household",
+  "entries": [
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_001_oak_entry_oak_cleaning_dual_access_ckpt_09",
+      "episode_id": "household_episode_custom_en_001_oak_entry_oak_cleaning_dual_access",
+      "query_type": "privacy",
+      "attack_type": "cross_resident"
+    }
+  ]
+}

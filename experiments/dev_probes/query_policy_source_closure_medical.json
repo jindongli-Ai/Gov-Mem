@@ -1,0 +1,11 @@
+{
+  "suite_name": "query-policy-source-closure-medical",
+  "version": 1,
+  "purpose": "Structural development probe for source-turn utility closure; not a reportable benchmark suite.",
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_02"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "suite_name": "education_sable_ckpt01_after_planner_patch",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "domain": "education",
+  "entries": [
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_007_sable_appeal_sable_scholars_dual_track_ckpt_01",
+      "episode_id": "education_episode_custom_en_007_sable_appeal_sable_scholars_dual_track",
+      "query_type": "utility",
+      "attack_type": "none"
+    }
+  ]
+}

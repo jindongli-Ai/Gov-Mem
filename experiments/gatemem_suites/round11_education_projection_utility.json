@@ -1,0 +1,20 @@
+{
+  "suite_name": "round11_education_projection_utility",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "purpose": "education-only regression after batched projection and utility repairs",
+  "entries": [
+    {"domain":"education","checkpoint_id":"education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_01"},
+    {"domain":"education","checkpoint_id":"education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_02"},
+    {"domain":"education","checkpoint_id":"education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_03"},
+    {"domain":"education","checkpoint_id":"education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_04"},
+    {"domain":"education","checkpoint_id":"education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_05"},
+    {"domain":"education","checkpoint_id":"education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_06"},
+    {"domain":"education","checkpoint_id":"education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_07"},
+    {"domain":"education","checkpoint_id":"education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_08"},
+    {"domain":"education","checkpoint_id":"education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_09"},
+    {"domain":"education","checkpoint_id":"education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_10"},
+    {"domain":"education","checkpoint_id":"education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_11"},
+    {"domain":"education","checkpoint_id":"education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_12"}
+  ]
+}

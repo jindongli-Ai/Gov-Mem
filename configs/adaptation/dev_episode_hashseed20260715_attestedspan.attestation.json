@@ -1,0 +1,18 @@
+{
+  "artifact_scope": "development",
+  "allows_adaptation": true,
+  "test_data_used": false,
+  "source_runs": [
+    "/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/dev_evolution/attestedspan_alignment_hashseed20260716/full_provenance_govmem",
+    "/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/dev_evolution/attestedspan_alignment_hashseed20260716/no_governed_graph",
+    "/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/dev_evolution/attestedspan_alignment_hashseed20260716/no_governance_channel",
+    "/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/dev_evolution/attestedspan_alignment_hashseed20260716/no_typed_slot_realization",
+    "/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/dev_evolution/attestedspan_alignment_hashseed20260716/no_policy_frame_compiler"
+  ],
+  "manifest": "experiments/gatemem_suites/gov_mem_dev_episode_hashseed20260715.json",
+  "partition_unit": "complete_episode",
+  "partition_seed": 20260715,
+  "selection_method": "sha256(seed|domain|episode_id)",
+  "blind_test_exclusion_required": true,
+  "notes": "Frozen attested-span alignment development protocol. The ID-only selector uses no answer, query/attack, evidence, or scorer fields. Runtime provenance is audited before scoring; generated updates remain disabled."
+}

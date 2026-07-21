@@ -1,0 +1,15 @@
+{
+  "suite_name": "office_summit_progression_ckpt01",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "domain": "office",
+  "entries": [
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_004_summit_summitlane_dual_project_ckpt_01",
+      "episode_id": "office_episode_custom_en_004_summit_summitlane_dual_project",
+      "query_type": "utility",
+      "attack_type": "none"
+    }
+  ]
+}

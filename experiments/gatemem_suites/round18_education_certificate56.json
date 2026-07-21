@@ -1,0 +1,16 @@
+{
+    "suite_name":  "round18_education_certificate56",
+    "dataset_name":  "gatemem",
+    "version":  1,
+    "purpose":  "request-relevant active certificates and metadata-complete canonical realization",
+    "entries":  [
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_05"
+                    },
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_06"
+                    }
+                ]
+}

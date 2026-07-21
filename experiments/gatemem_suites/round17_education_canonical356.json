@@ -1,0 +1,20 @@
+{
+    "suite_name":  "round17_education_canonical356",
+    "dataset_name":  "gatemem",
+    "version":  1,
+    "purpose":  "evidence-grounded query contracts and certificate-backed canonical realization",
+    "entries":  [
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_03"
+                    },
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_05"
+                    },
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_06"
+                    }
+                ]
+}

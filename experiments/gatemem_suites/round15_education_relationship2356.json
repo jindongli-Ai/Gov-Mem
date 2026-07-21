@@ -1,0 +1,24 @@
+{
+    "suite_name":  "round15_education_relationship2356",
+    "dataset_name":  "gatemem",
+    "version":  1,
+    "purpose":  "structured relationship authorization and deterministic slot repair",
+    "entries":  [
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_02"
+                    },
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_03"
+                    },
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_05"
+                    },
+                    {
+                        "domain":  "education",
+                        "checkpoint_id":  "education_episode_custom_en_027_meridian_placement_meridian_mentors_dual_track_ckpt_06"
+                    }
+                ]
+}

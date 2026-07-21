@@ -1,0 +1,457 @@
+{
+  "suite_name": "random_medical_office_education_household_20260722",
+  "dataset_name": "checkpoint_benchmark",
+  "version": 1,
+  "purpose": "Fixed random blind regression over the declared domains.",
+  "selection_policy": {
+    "seed": 20260722,
+    "episodes_per_domain": 4,
+    "checkpoints_per_episode": 5,
+    "domains": [
+      "medical",
+      "office",
+      "education",
+      "household"
+    ],
+    "selected_episodes": {
+      "medical": [
+        "med_episode_rewrite_en_021_gender_clinic_deleted_harbor_bridge_line",
+        "med_episode_rewrite_en_001_early_pregnancy_confidential_contact",
+        "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+        "med_episode_rewrite_en_006_hyperkalemia_deleted_harbor_house_alias"
+      ],
+      "office": [
+        "office_episode_custom_en_010_monsoon_moonstone_dual_project",
+        "office_episode_custom_en_007_pinecrest_pinegrid_dual_project",
+        "office_episode_custom_en_001_maple_maplemark_dual_project",
+        "office_episode_custom_en_009_keystone_keystream_dual_project"
+      ],
+      "education": [
+        "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track",
+        "education_episode_custom_en_017_solstice_clearance_solstice_guides_dual_track",
+        "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track",
+        "education_episode_custom_en_008_cobalt_placement_cobalt_fellows_dual_track"
+      ],
+      "household": [
+        "household_episode_custom_en_003_maple_watch_maple_works_travel_service",
+        "household_episode_custom_en_012_birch_booth_birch_bins_yardsale_donation_private_note",
+        "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note",
+        "household_episode_custom_en_014_cypress_storm_cypress_supply_readiness_private_note"
+      ]
+    },
+    "available_episode_counts": {
+      "medical": 21,
+      "office": 17,
+      "education": 30,
+      "household": 23
+    },
+    "uses_answer_fields": false,
+    "uses_query_type_fields": false,
+    "uses_attack_type_fields": false,
+    "uses_evidence_fields": false,
+    "uses_scorer_fields": false,
+    "dataset_identity_sha256": "a9b2298a899a3750b1eeda6f40568f6ba6b60de4bb85099279e9445e2c2f34f2"
+  },
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_021_gender_clinic_deleted_harbor_bridge_line_ckpt_08",
+      "episode_id": "med_episode_rewrite_en_021_gender_clinic_deleted_harbor_bridge_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_021_gender_clinic_deleted_harbor_bridge_line_ckpt_17",
+      "episode_id": "med_episode_rewrite_en_021_gender_clinic_deleted_harbor_bridge_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_021_gender_clinic_deleted_harbor_bridge_line_ckpt_01",
+      "episode_id": "med_episode_rewrite_en_021_gender_clinic_deleted_harbor_bridge_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_021_gender_clinic_deleted_harbor_bridge_line_ckpt_26",
+      "episode_id": "med_episode_rewrite_en_021_gender_clinic_deleted_harbor_bridge_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_021_gender_clinic_deleted_harbor_bridge_line_ckpt_03",
+      "episode_id": "med_episode_rewrite_en_021_gender_clinic_deleted_harbor_bridge_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_18",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_20",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_21",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_23",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_10",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_07",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_19",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_17",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_09",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_25",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_006_hyperkalemia_deleted_harbor_house_alias_ckpt_16",
+      "episode_id": "med_episode_rewrite_en_006_hyperkalemia_deleted_harbor_house_alias"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_006_hyperkalemia_deleted_harbor_house_alias_ckpt_01",
+      "episode_id": "med_episode_rewrite_en_006_hyperkalemia_deleted_harbor_house_alias"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_006_hyperkalemia_deleted_harbor_house_alias_ckpt_13",
+      "episode_id": "med_episode_rewrite_en_006_hyperkalemia_deleted_harbor_house_alias"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_006_hyperkalemia_deleted_harbor_house_alias_ckpt_05",
+      "episode_id": "med_episode_rewrite_en_006_hyperkalemia_deleted_harbor_house_alias"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_006_hyperkalemia_deleted_harbor_house_alias_ckpt_04",
+      "episode_id": "med_episode_rewrite_en_006_hyperkalemia_deleted_harbor_house_alias"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_010_monsoon_moonstone_dual_project_ckpt_26",
+      "episode_id": "office_episode_custom_en_010_monsoon_moonstone_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_010_monsoon_moonstone_dual_project_ckpt_24",
+      "episode_id": "office_episode_custom_en_010_monsoon_moonstone_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_010_monsoon_moonstone_dual_project_ckpt_11",
+      "episode_id": "office_episode_custom_en_010_monsoon_moonstone_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_010_monsoon_moonstone_dual_project_ckpt_14",
+      "episode_id": "office_episode_custom_en_010_monsoon_moonstone_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_010_monsoon_moonstone_dual_project_ckpt_21",
+      "episode_id": "office_episode_custom_en_010_monsoon_moonstone_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_007_pinecrest_pinegrid_dual_project_ckpt_15",
+      "episode_id": "office_episode_custom_en_007_pinecrest_pinegrid_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_007_pinecrest_pinegrid_dual_project_ckpt_01",
+      "episode_id": "office_episode_custom_en_007_pinecrest_pinegrid_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_007_pinecrest_pinegrid_dual_project_ckpt_25",
+      "episode_id": "office_episode_custom_en_007_pinecrest_pinegrid_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_007_pinecrest_pinegrid_dual_project_ckpt_04",
+      "episode_id": "office_episode_custom_en_007_pinecrest_pinegrid_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_007_pinecrest_pinegrid_dual_project_ckpt_28",
+      "episode_id": "office_episode_custom_en_007_pinecrest_pinegrid_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_29",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_16",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_30",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_31",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_06",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_009_keystone_keystream_dual_project_ckpt_28",
+      "episode_id": "office_episode_custom_en_009_keystone_keystream_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_009_keystone_keystream_dual_project_ckpt_15",
+      "episode_id": "office_episode_custom_en_009_keystone_keystream_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_009_keystone_keystream_dual_project_ckpt_06",
+      "episode_id": "office_episode_custom_en_009_keystone_keystream_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_009_keystone_keystream_dual_project_ckpt_16",
+      "episode_id": "office_episode_custom_en_009_keystone_keystream_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_009_keystone_keystream_dual_project_ckpt_01",
+      "episode_id": "office_episode_custom_en_009_keystone_keystream_dual_project"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track_ckpt_16",
+      "episode_id": "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track_ckpt_03",
+      "episode_id": "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track_ckpt_06",
+      "episode_id": "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track_ckpt_18",
+      "episode_id": "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track_ckpt_15",
+      "episode_id": "education_episode_custom_en_028_cinder_clearance_cinder_connectors_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_017_solstice_clearance_solstice_guides_dual_track_ckpt_04",
+      "episode_id": "education_episode_custom_en_017_solstice_clearance_solstice_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_017_solstice_clearance_solstice_guides_dual_track_ckpt_12",
+      "episode_id": "education_episode_custom_en_017_solstice_clearance_solstice_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_017_solstice_clearance_solstice_guides_dual_track_ckpt_03",
+      "episode_id": "education_episode_custom_en_017_solstice_clearance_solstice_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_017_solstice_clearance_solstice_guides_dual_track_ckpt_02",
+      "episode_id": "education_episode_custom_en_017_solstice_clearance_solstice_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_017_solstice_clearance_solstice_guides_dual_track_ckpt_14",
+      "episode_id": "education_episode_custom_en_017_solstice_clearance_solstice_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_05",
+      "episode_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_12",
+      "episode_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_18",
+      "episode_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_07",
+      "episode_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_13",
+      "episode_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_008_cobalt_placement_cobalt_fellows_dual_track_ckpt_13",
+      "episode_id": "education_episode_custom_en_008_cobalt_placement_cobalt_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_008_cobalt_placement_cobalt_fellows_dual_track_ckpt_18",
+      "episode_id": "education_episode_custom_en_008_cobalt_placement_cobalt_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_008_cobalt_placement_cobalt_fellows_dual_track_ckpt_17",
+      "episode_id": "education_episode_custom_en_008_cobalt_placement_cobalt_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_008_cobalt_placement_cobalt_fellows_dual_track_ckpt_08",
+      "episode_id": "education_episode_custom_en_008_cobalt_placement_cobalt_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_008_cobalt_placement_cobalt_fellows_dual_track_ckpt_14",
+      "episode_id": "education_episode_custom_en_008_cobalt_placement_cobalt_fellows_dual_track"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service_ckpt_15",
+      "episode_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service_ckpt_08",
+      "episode_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service_ckpt_17",
+      "episode_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service_ckpt_01",
+      "episode_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service_ckpt_02",
+      "episode_id": "household_episode_custom_en_003_maple_watch_maple_works_travel_service"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_012_birch_booth_birch_bins_yardsale_donation_private_note_ckpt_02",
+      "episode_id": "household_episode_custom_en_012_birch_booth_birch_bins_yardsale_donation_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_012_birch_booth_birch_bins_yardsale_donation_private_note_ckpt_20",
+      "episode_id": "household_episode_custom_en_012_birch_booth_birch_bins_yardsale_donation_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_012_birch_booth_birch_bins_yardsale_donation_private_note_ckpt_09",
+      "episode_id": "household_episode_custom_en_012_birch_booth_birch_bins_yardsale_donation_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_012_birch_booth_birch_bins_yardsale_donation_private_note_ckpt_21",
+      "episode_id": "household_episode_custom_en_012_birch_booth_birch_bins_yardsale_donation_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_012_birch_booth_birch_bins_yardsale_donation_private_note_ckpt_08",
+      "episode_id": "household_episode_custom_en_012_birch_booth_birch_bins_yardsale_donation_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note_ckpt_24",
+      "episode_id": "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note_ckpt_09",
+      "episode_id": "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note_ckpt_07",
+      "episode_id": "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note_ckpt_06",
+      "episode_id": "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note_ckpt_20",
+      "episode_id": "household_episode_custom_en_009_linden_lesson_linden_listen_tutor_music_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_014_cypress_storm_cypress_supply_readiness_private_note_ckpt_07",
+      "episode_id": "household_episode_custom_en_014_cypress_storm_cypress_supply_readiness_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_014_cypress_storm_cypress_supply_readiness_private_note_ckpt_14",
+      "episode_id": "household_episode_custom_en_014_cypress_storm_cypress_supply_readiness_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_014_cypress_storm_cypress_supply_readiness_private_note_ckpt_12",
+      "episode_id": "household_episode_custom_en_014_cypress_storm_cypress_supply_readiness_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_014_cypress_storm_cypress_supply_readiness_private_note_ckpt_01",
+      "episode_id": "household_episode_custom_en_014_cypress_storm_cypress_supply_readiness_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_014_cypress_storm_cypress_supply_readiness_private_note_ckpt_13",
+      "episode_id": "household_episode_custom_en_014_cypress_storm_cypress_supply_readiness_private_note"
+    }
+  ]
+}

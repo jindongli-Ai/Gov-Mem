@@ -1,0 +1,15 @@
+{
+  "suite_name": "household_beacon_ckpt01_after_household_patch",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "domain": "household",
+  "entries": [
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device_ckpt_01",
+      "episode_id": "household_episode_custom_en_004_beacon_guest_beacon_guestmode_event_device",
+      "query_type": "utility",
+      "attack_type": "none"
+    }
+  ]
+}
