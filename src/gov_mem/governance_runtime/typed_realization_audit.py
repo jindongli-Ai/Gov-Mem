@@ -161,10 +161,19 @@ def realize_typed_request(
     chosen: list[dict[str, Any]] = []
     seen_scalar: set[str] = set()
     seen_values: set[tuple[str, str, str]] = set()
+    best_collection_item: dict[tuple[str, str, str], dict[str, Any]] = {}
     for item in accepted:
         key = (item["attribute"], item["memory_id"], item["value"])
         if key in seen_values:
             continue
+        if item["attribute"] in collection_attributes:
+            source_slot = (item["attribute"], item["memory_id"], item["slot_name"])
+            prior = best_collection_item.get(source_slot)
+            if prior is not None:
+                if len(str(prior.get("value") or "")) >= len(str(item.get("value") or "")):
+                    continue
+                chosen.remove(prior)
+            best_collection_item[source_slot] = item
         if item["attribute"] not in collection_attributes and item["attribute"] in seen_scalar:
             continue
         seen_values.add(key)
@@ -264,10 +273,43 @@ def _requested_attributes(semantic_spec: dict[str, Any]) -> list[str]:
 
 def _implicit_collection_attribute(attribute: str, semantic_spec: dict[str, Any]) -> bool:
     """Recognize open-schema bundle labels without domain vocabulary."""
+    target = str(attribute or "").strip()
+    explicit_binding_seen = False
+    for key in ("attribute_bindings", "certifiable_needs"):
+        for item in list(semantic_spec.get(key) or []):
+            if not isinstance(item, dict):
+                continue
+            item_attribute = str(item.get("attribute") or item.get("need_id") or "").strip()
+            if item_attribute != target:
+                continue
+            explicit_binding_seen = True
+            binding_kind = str(item.get("need_kind") or item.get("binding_kind") or "").strip().lower()
+            return binding_kind in {"record_collection", "collection", "list"}
+    # Once the planner has named a scalar field explicitly, the outer request
+    # shape must not reinterpret that field as a collection.  This matters
+    # for mixed requests such as {start, stop, changes, plan}.
+    if explicit_binding_seen:
+        return False
     tokens = set(re.findall(r"[a-z0-9]+", str(attribute or "").lower()))
     if tokens & {"snapshot", "summary", "overview", "recap", "plan"}:
         return True
     return str(semantic_spec.get("request_shape") or "").strip().lower() in {"list", "plan"}
+
+
+def _is_collection_attribute(attribute: str, semantic_spec: dict[str, Any]) -> bool:
+    """Read explicit collection binding before applying open-schema cues."""
+    target = str(attribute or "").strip()
+    for key in ("attribute_bindings", "certifiable_needs"):
+        for item in list(semantic_spec.get(key) or []):
+            if not isinstance(item, dict):
+                continue
+            item_attribute = str(item.get("attribute") or item.get("need_id") or "").strip()
+            if item_attribute != target:
+                continue
+            return str(item.get("need_kind") or item.get("binding_kind") or "").strip().lower() in {
+                "record_collection", "collection", "list"
+            }
+    return _implicit_collection_attribute(target, semantic_spec)
 
 
 def _record_payload(evidence: list[RetrievedEvidence]) -> list[dict[str, Any]]:
@@ -389,6 +431,7 @@ def _record_payload(evidence: list[RetrievedEvidence]) -> list[dict[str, Any]]:
                     "attribute": str(field.get("attribute") or "").strip(),
                     "slot_name": str(field.get("slot_name") or "").strip(),
                     "value": str(field.get("value") or "").strip(),
+                    "claim_span": str(field.get("claim_span") or "").strip(),
                     "evidence_span": str(field.get("evidence_span") or source_text).strip(),
                     "source_memory_id": memory_id,
                 }
@@ -420,6 +463,7 @@ def _record_payload(evidence: list[RetrievedEvidence]) -> list[dict[str, Any]]:
                     "attribute": str(candidate.get("attribute") or "").strip(),
                     "slot_name": str(candidate.get("slot_name") or "").strip(),
                     "value": str(candidate.get("value") or "").strip(),
+                    "claim_span": str(candidate.get("claim_span") or "").strip(),
                     "evidence_span": str(candidate.get("evidence_span") or source_text).strip(),
                     "source_memory_id": str(candidate.get("source_memory_id") or memory_id),
                 }
@@ -535,6 +579,17 @@ def _attribute_bound_fallbacks(
             slot_name = str(candidate.get("slot_name") or "").strip()
             value = str(candidate.get("value") or "").strip()
             evidence_span = str(candidate.get("evidence_span") or source_text).strip()
+            claim_span = str(candidate.get("claim_span") or "").strip()
+            if (
+                _is_collection_attribute(attribute, semantic_spec or {})
+                and claim_span
+                and value in claim_span
+                and claim_span in source_text
+            ):
+                # An extractor slot can retain only the first member of a
+                # list-shaped claim. The adjudicated claim span is the
+                # source-local complete value for that collection.
+                value = claim_span
             if (
                 not slot_name
                 or not value

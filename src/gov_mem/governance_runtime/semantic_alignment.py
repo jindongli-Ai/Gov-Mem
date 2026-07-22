@@ -149,8 +149,9 @@ def align_requested_attributes(
                     and str(row.get("slot_role") or "").strip().lower() == "claim_value"
                     and str(row.get("source_text") or "")
                     and (
-                        str(adjudicated.get("value") or "") in str(row.get("source_text") or "")
+                        str(row.get("slot_value") or "") == str(adjudicated.get("value") or "")
                         or str(row.get("slot_value") or "") in str(adjudicated.get("value") or "")
+                        or str(adjudicated.get("value") or "") in str(row.get("slot_value") or "")
                     )
                 ]
                 source_atoms = {str(row.get("source_atom_id") or "") for row in local_record}

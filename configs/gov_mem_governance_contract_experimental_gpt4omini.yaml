@@ -124,9 +124,13 @@ use_dual_channel_retrieval: true
 require_attested_evidence_span: true
 use_symbolic_reasoner: false
 use_action_constraints: false
-use_experience_memory: false
-use_skill_library: false
+use_experience_memory: true
+use_skill_library: true
 use_self_evolving_update: false
+adaptation_effect_mode: lightweight
+experience_top_k: 2
+experience_memory_path: outputs/dev_evolution/artifacts/experience/experience_memory.jsonl
+skill_library_path: outputs/dev_evolution/artifacts/skills/governance_skill_library.jsonl
 fallback_to_v0_on_low_confidence: true
 
 runner:

@@ -334,8 +334,10 @@ STATE_BLOCKER_RE = re.compile(
     re.IGNORECASE,
 )
 STATE_SAFE_WORDING_RE = re.compile(
-    r"(?:safe(?:\s+case)?\s+wording|safe(?:-summary|\s+summary)?\s+(?:note|label)|public wording|described only as)\s*"
-    r"(?:should stay|remains|is|:)?\s*(?:the\s+file\s+may\s+be\s+described\s+only\s+as\s+)?['\"]?([^'\";,.]+(?: [^'\";,.]+)*)['\"]?",
+    r"(?:safe(?:\s+case)?\s+wording|broad\s+safe\s+wording|safe(?:-summary|\s+summary)?\s+(?:note|label)|public wording|described only as)\s*"
+    r"(?:for\s+(?:the\s+)?(?:broad\s+)?reference\s+)?"
+    r"(?:should stay|remains|is(?:\s+simply)?|simply|:)?\s*"
+    r"(?:the\s+file\s+may\s+be\s+described\s+only\s+as\s+)?['\"]?([^'\";,.]+(?: [^'\";,.]+)*)['\"]?",
     re.IGNORECASE,
 )
 STATE_ACCESS_ROOM_RE = re.compile(

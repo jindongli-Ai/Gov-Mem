@@ -222,10 +222,12 @@ def _should_prefer_graph_utility_projection(
         return False
     graph_fields = _projection_typed_field_keys(graph_projection)
     utility_fields = _projection_typed_field_keys(utility_projection)
-    # Equal typed coverage still favors the graph projection: it has passed
-    # the explicit source-span and lifecycle checks, while the utility
-    # projection may retain a sentence-shaped LLM alias.
-    return len(graph_fields) >= len(utility_fields)
+    # Utility projection size is not a quality signal: it can contain stale
+    # aliases and duplicate fields from the same closed source set. Once the
+    # graph certificate is complete, its field-level lifecycle and provenance
+    # checks make it the canonical utility projection even when the noisier
+    # utility row contains more typed keys.
+    return bool(graph_fields) and bool(utility_fields or graph_fields)
 
 
 class RAGPolicyAMemBackbone:
@@ -1185,6 +1187,21 @@ class RAGPolicyAMemBackbone:
             llm_client=self.llm_client,
             model_name=resolve_llm_model(self.config, "action_decision"),
         )
+        # Relevance filtering may discard a policy atom whose surface text
+        # resembles the query, even though its typed state delta is an
+        # independent revoke operation.  Feed such atoms to action policy
+        # adjudication only; they never become renderable answer evidence.
+        action_policy_evidence = list(combined)
+        action_policy_ids = {str(row.memory_id) for row in action_policy_evidence}
+        for row in stage2_candidates:
+            semantic_tags = dict((row.metadata or {}).get("semantic_tags") or {})
+            state_delta = dict(semantic_tags.get("state_delta") or {})
+            if str(state_delta.get("operation") or "").strip().lower() not in {"revoke", "remove"}:
+                continue
+            if str(row.memory_id) in action_policy_ids:
+                continue
+            action_policy_evidence.append(row)
+            action_policy_ids.add(str(row.memory_id))
         reasoning_state.reasoning_trace.append(
             "graph slot authorization: "
             f"{graph_authorization_certificate.get('reason')}"
@@ -1192,7 +1209,7 @@ class RAGPolicyAMemBackbone:
         action_decision = action_predictor.decide(
             instance=instance,
             plan=plan,
-            evidence=combined,
+            evidence=action_policy_evidence,
             projected_evidence=selected_evidence,
             required_slot_plan=required_slot_plan,
             slot_coverage=slot_coverage,
@@ -1202,6 +1219,22 @@ class RAGPolicyAMemBackbone:
             verified_owner_user_id=owner_user_id,
             verified_relation_to_owner=principal.relation_to_owner,
         )
+        # A deleted-predecessor request must remain terminal even when the
+        # action model sees the deletion sentence's subject as an answerable
+        # fact. The graph certificate is the source-boundary check; once it
+        # rejects that historical subject projection, do not reopen raw
+        # Stage-2 evidence through the utility fallback.
+        explicit_deleted_history_request = bool(
+            str(plan.semantic_spec.get("temporal_scope") or "").lower() == "historical"
+            and self._query_explicitly_requests_deleted_content(instance.question.lower())
+            and self._query_explicitly_requests_historical_content(instance.question.lower())
+            and not graph_authorization_certificate.get("authorized")
+        )
+        if explicit_deleted_history_request:
+            action_decision.action = "no_memory"
+            reasoning_state.reasoning_trace.append(
+                "deleted historical recovery request remained no_memory after graph subject projection rejection."
+            )
         if bool(graph_authorization_certificate.get("authorized")):
             # A complete graph certificate has already proved the exact
             # releasable projection. Its authorization decision is stronger
@@ -1443,12 +1476,6 @@ class RAGPolicyAMemBackbone:
                     if utility_adjudicated_projection
                     else stage2_allowed
                 )
-                support_completion_rows = [
-                    row for row in selected_evidence
-                    if str(
-                        ((row.metadata or {}).get("support_completion") or {}).get("kind") or ""
-                    ) == "household_full_date_anchor"
-                ]
                 if evaluation_query_type == "utility" and utility_realization_evidence:
                     requested_attributes = [
                         str(attribute).strip()
@@ -1489,11 +1516,6 @@ class RAGPolicyAMemBackbone:
                         )
                     )
                     if audited is not None and audited.answer_text:
-                        if support_completion_rows:
-                            answer_result = _append_verified_support_date(
-                                answer_result,
-                                support_completion_rows,
-                            )
                         selected_evidence[:] = [
                             row
                             for row in utility_realization_evidence
@@ -1584,17 +1606,6 @@ class RAGPolicyAMemBackbone:
                 action="answer",
                 semantic_spec=plan.semantic_spec,
             )
-            support_completion_rows = [
-                row for row in allowed
-                if str(
-                    ((row.metadata or {}).get("support_completion") or {}).get("kind") or ""
-                ) == "household_full_date_anchor"
-            ]
-            if support_completion_rows:
-                certified_answer = _append_verified_support_date(
-                    certified_answer,
-                    support_completion_rows,
-                )
             if certified_answer.answer_text:
                 answer_result = certified_answer
                 action = "answer"
@@ -2386,7 +2397,6 @@ class RAGPolicyAMemBackbone:
         policy_scope,
         allow_canonical_projection: bool,
     ) -> tuple[list[dict[str, Any]], list[str]]:
-        target_frame_types = set(required_slot_plan.get("target_frame_types") or [])
         required_slots = set(required_slot_plan.get("required_slots") or [])
         existing_ids = {row.memory_id for row in selected_evidence}
         covered_slots = {
@@ -2577,55 +2587,6 @@ class RAGPolicyAMemBackbone:
                     + ", ".join(sorted(set(required_slots) - set(winners)))
                 )
 
-        optional_slots = {
-            str(slot).strip()
-            for slot in required_slot_plan.get("optional_slots") or []
-            if str(slot).strip()
-        }
-        if "household_plan" not in target_frame_types or not (
-            "date" in required_slots or "date" in optional_slots
-        ):
-            return support_rows, trace
-
-        partial_weekdays = sorted(
-            {
-                str((getattr(frame, "slots", {}) or {}).get("date") or "").strip()
-                for frame in selected_frames
-                if str(getattr(frame, "frame_type", "") or "") == "household_plan"
-                and re.fullmatch(r"[A-Za-z]+", str((getattr(frame, "slots", {}) or {}).get("date") or "").strip())
-            }
-        )
-        if not partial_weekdays:
-            return [], []
-        target_weekdays = self._extract_question_weekdays(question)
-        if target_weekdays:
-            partial_weekdays = [weekday for weekday in partial_weekdays if weekday.lower() in target_weekdays]
-        if not partial_weekdays:
-            return [], []
-
-        for weekday in partial_weekdays:
-            support_row = self._resolve_household_full_date_support_row(
-                weekday=weekday,
-                policy_allowed_evidence=policy_allowed_evidence,
-                atomic_memories=atomic_memories,
-                principal=principal,
-                policy_scope=policy_scope,
-                target_entities=list(required_slot_plan.get("target_entities") or []),
-            )
-            if support_row is None or support_row.memory_id in existing_ids:
-                continue
-            try:
-                support_frame = compile_evidence_frame(support_row)
-            except Exception:
-                continue
-            selected_evidence.append(support_row)
-            selected_frames.append(support_frame)
-            existing_ids.add(support_row.memory_id)
-            full_date = str((support_frame.slots or {}).get("date") or "").strip()
-            trace.append(
-                f"support evidence completion added household temporal anchor for {weekday}: {full_date or support_row.memory_id}."
-            )
-            support_rows.append(self._evidence_to_debug(support_row))
         return support_rows, trace
 
     def _adjudicate_conflicting_typed_claims(
@@ -2751,74 +2712,6 @@ class RAGPolicyAMemBackbone:
         )
 
     @staticmethod
-    def _extract_question_weekdays(question: str) -> set[str]:
-        return {
-            match.group(0).strip().lower()
-            for match in re.finditer(
-                r"\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b",
-                str(question or ""),
-                flags=re.IGNORECASE,
-            )
-        }
-
-    def _resolve_household_full_date_support_row(
-        self,
-        *,
-        weekday: str,
-        policy_allowed_evidence: list[RetrievedEvidence],
-        atomic_memories: list[AtomicMemory],
-        principal,
-        policy_scope,
-        target_entities: list[str] | None = None,
-    ) -> RetrievedEvidence | None:
-        normalized_weekday = str(weekday or "").strip().lower()
-        if not normalized_weekday:
-            return None
-
-        candidate_rows: list[tuple[str, RetrievedEvidence, str, float]] = []
-        seen_ids: set[str] = set()
-        for row in policy_allowed_evidence:
-            if not _row_mentions_target_entity(row, target_entities):
-                continue
-            candidate = self._extract_household_full_date_candidate(row=row, weekday=normalized_weekday)
-            if candidate is None:
-                continue
-            full_date, support_score = candidate
-            candidate_rows.append((full_date, row, support_score, float(row.score)))
-            seen_ids.add(row.memory_id)
-
-        for item in atomic_memories:
-            if item.memory_id in seen_ids:
-                continue
-            atomic_row = self._atomic_memory_to_retrieved_evidence(item, score=min(max(float(item.confidence), 0.0), 1.0) * 0.35)
-            approved_source_ids = {
-                str(source_id)
-                for row in policy_allowed_evidence
-                for source_id in list(row.source_message_ids or [])
-                if str(source_id)
-            }
-            if not (
-                approved_source_ids.intersection(str(source_id) for source_id in item.source_message_ids)
-                or _row_mentions_target_entity(atomic_row, target_entities)
-            ):
-                continue
-            candidate = self._extract_household_full_date_candidate(row=atomic_row, weekday=normalized_weekday)
-            if candidate is None:
-                continue
-            full_date, support_score = candidate
-            candidate_rows.append((full_date, atomic_row, support_score, float(atomic_row.score)))
-
-        unique_full_dates = {full_date for full_date, _, _, _ in candidate_rows}
-        if len(unique_full_dates) != 1:
-            return None
-        chosen_full_date = next(iter(unique_full_dates))
-        best = max(
-            [item for item in candidate_rows if item[0] == chosen_full_date],
-            key=lambda item: (float(item[2]), float(item[3])),
-        )
-        return best[1]
-
-    @staticmethod
     def _atomic_memory_to_retrieved_evidence(item: AtomicMemory, *, score: float) -> RetrievedEvidence:
         return RetrievedEvidence(
             memory_id=item.memory_id,
@@ -2839,37 +2732,10 @@ class RAGPolicyAMemBackbone:
                 "surface_spans": dict(item.access_tags.get("surface_spans") or {}),
                 "semantic_tags": dict(item.access_tags.get("semantic_tags") or {}),
                 "support_completion": {
-                    "kind": "household_full_date_anchor",
+                    "kind": "typed_slot_support",
                 },
             },
         )
-
-    @staticmethod
-    def _extract_household_full_date_candidate(*, row: RetrievedEvidence, weekday: str) -> tuple[str, float] | None:
-        try:
-            frame = compile_evidence_frame(row)
-        except Exception:
-            return None
-        slots = dict(getattr(frame, "slots", {}) or {})
-        text = str(row.content or "")
-        lowered = text.lower()
-        if any(token in lowered for token in ["passphrase", "door code", "keypad code", "credential", "private-note", "private note"]):
-            return None
-        full_date = str(slots.get("date") or "").strip()
-        if not re.fullmatch(r"[A-Za-z]+,\s+[A-Za-z]+\s+\d{1,2}(?:,\s*\d{4})?", full_date):
-            return None
-        if not full_date.lower().startswith(f"{weekday},"):
-            return None
-        if str(getattr(frame, "frame_type", "") or "") not in {"household_plan", "general_fact", "logistics", "update"}:
-            return None
-        support_score = 0.0
-        if str(getattr(frame, "frame_type", "") or "") == "household_plan":
-            support_score += 1.0
-        if str(slots.get("visit_window") or "").strip():
-            support_score += 0.2
-        if "current" in lowered or "checkpoint" in lowered or "update" in lowered:
-            support_score += 0.15
-        return re.sub(r"\s+", " ", full_date).strip(), support_score
 
     @staticmethod
     def _evidence_to_debug(row: RetrievedEvidence) -> dict[str, Any]:
@@ -2898,69 +2764,6 @@ def _contains_phrase(text: str, phrase: str) -> bool:
         return False
     pattern = r"(?<![a-z0-9_])" + re.escape(normalized_phrase).replace(r"\ ", r"\s+") + r"(?![a-z0-9_])"
     return re.search(pattern, normalized_text) is not None
-
-
-def _row_mentions_target_entity(
-    row: RetrievedEvidence,
-    target_entities: list[str] | None,
-) -> bool:
-    """Keep support completion inside the query's named entity closure."""
-    entities = [
-        str(entity).strip()
-        for entity in list(target_entities or [])
-        if str(entity).strip()
-    ]
-    if not entities:
-        return True
-    searchable = " ".join([
-        str(row.content or ""),
-        *[str(entity) for entity in list(row.entities or [])],
-    ])
-    specific = [
-        entity for entity in entities
-        if len(re.findall(r"[a-z0-9]+", entity.lower())) > 1
-    ]
-    phrases = specific or entities
-    return any(_contains_phrase(searchable, phrase) for phrase in phrases)
-
-
-def _append_verified_support_date(
-    answer_result: AnswerResult,
-    support_rows: list[RetrievedEvidence],
-) -> AnswerResult:
-    """Merge one independently verified schedule anchor without re-ranking fields."""
-    candidates = [
-        str(dict((row.metadata or {}).get("slots") or {}).get("date") or "").strip()
-        for row in support_rows
-    ]
-    dates = list(dict.fromkeys(value for value in candidates if value))
-    if not dates:
-        return answer_result
-    date_value = max(dates, key=len)
-    if date_value.lower() in str(answer_result.answer_text or "").lower():
-        return answer_result
-    answer_text = str(answer_result.answer_text or "").rstrip()
-    answer_text = answer_text.rstrip(".") + f"; date: {date_value}."
-    structured = dict(answer_result.answer_structured or {})
-    typed_slots = dict(structured.get("typed_slots") or {})
-    typed_slots["date"] = date_value
-    structured["typed_slots"] = typed_slots
-    structured["support_completion"] = {
-        "kind": "household_full_date_anchor",
-        "date": date_value,
-        "source_memory_ids": [str(row.memory_id) for row in support_rows],
-    }
-    used_ids = list(answer_result.used_memory_ids or [])
-    for row in support_rows:
-        if str(row.memory_id) and str(row.memory_id) not in used_ids:
-            used_ids.append(str(row.memory_id))
-    return replace(
-        answer_result,
-        prediction=answer_text,
-        answer_text=answer_text,
-        used_memory_ids=used_ids,
-        answer_structured=structured,
-    )
 
 
 def _structured_authority_claim_is_eligible(frame: Any) -> bool:

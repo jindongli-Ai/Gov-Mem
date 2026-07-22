@@ -94,6 +94,42 @@ def render_graph_authorized_slots(
         and str(item.get("need_kind") or item.get("binding_kind") or "").strip()
         in {"record_collection", "collection", "list"}
     }
+    # Graph certification can recover a composite record even when the
+    # planner's surface binding omitted ``need_kind``.  Reuse that typed
+    # contract instead of silently collapsing a multi-field plan to one
+    # scalar winner.
+    alignment = dict((certificate.get("semantic_alignment") or {}).get("bindings") or {})
+    collection_attributes.update(
+        str(attribute).strip()
+        for attribute, binding in alignment.items()
+        if isinstance(binding, dict)
+        and str(binding.get("binding_kind") or "").strip().lower()
+        in {"record_collection", "collection", "list"}
+    )
+    # Preserve the generic compatibility contract used by legacy synthetic
+    # certificates when no semantic spec is attached.
+    collection_attributes.update(
+        attribute
+        for attribute in {"record_collection"}
+        if attribute in {str(item.get("attribute") or "").strip() for item in realizations}
+    )
+    if not semantic_spec:
+        # Legacy synthetic certificates encode record bundles directly.  A
+        # multi-field source record is a collection contract in that form;
+        # real requests use the explicit semantic alignment above.
+        slots_by_attribute_source: dict[tuple[str, str], set[str]] = {}
+        for item in realizations:
+            key = (
+                str(item.get("attribute") or "").strip(),
+                str(item.get("source_atom_id") or "").strip(),
+            )
+            slot_name = str(item.get("slot_name") or "").strip()
+            if key[0] and slot_name:
+                slots_by_attribute_source.setdefault(key, set()).add(slot_name)
+        collection_attributes.update(
+            attribute for attribute, _source in slots_by_attribute_source
+            if len(slots_by_attribute_source[(attribute, _source)]) > 1
+        )
     clauses = []
     source_ids = []
     typed_slots: dict[str, str | list[str]] = {}
@@ -101,8 +137,45 @@ def render_graph_authorized_slots(
     for payload in realizations:
         item = dict(payload or {})
         grouped.setdefault((str(item.get("attribute") or ""), str(item.get("source_atom_id") or "")), []).append(item)
+    scalar_winners: dict[str, dict[str, Any]] = {}
+    for group in grouped.values():
+        if not group:
+            continue
+        attribute = str(group[0].get("attribute") or "").strip()
+        if not attribute or attribute in collection_attributes:
+            continue
+        for item in group:
+            slot_name = str(item.get("slot_name") or "").strip().lower()
+            attr_tokens = set(attribute.lower().replace("-", "_").split("_"))
+            slot_tokens = set(slot_name.replace("-", "_").split("_"))
+            overlap = len((attr_tokens - {"current", "active", "latest"}) & slot_tokens)
+            score = (
+                int(slot_name == attribute.lower()),
+                overlap,
+                int(str(item.get("slot_role") or "").strip().lower() != "claim_subject_value"),
+            )
+            prior = scalar_winners.get(attribute)
+            if prior is None or score > prior["_renderer_score"]:
+                scalar_winners[attribute] = {**item, "_renderer_score": score}
     for _, group in grouped.items():
         attribute = str(group[0].get("attribute") or "").strip() if group else ""
+        if attribute not in collection_attributes and attribute in scalar_winners:
+            winner = scalar_winners[attribute]
+            winner_key = (
+                str(winner.get("slot_name") or ""),
+                str(winner.get("value") or ""),
+                str(winner.get("source_atom_id") or ""),
+            )
+            if not any(
+                (
+                    str(item.get("slot_name") or ""),
+                    str(item.get("value") or ""),
+                    str(item.get("source_atom_id") or ""),
+                ) == winner_key
+                for item in group
+            ):
+                continue
+            group = [scalar_winners[attribute]]
         predicate_group = [
             item for item in group
             if str(item.get("slot_role") or "").strip().lower() != "claim_subject_value"
@@ -178,7 +251,7 @@ def render_graph_authorized_slots(
             has_typed_roles = any(str(item.get("slot_role") or "").strip() for item in group)
             if len(rendered_fields) > 1 and (has_typed_roles or attribute == "record_collection"):
                 projection = "; ".join(
-                    f"{field_name.replace('_', ' ')} {value}"
+                    f"{field_name.replace('_', ' ')}: {value}"
                     for field_name, value in rendered_fields
                 )
             else:

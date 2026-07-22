@@ -292,6 +292,10 @@ def certify_graph_slot_paths(
     # stand in for the unresolved attribute.
     certifiable_requested = [attribute for attribute in requested if attribute in bindings]
     temporal_scope = str(semantic_spec.get("temporal_scope") or "unspecified").lower()
+    # Historical/deleted recovery asks for the retired predicate value, not
+    # the subject that the deletion sentence was about.  A subject slot is
+    # useful provenance, but it is never a releasable predecessor value.
+    reject_historical_subject_projection = temporal_scope == "historical"
     request_shape = str(semantic_spec.get("request_shape") or "fact").lower()
     nodes = {node.node_id: node for node in graph.nodes}
     incoming: dict[str, list[Any]] = {}
@@ -373,6 +377,12 @@ def certify_graph_slot_paths(
                     skipped.append((node_id, "unobserved_slot"))
                     continue
                 source_atom_id = str((node.provenance or {}).get("source_atom_id") or "")
+                slot_role = str((node.attributes or {}).get("slot_role") or "").strip().lower()
+                if reject_historical_subject_projection and slot_role in {
+                    "claim_subject_value", "claim_subject", "subject"
+                }:
+                    skipped.append((node_id, "historical_subject_projection_blocked"))
+                    continue
                 stage2_authorized = source_atom_id in (
                     stage2_capability_by_attribute.get(requested_attribute, set())
                     | stage2_capability_by_attribute.get("*", set())
@@ -505,6 +515,11 @@ def certify_graph_slot_paths(
                 if semantic_node is not None and semantic_node.node_id in retired_semantic_node_ids:
                     continue
                 source_atom_id = str((node.provenance or {}).get("source_atom_id") or "")
+                slot_role = str((node.attributes or {}).get("slot_role") or "").strip().lower()
+                if reject_historical_subject_projection and slot_role in {
+                    "claim_subject_value", "claim_subject", "subject"
+                }:
+                    continue
                 stage2_authorized = source_atom_id in (
                     stage2_capability_by_attribute.get(requested_attribute, set())
                     | stage2_capability_by_attribute.get("*", set())
@@ -675,6 +690,11 @@ def certify_graph_slot_paths(
                     continue
                 semantic_node = nodes.get(semantic_edges[0].source_id)
                 source_atom_id = str((node.provenance or {}).get("source_atom_id") or "")
+                slot_role = str((node.attributes or {}).get("slot_role") or "").strip().lower()
+                if reject_historical_subject_projection and slot_role in {
+                    "claim_subject_value", "claim_subject", "subject"
+                }:
+                    continue
                 stage2_authorized = source_atom_id in (
                     stage2_capability_by_attribute.get(requested_attribute, set())
                     | stage2_capability_by_attribute.get("*", set())
@@ -902,7 +922,10 @@ def _typed_slot_tokens(value: str) -> set[str]:
 
 def _is_summary_attribute(value: str) -> bool:
     """Recognize record-level summary roles without a domain vocabulary."""
-    return bool(_typed_slot_tokens(value) & {"summary", "overview", "recap", "snapshot"})
+    return bool(
+        _typed_slot_tokens(value)
+        & {"summary", "overview", "recap", "snapshot", "plan"}
+    )
 
 
 def _version_family_node_ids(*, graph: GovernedMemoryGraph, anchor_slot_node_id: str) -> set[str]:

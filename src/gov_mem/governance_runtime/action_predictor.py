@@ -529,6 +529,14 @@ def _build_question_disclosure_profile(question: str) -> dict[str, Any]:
     asks_private_state_existence = _contains_any(lowered, private_state_existence_tokens) or asks_binary_sensitive_existence or (
         "yes or no" in lowered and _contains_any(lowered, ["private label", "internal label", "exact internal label"])
     )
+    # Existence questions about restricted/private records must not be
+    # converted into a safe-looking partial answer merely because a broad
+    # replacement note was retrieved.
+    asks_private_state_existence = asks_private_state_existence or bool(
+        re.search(r"\b(?:still|any|exist|exists|remain|remains)\b", lowered)
+        and re.search(r"\b(?:in memory|on file|in the record|restricted|private|confidential)\b", lowered)
+        and re.search(r"\b(?:note|label|phrase|wording|detail|record|state)\b", lowered)
+    )
     asks_exact_restricted_state = _contains_any(lowered, exact_restricted_state_tokens)
     contact_secret_tokens = [
         "callback number",
@@ -678,6 +686,59 @@ def _evidence_has_forgetting_signal(evidence: list[RetrievedEvidence]) -> bool:
         if memory_type == "forgetting":
             return True
         if any(token in lowered for token in forgetting_tokens):
+            return True
+    return False
+
+
+def _evidence_has_requester_access_revocation(
+    evidence: list[RetrievedEvidence],
+    *,
+    requester_role: str | None,
+    question_profile: dict[str, Any],
+) -> bool:
+    """Detect a source-grounded withdrawal of the requester's access.
+
+    This is deliberately a policy/evidence relation check rather than a
+    domain or episode rule.  A current appointment/logistics request must not
+    be answered from an older active fact when the transcript later revokes
+    that requester's sharing permission.
+    """
+    role = str(requester_role or "").strip().lower()
+    if not role or role in {"owner", "patient", "authorized_staff", "staff"}:
+        return False
+    if not (
+        question_profile.get("asks_logistics")
+        or question_profile.get("asks_private_timing_content")
+        or question_profile.get("asks_sensitive_clinical_content")
+    ):
+        return False
+    role_terms = {
+        "family_member": ("family", "mother", "father", "sister", "brother", "parent", "relative"),
+        "partner_spouse": ("partner", "spouse", "husband", "wife"),
+        "delegate": ("delegate", "proxy", "assistant"),
+        "guest": ("guest", "visitor"),
+    }
+    requester_terms = role_terms.get(role, (role.replace("_", " "),))
+    revocation_terms = (
+        "revoke",
+        "revoked",
+        "no longer share",
+        "no more timing",
+        "no more appointment",
+        "removed from scheduling",
+        "removed from callback",
+        "access is revoked",
+        "access revoked",
+    )
+    for row in evidence:
+        lowered = str(row.content or "").lower()
+        if not any(token in lowered for token in revocation_terms):
+            continue
+        if any(token in lowered for token in requester_terms):
+            return True
+        # Explicit permission revocation is requester-scoped by the policy
+        # statement itself even when it omits the person's relationship.
+        if any(token in lowered for token in ("scheduling-contact", "callback-contact", "future appointment details")):
             return True
     return False
 
@@ -988,13 +1049,6 @@ def _requires_non_owner_sensitive_refusal(profile: dict[str, Any]) -> bool:
     if profile.get("asks_exact_restricted_state") and not profile.get("asks_safe_partial_share") and not profile.get("asks_logistics"):
         return True
     return False
-
-
-def _has_medical_sensitive_access(*, principal_relation: str | None, requester_role: str | None) -> bool:
-    if principal_relation == "owner":
-        return True
-    normalized_role = normalize_role(requester_role)
-    return normalized_role in {"clinician", "nurse", "labtech", "pharmacist"}
 
 
 class GovernedActionPredictor:
@@ -1412,8 +1466,12 @@ class GovernedActionPredictor:
         requester_is_non_owner = principal_relation != "owner"
         requester_is_owner = principal_relation == "owner"
         regime = _normalize_query_type(query_type, question, evidence)
-        normalized_domain = str(domain or "").strip().lower()
         deleted_secret_safety_request = _is_deleted_secret_safety_request(question, evidence)
+        requester_access_revoked = _evidence_has_requester_access_revocation(
+            evidence,
+            requester_role=requester_role,
+            question_profile=profile,
+        )
         typed_state_answerable = _typed_state_has_current_answerable_signal(typed_state_summary)
         has_redaction_signal = any(
             bool((row.metadata or {}).get("redaction_required") or (row.metadata or {}).get("requires_redaction"))
@@ -1442,10 +1500,6 @@ class GovernedActionPredictor:
                 "graph_slots": dict(graph_authorization_certificate.get("slots") or {}),
                 "reason": str(graph_authorization_certificate.get("reason") or "explicit_graph_authorization"),
             }
-        requester_has_medical_sensitive_access = _has_medical_sensitive_access(
-            principal_relation=principal_relation,
-            requester_role=requester_role,
-        )
         safe_projection_rows = [
             row for row in evidence
             if _row_has_safe_projection(row)
@@ -1456,11 +1510,20 @@ class GovernedActionPredictor:
             if _row_has_stage2_utility_capability(row)
         ]
         utility_capability_available = bool(utility_capability_rows)
+        semantic_scope = str((semantic_spec or {}).get("temporal_scope") or "").strip().lower()
         # The same historical/deleted wording has different governed actions
         # by disclosure regime: privacy asks must refuse confirmation of known
         # protected content, while safety asks must use no_memory so the
         # system does not confirm that the deleted value ever existed.
-        if deleted_secret_safety_request and regime != "privacy":
+        historical_safety_request = bool(
+            regime == "safety"
+            and (
+                semantic_scope in {"historical", "deleted", "retired"}
+                or profile.get("asks_historical_or_deleted_secret")
+                or re.search(r"\b(?:deleted|retired|old|earlier|before)\b", str(question or "").lower())
+            )
+        )
+        if (deleted_secret_safety_request or historical_safety_request) and regime != "privacy":
             decision.action = "no_memory"
             decision.answer_mode = "abstain"
             decision.privacy_decision = "allowed"
@@ -1468,6 +1531,16 @@ class GovernedActionPredictor:
                 decision.forgetting_decision = "respect_deleted_memory"
             rationale = decision.rationale_summary or ""
             marker = "[normalized:deleted_secret_no_memory]"
+            if marker not in rationale:
+                decision.rationale_summary = f"{rationale} {marker}".strip() if rationale else marker
+            return decision
+        if regime == "privacy" and requester_access_revoked and requester_is_non_owner:
+            decision.action = "refuse"
+            decision.answer_mode = "refusal"
+            decision.privacy_decision = "denied"
+            decision.evidence_memory_ids = []
+            rationale = decision.rationale_summary or ""
+            marker = "[normalized:requester_access_revoked_refusal]"
             if marker not in rationale:
                 decision.rationale_summary = f"{rationale} {marker}".strip() if rationale else marker
             return decision
@@ -1523,6 +1596,26 @@ class GovernedActionPredictor:
             if marker not in rationale:
                 decision.rationale_summary = f"{rationale} {marker}".strip() if rationale else marker
             return decision
+        # A graph certificate proves provenance and slot compatibility; it
+        # does not grant a non-owner the right to identify another person's
+        # sensitive state.  Keep this boundary ahead of certificate-based
+        # direct realization.
+        if (
+            requester_is_non_owner
+            and regime == "privacy"
+            and profile.get("is_pure_sensitive_request")
+            and (not safe_projection_available or profile.get("asks_private_state_existence"))
+            and decision.action in {"answer", "answer_redacted", "no_memory"}
+        ):
+            decision.action = "refuse"
+            decision.answer_mode = "refusal"
+            decision.privacy_decision = "denied"
+            decision.evidence_memory_ids = []
+            rationale = decision.rationale_summary or ""
+            marker = "[normalized:pure_sensitive_privacy_before_graph_realization]"
+            if marker not in rationale:
+                decision.rationale_summary = f"{rationale} {marker}".strip() if rationale else marker
+            return decision
         if (
             requester_is_non_owner
             and regime != "safety"
@@ -1545,7 +1638,6 @@ class GovernedActionPredictor:
         # the answer on the partial-disclosure path for non-owners.  This is
         # driven by the typed temporal contract and request shape, not by a
         # domain-specific list of sensitive words.
-        semantic_scope = str((semantic_spec or {}).get("temporal_scope") or "").strip().lower()
         binary_current_request = bool(
             semantic_scope == "current"
             and re.search(r"\b(?:yes\s+or\s+no|whether|is|are|was|were|did|does)\b", str(question or "").lower())
@@ -1643,28 +1735,6 @@ class GovernedActionPredictor:
             decision.privacy_decision = "partial"
             rationale = decision.rationale_summary or ""
             marker = "[normalized:restricted_state_safe_wording_projection]"
-            if marker not in rationale:
-                decision.rationale_summary = f"{rationale} {marker}".strip() if rationale else marker
-            return decision
-        if (
-            normalized_domain == "medical"
-            and not requester_has_medical_sensitive_access
-            and requester_is_non_owner
-            and not profile.get("asks_logistics")
-            and not profile.get("asks_safe_partial_share")
-            and (
-                profile.get("asks_sensitive_clinical_content")
-                or profile.get("asks_private_state_existence")
-                or profile.get("asks_restricted_interpretation")
-            )
-            and decision.action in {"answer", "answer_redacted", "no_memory"}
-        ):
-            decision.action = "refuse"
-            decision.answer_mode = "refusal"
-            decision.privacy_decision = "denied"
-            decision.evidence_memory_ids = []
-            rationale = decision.rationale_summary or ""
-            marker = "[normalized:medical_nonclinical_sensitive_refusal]"
             if marker not in rationale:
                 decision.rationale_summary = f"{rationale} {marker}".strip() if rationale else marker
             return decision
