@@ -3,6 +3,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+import requests
+
 from gov_mem.data.schema import MemoryItem
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
 
@@ -54,16 +56,8 @@ class DenseMemoryIndex:
                 for item, text, embedding in zip(items, texts, embeddings)
             ]
             return cls(rows=rows, backend="openai_embedding")
-        except LLMClientUnavailableError:
-            rows = [
-                DenseIndexRow(
-                    memory_id=item.memory_id,
-                    text=text,
-                    sparse_embedding=_embed_text_heuristic(text),
-                )
-                for item, text in zip(items, texts)
-            ]
-            return cls(rows=rows, backend="sparse_heuristic")
+        except (LLMClientUnavailableError, requests.RequestException):
+            return cls(rows=_sparse_rows(items=items, texts=texts), backend="sparse_heuristic")
 
     def query(
         self,
@@ -79,7 +73,7 @@ class DenseMemoryIndex:
         if self.backend == "openai_embedding":
             try:
                 query_embeddings = llm_client.embed_texts(model=embedding_model, texts=query_texts)
-            except LLMClientUnavailableError:
+            except (LLMClientUnavailableError, requests.RequestException):
                 query_embeddings = []
             if query_embeddings:
                 scores: dict[str, float] = {}
@@ -91,10 +85,20 @@ class DenseMemoryIndex:
                         scores[row.memory_id] = max(score, scores.get(row.memory_id, float("-inf")))
                 return sorted(scores.items(), key=lambda item: item[1], reverse=True)[:top_k]
 
+        # Keep retrieval useful when the provider becomes unavailable after
+        # index construction; dense rows still retain their source text.
+        sparse_rows = self.rows if self.backend == "sparse_heuristic" else [
+            DenseIndexRow(
+                memory_id=row.memory_id,
+                text=row.text,
+                sparse_embedding=_embed_text_heuristic(row.text),
+            )
+            for row in self.rows
+        ]
         scores: dict[str, float] = {}
         query_vectors = [_embed_text_heuristic(text) for text in query_texts]
         for query_vector in query_vectors:
-            for row in self.rows:
+            for row in sparse_rows:
                 score = _cosine_sparse(query_vector, row.sparse_embedding or {})
                 scores[row.memory_id] = max(score, scores.get(row.memory_id, float("-inf")))
         return sorted(scores.items(), key=lambda item: item[1], reverse=True)[:top_k]
@@ -105,9 +109,19 @@ def _memory_item_to_embedding_text(item: MemoryItem) -> str:
     return f"[{item.scope}] [{item.memory_type}] [{item.user_id or 'none'}] [{entities}] {item.content}"
 
 
+def _sparse_rows(*, items: list[MemoryItem], texts: list[str]) -> list[DenseIndexRow]:
+    return [
+        DenseIndexRow(
+            memory_id=item.memory_id,
+            text=text,
+            sparse_embedding=_embed_text_heuristic(text),
+        )
+        for item, text in zip(items, texts)
+    ]
+
+
 def _cosine_dense(left: list[float], right: list[float]) -> float:
     numer = sum(l * r for l, r in zip(left, right))
     left_norm = math.sqrt(sum(l * l for l in left)) or 1.0
     right_norm = math.sqrt(sum(r * r for r in right)) or 1.0
     return numer / (left_norm * right_norm)
-

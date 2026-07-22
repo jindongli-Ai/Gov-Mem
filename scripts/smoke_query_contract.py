@@ -4,6 +4,7 @@ from gov_mem.planning.query_planner import (
     _recover_exact_slot_surface_contract,
     _recover_exact_target_collection_contract,
     _normalize_certifiable_contract,
+    _merge_query_grounded_slot_contract,
     _semantic_spec_from_response,
     _semantic_contract_is_complete,
 )
@@ -66,6 +67,57 @@ def main() -> None:
         {"requested_slots": ["invented_field"], "request_shape": "fact"},
         "What is the current plan?",
     )
+
+    # A verified semantic view may retain one field while the initial view
+    # independently grounded a second field from the same multi-part query.
+    # Contract replacement must preserve both query-grounded bindings.
+    merged = _merge_query_grounded_slot_contract(
+        candidate={
+            "requested_attributes": ["leading_incident_diagnosis"],
+            "raw_requested_attributes": ["leading_incident_diagnosis"],
+            "attribute_bindings": [{
+                "attribute": "leading_incident_diagnosis",
+                "support_span": "leading Project Harbor incident diagnosis",
+                "semantic_role": "requested_property",
+            }],
+        },
+        fallback={
+            "requested_attributes": ["leading_incident_diagnosis", "leo_access_scope"],
+            "raw_requested_attributes": ["leading_incident_diagnosis", "leo_access_scope"],
+            "attribute_bindings": [
+                {
+                    "attribute": "leading_incident_diagnosis",
+                    "support_span": "leading Project Harbor incident diagnosis",
+                    "semantic_role": "requested_property",
+                },
+                {
+                    "attribute": "leo_access_scope",
+                    "support_span": "exact access scope",
+                    "semantic_role": "requested_property",
+                    "evidence_slot_hint": "leo_access_scope",
+                },
+            ],
+        },
+        question="What is the current leading Project Harbor incident diagnosis, and what exact access scope does Leo currently have?",
+        target_entities=["Project Harbor", "Leo"],
+    )
+    assert merged["requested_attributes"] == [
+        "leading_incident_diagnosis", "leo_access_scope"
+    ], merged
+
+    # Entity-qualified planner slots must bind to the property phrase that is
+    # actually present in the question, while preserving the canonical slot.
+    qualified = _normalize_certifiable_contract(
+        {
+            "requested_slots": ["leo_access_scope"],
+            "requested_attributes": [],
+            "attribute_bindings": [],
+        },
+        "What exact access scope does Leo currently have?",
+        target_entities=["Leo"],
+    )
+    assert qualified["requested_attributes"] == ["leo_access_scope"], qualified
+    assert qualified["attribute_bindings"][0]["support_span"] == "access scope", qualified
     structured_targets = _as_string_list([
         {"entity_type": "record", "identification": "booked visits"},
     ])

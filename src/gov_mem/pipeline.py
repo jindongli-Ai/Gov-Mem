@@ -122,25 +122,35 @@ class GovMemRunner:
         provider = str(self.config["llm"]["provider"]).strip().lower()
         if provider not in YUNWU_PROVIDER_NAMES:
             return
-        readme = self.output_dir.parents[0] / "README_API_Yunwu.md"
-        if not readme.exists():
-            readme = Path("README_API_Yunwu.md")
-        if not readme.exists():
-            return
-        content = readme.read_text(encoding="utf-8")
-        keys: list[str] = []
-        for line in content.splitlines():
-            line = line.strip()
-            if "sk-" in line:
-                key = line.split("`")[1] if "`" in line else line
-                if key.startswith("sk-"):
-                    keys.append(key)
+        # An explicit pool is used for controlled parallel/resume runs. Only
+        # fall back to the local README when the caller did not provide one.
+        configured_pool = [
+            value.strip()
+            for value in os.environ.get("YUNWU_API_KEYS", "").split(",")
+            if value.strip()
+        ]
+        if configured_pool:
+            keys = list(dict.fromkeys(configured_pool))
+        else:
+            readme = self.output_dir.parents[0] / "README_API_Yunwu.md"
+            if not readme.exists():
+                readme = Path("README_API_Yunwu.md")
+            if not readme.exists():
+                return
+            content = readme.read_text(encoding="utf-8")
+            keys = []
+            for line in content.splitlines():
+                line = line.strip()
+                if "sk-" in line:
+                    key = line.split("`")[1] if "`" in line else line
+                    if key.startswith("sk-"):
+                        keys.append(key)
         if keys:
             # Expose the same pool to the client so transient failures can
             # rotate keys. Keep an explicitly supplied key authoritative;
             # direct domain runs otherwise receive a stable per-output-dir
             # starting key to avoid concentrating parallel jobs on index 0.
-            os.environ.setdefault("YUNWU_API_KEYS", ",".join(dict.fromkeys(keys)))
+            os.environ["YUNWU_API_KEYS"] = ",".join(dict.fromkeys(keys))
             try:
                 requested_index = int(os.environ.get("YUNWU_API_KEY_INDEX", "0"))
             except ValueError:

@@ -2,6 +2,8 @@
 """Current-state fallback must ignore meta mentions but keep real updates."""
 
 from gov_mem.data.schema import RetrievedEvidence
+import requests
+
 from gov_mem.governance_runtime.claim_adjudicator import (
     _fallback_slot_is_structurally_compatible,
     _paired_operational_role_conflict,
@@ -12,6 +14,7 @@ from gov_mem.governance_runtime.claim_adjudicator import (
 from gov_mem.governance_runtime.provenance_authorization import _is_summary_attribute
 from gov_mem.governance_runtime.provenance_authorization import certify_graph_slot_paths
 from gov_mem.graph.governed_graph import GraphEdge, GraphNode, GovernedMemoryGraph
+from gov_mem.memory.dense_index import DenseIndexRow, DenseMemoryIndex
 
 
 class FakeClient:
@@ -28,6 +31,11 @@ class FakeClient:
             "decision": "answer",
             "confidence": 1.0,
         }]}
+
+
+class FailingEmbeddingClient:
+    def embed_texts(self, **_kwargs):
+        raise requests.HTTPError("provider unavailable")
 
 
 def row(memory_id, text, message_id, slots, *, changed_fields=None, served=True):
@@ -65,6 +73,20 @@ def row(memory_id, text, message_id, slots, *, changed_fields=None, served=True)
 
 
 def main():
+    # Retrieval must remain usable when an optional embedding provider fails.
+    # The dense index falls back to source-text overlap without changing the
+    # governance or answer-selection contracts.
+    dense_index = DenseMemoryIndex(
+        rows=[DenseIndexRow(memory_id="budget", text="approved budget")],
+        backend="openai_embedding",
+    )
+    assert dense_index.query(
+        query_texts=["approved budget"],
+        top_k=1,
+        llm_client=FailingEmbeddingClient(),
+        embedding_model="unused",
+    )[0][0] == "budget"
+
     role_spec = {
         "requested_attributes": ["backup_helper_phrase", "helper_window"],
         "attribute_bindings": [

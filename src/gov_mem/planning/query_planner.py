@@ -594,12 +594,21 @@ def _recover_exact_slot_surface_contract(
     for slot in slots:
         span = _find_exact_attribute_surface(slot, question)
         if not span:
+            span = _find_entity_qualified_attribute_surface(
+                slot,
+                question,
+                target_entities=target_entities,
+            )
+        if not span:
             continue
         candidate = {
             "attribute": slot,
             "support_span": span,
             "semantic_role": "requested_property",
-            "evidence_slot_hint": "",
+            # Keep the open attribute as the canonical contract key when its
+            # query surface omits an entity qualifier (for example,
+            # ``leo_access_scope`` -> ``access scope``).
+            "evidence_slot_hint": slot,
             "need_kind": (
                 "record_collection"
                 if str(semantic_spec.get("request_shape") or "").lower() in {"list", "mixed"}
@@ -650,6 +659,32 @@ def _find_exact_attribute_surface(attribute: str, question: str) -> str:
     return ""
 
 
+def _find_entity_qualified_attribute_surface(
+    attribute: str,
+    question: str,
+    *,
+    target_entities: list[str] | None,
+) -> str:
+    """Match an attribute whose canonical slot includes a queried entity prefix.
+
+    For example, ``leo_access_scope`` is grounded by the verbatim ``access
+    scope`` phrase when ``Leo`` is the target entity. All non-entity slot
+    tokens must still occur contiguously in the question; this only removes a
+    typed entity qualifier and does not introduce a vocabulary match.
+    """
+    slot_tokens = re.findall(r"[a-z0-9]+", str(attribute or "").lower())
+    entity_tokens = {
+        token
+        for entity in list(target_entities or [])
+        for token in re.findall(r"[a-z0-9]+", str(entity or "").lower())
+    }
+    property_tokens = [token for token in slot_tokens if token not in entity_tokens]
+    if not property_tokens or property_tokens == slot_tokens:
+        return ""
+    property_text = " ".join(property_tokens)
+    return _find_exact_attribute_surface(property_text, question)
+
+
 def _semantic_spec_from_response(raw: object) -> dict[str, Any]:
     """Read a semantic contract from provider-neutral structured envelopes.
 
@@ -698,6 +733,13 @@ def _normalize_certifiable_contract(
         question,
         target_entities=target_entities,
     )
+    raw_bindings = _normalize_attribute_bindings(normalized.get("attribute_bindings"))
+    normalized["rejected_query_property_spans"] = list(dict.fromkeys(
+        " ".join(re.findall(r"[a-z0-9]+", str(binding.get("support_span") or "").lower()))
+        for binding in raw_bindings
+        if str(binding.get("support_span") or "").strip()
+        and str(binding.get("semantic_role") or "") not in {"", "requested_property"}
+    ))
     raw_attributes = _normalize_open_attributes(
         normalized.get("raw_requested_attributes", normalized.get("requested_attributes"))
     )
@@ -810,6 +852,12 @@ def _augment_exact_slot_bindings(
     for slot in slots:
         span = _find_exact_attribute_surface(slot, question)
         if not span:
+            span = _find_entity_qualified_attribute_surface(
+                slot,
+                question,
+                target_entities=target_entities,
+            )
+        if not span:
             continue
         normalized_span = " ".join(re.findall(r"[a-z0-9]+", span.lower()))
         if slot in existing or normalized_span in existing_spans:
@@ -818,7 +866,7 @@ def _augment_exact_slot_bindings(
             "attribute": slot,
             "support_span": span,
             "semantic_role": "requested_property",
-            "evidence_slot_hint": "",
+            "evidence_slot_hint": slot,
             "need_kind": need_kind,
         }
         if _binding_is_dynamic_entity(candidate, target_entities):
@@ -851,6 +899,27 @@ def _merge_query_grounded_slot_contract(
     in the query; normalization still admits only contiguous query surfaces.
     """
     merged = dict(candidate or {})
+    # Independent planner views can each recover a different explicitly
+    # requested property. Preserve their query-grounded bindings before the
+    # certifiable contract is rebuilt; replacing the verified view wholesale
+    # can otherwise make a multi-field question look scalar downstream.
+    merged_bindings = _merge_query_grounded_bindings(
+        candidate=(candidate or {}),
+        fallback=(fallback or {}),
+    )
+    if merged_bindings:
+        merged["attribute_bindings"] = merged_bindings
+        merged["raw_requested_attributes"] = list(dict.fromkeys(
+            [
+                *_normalize_open_attributes((candidate or {}).get("raw_requested_attributes")),
+                *_normalize_open_attributes((fallback or {}).get("raw_requested_attributes")),
+                *[
+                    str(binding.get("attribute") or "").strip()
+                    for binding in merged_bindings
+                    if str(binding.get("attribute") or "").strip()
+                ],
+            ]
+        ))
     merged["requested_slots"] = _normalize_requested_slots(
         list(merged.get("requested_slots") or [])
         + list((fallback or {}).get("requested_slots") or [])
@@ -860,6 +929,48 @@ def _merge_query_grounded_slot_contract(
         question,
         target_entities=target_entities,
     )
+
+
+def _merge_query_grounded_bindings(
+    *,
+    candidate: object,
+    fallback: object,
+) -> list[dict[str, str]]:
+    """Union independently validated property bindings without inventing spans."""
+    merged: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    views = [view for view in (candidate, fallback) if isinstance(view, dict)]
+    rejected_spans = {
+        str(value).strip().lower()
+        for view in views
+        for value in list(view.get("rejected_query_property_spans") or [])
+        if str(value).strip()
+    }
+    raw_bindings = [
+        raw_binding
+        for view in views
+        for raw_binding in list(view.get("attribute_bindings") or [])
+    ]
+    for raw_binding in raw_bindings:
+        if not isinstance(raw_binding, dict):
+            continue
+        bindings = _normalize_attribute_bindings([raw_binding])
+        if not bindings:
+            continue
+        binding = bindings[0]
+        if binding.get("semantic_role") not in {"", "requested_property"}:
+            continue
+        key = (
+            str(binding.get("attribute") or "").strip(),
+            " ".join(re.findall(r"[a-z0-9]+", str(binding.get("support_span") or "").lower())),
+        )
+        if key[1] in rejected_spans:
+            continue
+        if not key[0] or not key[1] or key in seen:
+            continue
+        seen.add(key)
+        merged.append(binding)
+    return merged
 
 
 def _binding_is_dynamic_entity(binding: dict[str, str], target_entities: list[str] | None) -> bool:
@@ -966,7 +1077,16 @@ def _ground_attribute_contract(
         attribute_tokens = set(re.findall(r"[a-z0-9]+", attribute.lower()))
         span_tokens = set(span_key.split())
         alignment = len(attribute_tokens & span_tokens) / max(1, len(attribute_tokens))
-        if alignment < 0.8 and span_key:
+        if (
+            alignment < 0.8
+            and span_key
+            and str(binding.get("evidence_slot_hint") or "").strip() != attribute
+            and not _attribute_matches_entity_qualified_span(
+                attribute,
+                span_key,
+                target_entities=target_entities,
+            )
+        ):
             # The verbatim property span is the provenance-bearing schema
             # source when an LLM canonical key drifts to a different concept.
             attribute = span_key.replace(" ", "_")
@@ -988,6 +1108,25 @@ def _ground_attribute_contract(
     if grounded_from_bindings:
         return grounded_from_bindings, True
     return _ground_requested_attributes(raw_attributes, question), False
+
+
+def _attribute_matches_entity_qualified_span(
+    attribute: str,
+    support_span: str,
+    *,
+    target_entities: list[str] | None,
+) -> bool:
+    """Keep a canonical attribute when its omitted tokens are target entities."""
+    attribute_tokens = set(re.findall(r"[a-z0-9]+", str(attribute or "").lower()))
+    span_tokens = set(re.findall(r"[a-z0-9]+", str(support_span or "").lower()))
+    if not attribute_tokens or not span_tokens or span_tokens - attribute_tokens:
+        return False
+    entity_tokens = {
+        token
+        for entity in list(target_entities or [])
+        for token in re.findall(r"[a-z0-9]+", str(entity or "").lower())
+    }
+    return bool(attribute_tokens - span_tokens) and attribute_tokens - span_tokens <= entity_tokens
 
 
 def _property_span_is_overbroad(*, support_span: str, question: str) -> bool:
