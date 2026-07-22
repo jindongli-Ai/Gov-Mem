@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
@@ -112,6 +113,72 @@ def locate_utility_source_messages(
             neighbor_id = ordered_ids[neighbor_index]
             if neighbor_id and neighbor_id not in closure_ids:
                 closure_ids.append(neighbor_id)
+    # Retrieval models can stop at an earlier lexical match even when the
+    # visible transcript contains later current-state updates. Preserve a
+    # bounded chronological tail for current/as-of requests. This remains a
+    # retrieval proposal; Stage 2, lifecycle, and graph policy checks still
+    # decide which fields can enter the answer.
+    current_scope = str((semantic_spec or {}).get("temporal_scope") or "").strip().lower() == "current"
+    if current_scope or any(
+        token in str(question or "").lower()
+        for token in ("as of now", "right now", "currently", "latest", "updated")
+    ):
+        # A long episode can contain unrelated tail chatter after the latest
+        # answer-bearing update. Keep source turns that explicitly express a
+        # state transition in the closed set before spending the remaining
+        # budget on a blind chronological tail. The markers are discourse
+        # roles, not benchmark vocabulary; later stages still validate the
+        # typed field, entity scope, and lifecycle.
+        update_pattern = re.compile(
+            r"\b(?:current(?:ly)?|as\s+of\s+now|now|latest|updated?|moved?|changed?|"
+            r"revised?|replaced?|still|working|confirmed|remaining|held)\b",
+            re.IGNORECASE,
+        )
+        update_ids = [
+            message_id
+            for message_id in ordered_ids
+            if message_id
+            and update_pattern.search(source_by_id.get(message_id, ""))
+            and message_id not in source_ids
+        ]
+        # The closure is allowed to be broader than the bounded list of
+        # directly selected facts. This preserves repeated/current update
+        # claims for annotation and graph resolution without treating every
+        # tail message as answer evidence.
+        for message_id in update_ids:
+            if message_id not in closure_ids:
+                closure_ids.append(message_id)
+        # Preserve directly selected sources, but reserve capacity for the
+        # latest transition records. If the locator already filled the budget
+        # with a previous tail, replace those low-priority additions first.
+        for message_id in reversed(update_ids):
+            if len(source_ids) < max_sources:
+                source_ids.append(message_id)
+                continue
+            replace_at = next(
+                (index for index in range(len(source_ids) - 1, -1, -1)
+                 if source_ids[index] not in {
+                     str(row.get("message_id") or row.get("source_message_id") or "").strip()
+                     for row in rows
+                 }),
+                None,
+            )
+            if replace_at is None:
+                break
+            source_ids[replace_at] = message_id
+        tail_budget = max(0, max_sources - len(source_ids))
+        tail_size = min(len(ordered_ids), max(12, context_radius * 3))
+        for message_id in ordered_ids[-tail_size:]:
+            if not message_id or message_id in source_ids:
+                continue
+            if len(source_ids) >= max_sources:
+                break
+            source_ids.append(message_id)
+            if message_id not in closure_ids:
+                closure_ids.append(message_id)
+            tail_budget -= 1
+            if tail_budget <= 0:
+                break
     return {
         "available": bool(source_ids),
         "reason": "source_grounded_utility_messages_selected" if source_ids else "no_valid_utility_source_message",
@@ -122,6 +189,7 @@ def locate_utility_source_messages(
             "raw_top_level_keys": sorted(str(key) for key in raw.keys()) if isinstance(raw, dict) else [],
             "candidate_count": len(rows),
             "rejected_count": rejected,
+            "chronological_tail_added": max(0, len(source_ids) - len(rows)),
         },
     }
 

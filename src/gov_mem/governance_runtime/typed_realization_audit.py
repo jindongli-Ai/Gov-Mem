@@ -8,9 +8,15 @@ domain vocabulary is used by this module.
 from __future__ import annotations
 
 import re
+import calendar
 from typing import Any
 
 from gov_mem.data.schema import AnswerResult, RetrievedEvidence
+from gov_mem.governance_runtime.claim_adjudicator import (
+    _meaningful_field_tokens,
+    _normalize_observed_value,
+    _slot_matches_attribute,
+)
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
 
 
@@ -34,7 +40,7 @@ def realize_typed_request(
     its existing terminal-policy behavior.
     """
     requested = _requested_attributes(semantic_spec)
-    records = _record_payload(evidence)
+    records = _record_payload(evidence, semantic_spec)
     if not requested or not records or llm_client is None or not llm_client.is_available():
         return None
     try:
@@ -94,7 +100,13 @@ def realize_typed_request(
             or not slot_name
             or not value
             or not evidence_span
-            or not _slot_compatible(attribute, slot_name)
+            or not _slot_compatible(attribute, slot_name, semantic_spec)
+            or not _slot_matches_attribute(
+                attribute,
+                slot_name,
+                semantic_spec,
+                record,
+            )
             or _is_outer_collection_slot(attribute, slot_name, semantic_spec)
             or _contains_non_access_artifact(attribute, slot_name, value)
             or not _valid_slot(record, slot_name, value)
@@ -134,8 +146,35 @@ def realize_typed_request(
         for attribute in requested
         if _implicit_collection_attribute(attribute, semantic_spec)
     )
+    scalar_requested = set(requested) - collection_attributes
+    if scalar_requested:
+        # Once a request exposes named scalar members, an outer bundle is
+        # only a retrieval container. Keeping it as another answer field
+        # reintroduces unrelated neighbors and stale state.
+        accepted = [
+            item for item in accepted
+            if str(item.get("attribute") or "") not in collection_attributes
+        ]
+        # A mixed request can still ask for the outer record itself. Preserve
+        # only a source-grounded temporal anchor from that record when it is
+        # not represented by an explicit scalar member. This keeps the
+        # record's identity (for example, its calendar date) without reviving
+        # superseded operational fields from the same source record.
+        accepted.extend(
+            _collection_context_items(
+                records=records,
+                collection_attributes=collection_attributes,
+                requested_attributes=set(requested),
+                redacted_attributes=redacted_attributes,
+            )
+        )
     for attribute in requested:
         if attribute in collection_attributes:
+            if scalar_requested:
+                # An explicitly expanded mixed request uses the outer bundle
+                # only as a retrieval container. Do not re-add it through the
+                # collection fallback loop after the initial scalar filter.
+                continue
             existing = {
                 (str(item.get("memory_id") or ""), str(item.get("slot_name") or ""), str(item.get("value") or ""))
                 for item in accepted
@@ -155,6 +194,51 @@ def realize_typed_request(
         if fallback is not None:
             accepted.append(fallback)
             accepted_attributes.add(attribute)
+
+    # Scalar requests are chronology-resolved after closed-set validation.
+    # Stage 2 can return several source-grounded candidates for one field;
+    # keeping the first response would revive an older value merely because
+    # it appeared earlier in the model output.
+    for attribute in requested:
+        if attribute in collection_attributes:
+            continue
+        candidates_for_attribute = [
+            item for item in accepted
+            if str(item.get("attribute") or "") == attribute
+        ]
+        if len(candidates_for_attribute) <= 1:
+            continue
+        winner = max(
+            candidates_for_attribute,
+            key=lambda item: _scalar_current_rank(
+                item,
+                records_by_id.get(str(item.get("memory_id") or ""), {}),
+                semantic_spec,
+            ),
+        )
+        accepted = [
+            item for item in accepted
+            if str(item.get("attribute") or "") != attribute or item is winner
+        ]
+
+    # A collection may be represented by one complete source-local record or
+    # by several one-member records. Prefer the former when it is available;
+    # this keeps a coherent recap without hard-coding list vocabulary.
+    for attribute in collection_attributes:
+        collection_items = [
+            item for item in accepted
+            if str(item.get("attribute") or "") == attribute
+        ]
+        preferred = _prefer_collection_coherent_items(
+            collection_items,
+            records_by_id,
+            semantic_spec,
+        )
+        if preferred and len(preferred) < len(collection_items):
+            accepted = [
+                item for item in accepted
+                if str(item.get("attribute") or "") != attribute or item in preferred
+            ]
 
     # Keep the first source-grounded value for a scalar attribute, while
     # preserving distinct values for a typed collection.
@@ -312,9 +396,20 @@ def _is_collection_attribute(attribute: str, semantic_spec: dict[str, Any]) -> b
     return _implicit_collection_attribute(target, semantic_spec)
 
 
-def _record_payload(evidence: list[RetrievedEvidence]) -> list[dict[str, Any]]:
+def _record_payload(
+    evidence: list[RetrievedEvidence], semantic_spec: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
+    collection_attributes = {
+        str(item.get("attribute") or item.get("need_id") or "").strip()
+        for key in ("attribute_bindings", "certifiable_needs")
+        for item in list((semantic_spec or {}).get(key) or [])
+        if isinstance(item, dict)
+        and str(item.get("attribute") or item.get("need_id") or "").strip()
+        and str(item.get("need_kind") or item.get("binding_kind") or "").strip().lower()
+        in {"record_collection", "collection", "list"}
+    }
     for row in evidence:
         memory_id = str(row.memory_id or "").strip()
         if not memory_id or memory_id in seen:
@@ -420,60 +515,92 @@ def _record_payload(evidence: list[RetrievedEvidence]) -> list[dict[str, Any]]:
         ]
         if candidate_sources and not stage2_fields:
             source_text = "\n".join(dict.fromkeys(candidate_sources))
+        # Semantic claims are the record's source-local typed closure. They
+        # matter when Stage 2 admitted only a neighboring extractor field
+        # from the same collection record; adding them here lets the final
+        # audit complete that record without widening retrieval. Leave
+        # claim_span empty so a claim member is rendered as its exact value,
+        # not as the entire recap sentence.
+        typed_attributes = [
+            {
+                "attribute": str(field.get("attribute") or "").strip(),
+                "slot_name": str(field.get("slot_name") or "").strip(),
+                "value": str(field.get("value") or "").strip(),
+                "claim_span": str(field.get("claim_span") or "").strip(),
+                "evidence_span": str(field.get("evidence_span") or source_text).strip(),
+                "source_memory_id": memory_id,
+            }
+            for field in adjudicated_fields
+            if str(field.get("slot_name") or "").strip()
+            and str(field.get("value") or "").strip()
+        ] + [
+            {
+                "attribute": str(field.get("attribute") or "").strip(),
+                "slot_name": str(field.get("slot_name") or field.get("attribute") or "").strip(),
+                "value": _prefer_precise_claim_value(
+                    slot_name=str(field.get("slot_name") or field.get("attribute") or "").strip(),
+                    proposed_value=str(field.get("value") or "").strip(),
+                    claim_slots=claim_slots,
+                    source_text=source_text,
+                ),
+                "evidence_span": str(
+                    field.get("evidence_span")
+                    or (metadata.get("stage2_semantic_rerank") or {}).get("support_span")
+                    or source_text
+                ).strip(),
+                "source_memory_id": memory_id,
+            }
+            for field in stage2_fields
+            if str(field.get("slot_name") or field.get("attribute") or "").strip()
+            and str(field.get("value") or "").strip()
+        ] + [
+            {
+                "attribute": str(candidate.get("attribute") or "").strip(),
+                "slot_name": str(candidate.get("slot_name") or "").strip(),
+                "value": str(candidate.get("value") or "").strip(),
+                "claim_span": str(candidate.get("claim_span") or "").strip(),
+                "evidence_span": str(candidate.get("evidence_span") or source_text).strip(),
+                "source_memory_id": str(candidate.get("source_memory_id") or memory_id),
+            }
+            for candidate in list(metadata.get("typed_candidates") or [])
+            if isinstance(candidate, dict)
+            and str(candidate.get("attribute") or "").strip() not in stage2_attributes
+            and str(candidate.get("attribute") or "").strip()
+            and str(candidate.get("slot_name") or "").strip()
+            and str(candidate.get("value") or "").strip()
+        ]
+        if collection_attributes:
+            typed_collection_attributes = {
+                str(item.get("attribute") or "").strip()
+                for item in typed_attributes
+                if isinstance(item, dict)
+                and str(item.get("attribute") or "").strip() in collection_attributes
+            }
+            claim_targets = typed_collection_attributes
+            if not claim_targets and len(collection_attributes) == 1:
+                claim_targets = set(collection_attributes)
+            for claim in claim_slots:
+                slot_name = str(claim.get("slot_name") or "").strip()
+                value = str(claim.get("value") or "").strip()
+                if not slot_name or not value or not claim_targets:
+                    continue
+                for attribute in claim_targets:
+                    typed_attributes.append({
+                        "attribute": attribute,
+                        "slot_name": slot_name,
+                        "value": value,
+                        "claim_span": "",
+                        "evidence_span": value,
+                        "source_memory_id": memory_id,
+                    })
         rows.append({
             "memory_id": memory_id,
             "source_text": source_text,
             "slots": slots,
+            "semantic_tags": dict(metadata.get("semantic_tags") or {}),
             "lifecycle_status": str(metadata.get("lifecycle_status") or metadata.get("memory_status") or "active"),
             "source_message_ids": list(row.source_message_ids or []),
-            "typed_attributes": [
-                {
-                    "attribute": str(field.get("attribute") or "").strip(),
-                    "slot_name": str(field.get("slot_name") or "").strip(),
-                    "value": str(field.get("value") or "").strip(),
-                    "claim_span": str(field.get("claim_span") or "").strip(),
-                    "evidence_span": str(field.get("evidence_span") or source_text).strip(),
-                    "source_memory_id": memory_id,
-                }
-                for field in adjudicated_fields
-                if str(field.get("slot_name") or "").strip()
-                and str(field.get("value") or "").strip()
-            ] + [
-                {
-                    "attribute": str(field.get("attribute") or "").strip(),
-                    "slot_name": str(field.get("slot_name") or field.get("attribute") or "").strip(),
-                    "value": _prefer_precise_claim_value(
-                        slot_name=str(field.get("slot_name") or field.get("attribute") or "").strip(),
-                        proposed_value=str(field.get("value") or "").strip(),
-                        claim_slots=claim_slots,
-                        source_text=source_text,
-                    ),
-                    "evidence_span": str(
-                        field.get("evidence_span")
-                        or (metadata.get("stage2_semantic_rerank") or {}).get("support_span")
-                        or source_text
-                    ).strip(),
-                    "source_memory_id": memory_id,
-                }
-                for field in stage2_fields
-                if str(field.get("slot_name") or field.get("attribute") or "").strip()
-                and str(field.get("value") or "").strip()
-            ] + [
-                {
-                    "attribute": str(candidate.get("attribute") or "").strip(),
-                    "slot_name": str(candidate.get("slot_name") or "").strip(),
-                    "value": str(candidate.get("value") or "").strip(),
-                    "claim_span": str(candidate.get("claim_span") or "").strip(),
-                    "evidence_span": str(candidate.get("evidence_span") or source_text).strip(),
-                    "source_memory_id": str(candidate.get("source_memory_id") or memory_id),
-                }
-                for candidate in list(metadata.get("typed_candidates") or [])
-                if isinstance(candidate, dict)
-                and str(candidate.get("attribute") or "").strip() not in stage2_attributes
-                and str(candidate.get("attribute") or "").strip()
-                and str(candidate.get("slot_name") or "").strip()
-                and str(candidate.get("value") or "").strip()
-            ],
+            "typed_attributes": typed_attributes,
         })
         seen.add(memory_id)
     return rows
@@ -517,7 +644,11 @@ def _valid_slot(record: dict[str, Any], slot_name: str, value: str) -> bool:
     ))
 
 
-def _slot_compatible(attribute: str, slot_name: str) -> bool:
+def _slot_compatible(
+    attribute: str,
+    slot_name: str,
+    semantic_spec: dict[str, Any] | None = None,
+) -> bool:
     """Reject generic cross-role bindings before rendering source text."""
     attr_tokens = set(re.findall(r"[a-z0-9]+", str(attribute or "").lower()))
     slot_tokens = set(re.findall(r"[a-z0-9]+", str(slot_name or "").lower()))
@@ -527,8 +658,12 @@ def _slot_compatible(attribute: str, slot_name: str) -> bool:
     status_tokens = {"state", "status", "condition", "predicate"}
     temporal_tokens = {"time", "window", "date", "schedule", "interval", "weekday", "day", "hour", "deadline"}
     spatial_tokens = {"location", "locations", "destination", "destinations", "zone", "zones", "area", "areas", "room", "rooms", "desk", "desks", "path", "paths", "route", "routes", "place", "places", "bay", "bays", "point", "points"}
-    access_tokens = {"pin", "password", "passcode", "token", "credential", "secret", "key", "phrase"}
-    if slot_tokens & status_tokens and not attr_tokens & status_tokens:
+    access_tokens = {
+        "pin", "password", "passcode", "token", "credential", "secret", "key",
+        "phrase", "badge", "badge_id", "credential_id",
+    }
+    is_collection = _is_collection_attribute(attribute, semantic_spec or {})
+    if slot_tokens & status_tokens and not attr_tokens & status_tokens and not is_collection:
         # Presence/absence questions are intentionally realized from a
         # source-grounded status predicate.  The attribute is often phrased
         # as a question (whether/any/remain) while the record uses a typed
@@ -547,7 +682,43 @@ def _slot_compatible(attribute: str, slot_name: str) -> bool:
         return False
     if attr_tokens & spatial_tokens and slot_tokens & access_tokens and not attr_tokens & access_tokens:
         return False
+    if (
+        len(attr_tokens & slot_tokens) == 1
+        and attr_tokens - (attr_tokens & slot_tokens)
+        and slot_tokens - (attr_tokens & slot_tokens)
+        and (
+            (attr_tokens & slot_tokens) <= {
+                "current", "active", "private", "public", "approved", "main",
+                "primary", "secondary", "latest", "scheduled", "target",
+            }
+            or (attr_tokens & slot_tokens) & {"secret"}
+        )
+    ):
+        return False
     return True
+
+
+def _scalar_current_rank(
+    item: dict[str, Any], record: dict[str, Any], semantic_spec: dict[str, Any]
+) -> tuple[int, str, int, int]:
+    current = str(semantic_spec.get("temporal_scope") or "").strip().lower() == "current"
+    slot = str(item.get("slot_name") or "").strip().lower()
+    historical = bool(
+        set(re.findall(r"[a-z0-9]+", slot))
+        & {"previous", "prior", "initial", "first", "old", "former", "original", "opening", "historical"}
+    )
+    turns = [
+        int(match.group(1))
+        for source_id in list(record.get("source_message_ids") or [])
+        for match in [re.fullmatch(r"t(\d+)", str(source_id).strip())]
+        if match
+    ]
+    return (
+        int(current and not historical),
+        str(record.get("timestamp") or ""),
+        max(turns, default=-1),
+        len(str(item.get("value") or "")),
+    )
 
 
 def _attribute_bound_fallback(
@@ -593,7 +764,7 @@ def _attribute_bound_fallbacks(
             if (
                 not slot_name
                 or not value
-                or not _slot_compatible(attribute, slot_name)
+                or not _slot_compatible(attribute, slot_name, semantic_spec)
                 or _is_outer_collection_slot(attribute, slot_name, semantic_spec)
                 or _contains_non_access_artifact(attribute, slot_name, value)
                 or not _valid_slot(record, slot_name, value)
@@ -612,6 +783,10 @@ def _attribute_bound_fallbacks(
                 value,
                 evidence_span,
             ))
+    if _current_collection_has_coherent_record(attribute, semantic_spec or {}):
+        coherent_memory_ids = _coherent_collection_memory_ids(ranked, records, semantic_spec or {})
+        if coherent_memory_ids:
+            ranked = [item for item in ranked if item[2] in coherent_memory_ids]
     selected: list[dict[str, Any]] = []
     seen: set[tuple[str, str, str]] = set()
     for _, _, memory_id, _, slot_name, value, evidence_span in sorted(
@@ -629,6 +804,216 @@ def _attribute_bound_fallbacks(
             "evidence_span": evidence_span,
         })
     return selected
+
+
+def _collection_context_items(
+    *,
+    records: list[dict[str, Any]],
+    collection_attributes: set[str],
+    requested_attributes: set[str],
+    redacted_attributes: set[str] | None,
+) -> list[dict[str, Any]]:
+    """Recover non-overlapping temporal anchors from an outer record bundle."""
+    anchor_slots = {"date", "calendar_date", "event_date", "scheduled_date", "target_date"}
+    scalar_source_texts = [
+        str(record.get("source_text") or "")
+        for record in records
+        if any(
+            isinstance(candidate, dict)
+            and str(candidate.get("attribute") or "").strip() not in collection_attributes
+            for candidate in list(record.get("typed_attributes") or [])
+        )
+        and str(record.get("source_text") or "").strip()
+    ]
+    selected: dict[str, dict[str, Any]] = {}
+    for record in records:
+        if str(record.get("lifecycle_status") or "active").lower() in _LIFECYCLE_BLOCKLIST:
+            continue
+        source_text = str(record.get("source_text") or "")
+        for candidate in list(record.get("typed_attributes") or []):
+            if not isinstance(candidate, dict):
+                continue
+            if str(candidate.get("attribute") or "").strip() not in collection_attributes:
+                continue
+            slot_name = str(candidate.get("slot_name") or "").strip()
+            slot_tokens = set(re.findall(r"[a-z0-9]+", slot_name.lower()))
+            value = str(candidate.get("value") or "").strip()
+            if not slot_name or not slot_tokens & anchor_slots:
+                continue
+            if not _temporal_anchor_matches_scalar_context(value, scalar_source_texts):
+                continue
+            if slot_name in requested_attributes:
+                continue
+            if redacted_attributes is not None and slot_name not in redacted_attributes:
+                continue
+            evidence_span = str(candidate.get("evidence_span") or source_text).strip()
+            if (
+                not value
+                or not evidence_span
+                or value not in source_text
+                or value not in evidence_span
+                or not _valid_slot(record, slot_name, value)
+            ):
+                continue
+            item = {
+                "attribute": slot_name,
+                "memory_id": str(candidate.get("source_memory_id") or record.get("memory_id") or "").strip(),
+                "slot_name": slot_name,
+                "value": value,
+                "evidence_span": evidence_span,
+            }
+            if not item["memory_id"]:
+                continue
+            prior = selected.get(slot_name)
+            rank = (
+                len(value),
+                str(record.get("timestamp") or ""),
+                max(
+                    [
+                        int(match.group(1))
+                        for source_id in list(record.get("source_message_ids") or [])
+                        for match in [re.fullmatch(r"t(\d+)", str(source_id).strip())]
+                        if match
+                    ],
+                    default=-1,
+                ),
+            )
+            prior_rank = prior.get("_context_rank", ()) if prior else ()
+            if prior is None or rank > prior_rank:
+                item["_context_rank"] = rank
+                selected[slot_name] = item
+    for item in selected.values():
+        item.pop("_context_rank", None)
+    return list(selected.values())
+
+
+def _temporal_anchor_matches_scalar_context(value: str, source_texts: list[str]) -> bool:
+    """Reject a bundle date whose explicit weekday conflicts with scalar facts."""
+    if not source_texts:
+        return True
+    lowered_value = str(value or "").lower()
+    weekdays = {
+        day.lower() for day in calendar.day_name
+        if day and re.search(rf"\b{day.lower()}\b", lowered_value)
+    }
+    months = {
+        month.lower() for month in calendar.month_name
+        if month and re.search(rf"\b{month.lower()}\b", lowered_value)
+    }
+    if not weekdays and not months:
+        return True
+    scalar_text = " ".join(str(text or "").lower() for text in source_texts)
+    anchors = weekdays or months
+    return any(re.search(rf"\b{anchor}\b", scalar_text) for anchor in anchors)
+
+
+def _current_collection_has_coherent_record(
+    attribute: str, semantic_spec: dict[str, Any]
+) -> bool:
+    return bool(
+        str(semantic_spec.get("temporal_scope") or "").strip().lower() == "current"
+        and _is_collection_attribute(attribute, semantic_spec)
+    )
+
+
+def _coherent_collection_memory_ids(
+    ranked: list[tuple[int, int, str, dict[str, Any], str, str, str]],
+    records: list[dict[str, Any]],
+    semantic_spec: dict[str, Any],
+) -> set[str]:
+    groups: dict[str, list[tuple[int, int, str, dict[str, Any], str, str, str]]] = {}
+    for item in ranked:
+        groups.setdefault(item[2], []).append(item)
+    if not groups:
+        return set()
+    def source_turn(record: dict[str, Any]) -> int:
+        return max(
+            [
+                int(match.group(1))
+                for source_id in list(record.get("source_message_ids") or [])
+                for match in [re.fullmatch(r"t(\d+)", str(source_id).strip())]
+                if match
+            ],
+            default=-1,
+        )
+    scored = []
+    for memory_id, items in groups.items():
+        record = items[0][3]
+        claim_count = sum(
+            1 for item in items
+            if str(item[6] or "").strip()
+            and str(item[5] or "").strip() in str(item[3].get("source_text") or "")
+        )
+        scored.append((claim_count, source_turn(record), str(record.get("timestamp") or ""), memory_id))
+    best = max(scored)
+    # Do not collapse ordinary lists whose records each contain only one
+    # member. A coherent source-local record is identifiable by two or more
+    # typed claim values.
+    return {best[3]} if best[0] >= 2 else set()
+
+
+def _prefer_collection_coherent_items(
+    items: list[dict[str, Any]],
+    records_by_id: dict[str, dict[str, Any]],
+    semantic_spec: dict[str, Any],
+) -> list[dict[str, Any]]:
+    if not items or str(semantic_spec.get("temporal_scope") or "").strip().lower() != "current":
+        return items
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for item in items:
+        groups.setdefault(str(item.get("memory_id") or ""), []).append(item)
+    if not groups:
+        return items
+    requested_tokens = _meaningful_field_tokens(
+        str((semantic_spec.get("requested_attributes") or semantic_spec.get("requested_slots") or [""])[0])
+    )
+
+    def identity_overlap(group: list[dict[str, Any]]) -> int:
+        record = records_by_id.get(str(group[0].get("memory_id") or ""), {})
+        tags = dict(record.get("semantic_tags") or {})
+        identity = dict(tags.get("event_identity") or {})
+        identity_tokens = _meaningful_field_tokens(
+            str(identity.get("entity_key") or identity.get("entity_surface_span") or "")
+        )
+        return len(requested_tokens & identity_tokens)
+
+    # A collection can be distributed across several source turns. When at
+    # least one candidate carries an event identity aligned with the request,
+    # discard neighboring records from a different identity before scoring
+    # chronology or completeness. This keeps a plan collection together while
+    # excluding an adjacent symptom/logistics note without domain vocabulary.
+    aligned_groups = [group for group in groups.values() if identity_overlap(group)]
+    if aligned_groups:
+        items = [item for group in aligned_groups for item in group]
+        groups = {
+            str(group[0].get("memory_id") or ""): group
+            for group in aligned_groups
+            if group
+        }
+
+    def score(group: list[dict[str, Any]]) -> tuple[int, int, int, str]:
+        record = records_by_id.get(str(group[0].get("memory_id") or ""), {})
+        turns = [
+            int(match.group(1))
+            for source_id in list(record.get("source_message_ids") or [])
+            for match in [re.fullmatch(r"t(\d+)", str(source_id).strip())]
+            if match
+        ]
+        tags = dict(record.get("semantic_tags") or {})
+        identity = dict(tags.get("event_identity") or {})
+        identity_tokens = _meaningful_field_tokens(
+            str(identity.get("entity_key") or identity.get("entity_surface_span") or "")
+        )
+        identity_overlap = len(requested_tokens & identity_tokens)
+        direct_claims = sum(
+            1
+            for candidate in list(record.get("typed_attributes") or [])
+            if isinstance(candidate, dict)
+            and str(candidate.get("claim_span") or "").strip()
+        )
+        return identity_overlap, direct_claims, len(group), str(record.get("timestamp") or "")
+    best_group = max(groups.values(), key=score)
+    return best_group if len(best_group) >= 2 else items
 
 
 def _is_outer_collection_slot(

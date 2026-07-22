@@ -461,6 +461,13 @@ class QueryUnderstandingAgent:
                 "request_shape": "fact",
                 "requires_entity_resolution": bool(entities),
             }
+        if _has_unresolved_entity_reference(
+            question=question,
+            asking_user_id=asking_user_id,
+            target_entities=entities,
+        ):
+            semantic_spec["unresolved_entity_reference"] = True
+            semantic_spec["requires_entity_resolution"] = True
         return QueryPlan(
             query_type=query_type,
             target_users=target_users,
@@ -542,6 +549,13 @@ class QueryUnderstandingAgent:
         if semantic_spec.get("attribute_bindings_valid") and len(semantic_spec.get("requested_attributes") or []) > 1:
             semantic_spec["request_shape"] = "mixed"
             semantic_spec["requested_slots"] = []
+        if _has_unresolved_entity_reference(
+            question=question,
+            asking_user_id=asking_user_id,
+            target_entities=target_entities,
+        ):
+            semantic_spec["unresolved_entity_reference"] = True
+            semantic_spec["requires_entity_resolution"] = True
         return QueryPlan(
             query_type=query_type,
             target_users=target_users,
@@ -734,6 +748,7 @@ def _normalize_certifiable_contract(
         target_entities=target_entities,
     )
     raw_bindings = _normalize_attribute_bindings(normalized.get("attribute_bindings"))
+    raw_bindings = _separate_outer_collection_bindings(raw_bindings)
     normalized["rejected_query_property_spans"] = list(dict.fromkeys(
         " ".join(re.findall(r"[a-z0-9]+", str(binding.get("support_span") or "").lower()))
         for binding in raw_bindings
@@ -744,13 +759,18 @@ def _normalize_certifiable_contract(
         normalized.get("raw_requested_attributes", normalized.get("requested_attributes"))
     )
     normalized["raw_requested_attributes"] = raw_attributes
+    raw_bindings = _augment_raw_attribute_bindings(
+        raw_bindings,
+        raw_attributes,
+        question,
+    )
     grounded, bindings_valid = _ground_attribute_contract(
         raw_attributes,
-        normalized.get("attribute_bindings"),
+        raw_bindings,
         question,
         target_entities=target_entities,
     )
-    bindings = _normalize_attribute_bindings(normalized.get("attribute_bindings"))
+    bindings = raw_bindings
     constraints = _normalize_disclosure_constraints(normalized.get("disclosure_constraints"))
     # A planner can express a boundary either directly or by assigning a
     # temporal/disclosure role to a span. Both are query-local and never become
@@ -791,6 +811,7 @@ def _normalize_certifiable_contract(
         if binding.get("need_kind") == "record_collection":
             need["need_kind"] = "record_collection"
         certifiable_needs.append(need)
+    certifiable_needs = _deduplicate_temporal_alias_needs(certifiable_needs)
     # These compatibility fields are now derived views, never independently
     # merged planner output. This prevents an entity/modifier from poisoning a
     # certificate after the binding set has already been validated.
@@ -1011,6 +1032,73 @@ def _ground_requested_attributes(raw: object, question: str) -> list[str]:
         for attribute in attributes
         if set(re.findall(r"[a-z0-9]+", attribute.lower())).issubset(question_tokens)
     ]
+
+
+def _augment_raw_attribute_bindings(
+    bindings: list[dict[str, str]], raw_attributes: list[str], question: str
+) -> list[dict[str, str]]:
+    """Recover explicit subfields hidden inside an outer bundle binding.
+
+    Planner responses sometimes keep only a collection label even though the
+    question explicitly names its members after ``including``.  Recovering a
+    member is valid only when its normalized attribute phrase is a contiguous
+    surface span in the question; no domain vocabulary is introduced here.
+    """
+    out = list(bindings)
+    existing = {str(item.get("attribute") or "").strip() for item in out}
+    for attribute in raw_attributes:
+        attribute = str(attribute or "").strip()
+        if not attribute or attribute in existing:
+            continue
+        support_span = _find_normalized_surface_span(question, attribute)
+        if not support_span:
+            continue
+        out.append({
+            "attribute": attribute,
+            "support_span": support_span,
+            "semantic_role": "requested_property",
+            "evidence_slot_hint": attribute,
+        })
+        existing.add(attribute)
+    return out
+
+
+def _find_normalized_surface_span(text: str, phrase: str) -> str:
+    phrase_tokens = re.findall(r"[a-z0-9]+", str(phrase or "").lower())
+    if not phrase_tokens:
+        return ""
+    matches = list(re.finditer(r"[a-z0-9]+", str(text or ""), re.IGNORECASE))
+    normalized = [match.group(0).lower() for match in matches]
+    width = len(phrase_tokens)
+    for index in range(0, len(normalized) - width + 1):
+        if normalized[index:index + width] != phrase_tokens:
+            continue
+        return str(text)[matches[index].start():matches[index + width - 1].end()]
+    return ""
+
+
+def _deduplicate_temporal_alias_needs(needs: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Drop an unqualified alias when a qualified current field is present."""
+    by_attribute = {
+        str(item.get("attribute") or "").strip(): item
+        for item in needs
+        if str(item.get("attribute") or "").strip()
+    }
+    qualified_prefixes = ("current_", "latest_", "active_")
+    drop: set[str] = set()
+    for attribute, qualified in by_attribute.items():
+        prefix = next((value for value in qualified_prefixes if attribute.startswith(value)), None)
+        if not prefix:
+            continue
+        base = attribute[len(prefix):]
+        bare = by_attribute.get(base)
+        if bare is None:
+            continue
+        qualified_tokens = set(re.findall(r"[a-z0-9]+", str(qualified.get("query_support_span") or "").lower()))
+        bare_tokens = set(re.findall(r"[a-z0-9]+", str(bare.get("query_support_span") or "").lower()))
+        if bare_tokens and bare_tokens.issubset(qualified_tokens):
+            drop.add(base)
+    return [item for item in needs if str(item.get("attribute") or "").strip() not in drop]
 
 
 def _ground_attribute_contract(
@@ -1260,6 +1348,34 @@ def _normalize_attribute_bindings(raw: object) -> list[dict[str, str]]:
     return normalized
 
 
+def _separate_outer_collection_bindings(
+    bindings: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    """Keep collection typing on an outer bundle, not every listed member."""
+    property_bindings = [
+        item for item in bindings
+        if str(item.get("semantic_role") or "") in {"", "requested_property"}
+    ]
+    if len(property_bindings) <= 1:
+        return bindings
+    structural_tokens = {
+        "state", "plan", "summary", "snapshot", "overview", "recap", "record",
+        "collection", "details", "logistics", "workflow", "protocol",
+    }
+    result: list[dict[str, str]] = []
+    for item in bindings:
+        copied = dict(item)
+        if (
+            copied.get("need_kind") == "record_collection"
+            and str(copied.get("semantic_role") or "") in {"", "requested_property"}
+        ):
+            tokens = set(re.findall(r"[a-z0-9]+", str(copied.get("attribute") or "").lower()))
+            if not tokens & structural_tokens:
+                copied["need_kind"] = "scalar"
+        result.append(copied)
+    return result
+
+
 def _normalize_disclosure_constraints(raw: object) -> list[dict[str, str]]:
     if not isinstance(raw, list):
         return []
@@ -1386,6 +1502,22 @@ def _should_ground_requester(question: str, asking_user_id: str | None, target_e
     if explicit_non_requester:
         return False
     return True
+
+
+def _has_unresolved_entity_reference(
+    *, question: str, asking_user_id: str | None, target_entities: list[str]
+) -> bool:
+    """Mark comparative person/record references that lack a concrete entity."""
+    if not asking_user_id or not target_entities:
+        return False
+    lowered = str(question or "").lower()
+    comparative = re.search(
+        r"\b(?:other|another|different|someone else|somebody else)\b"
+        r"[^?.!]{0,80}\b(?:patient|person|user|student|employee|resident|guest|"
+        r"customer|client|account|chart|record|case|profile)\b",
+        lowered,
+    )
+    return bool(comparative)
 
 
 def _normalize_entityish(value: str) -> str:

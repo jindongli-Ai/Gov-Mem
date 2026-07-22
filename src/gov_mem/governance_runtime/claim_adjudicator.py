@@ -174,6 +174,7 @@ def adjudicate_claims(
             record,
             question=question,
             target_entities=target_entities,
+            attribute=attribute,
         ):
             continue
         value = _coerce_observed_slot_value(
@@ -256,6 +257,10 @@ def adjudicate_claims(
                     candidate_by_id,
                     attribute=attribute,
                     semantic_spec=semantic_spec,
+                )
+                or _record_has_current_attribute_update(
+                    candidate_by_id.get(str(latest.get("memory_id") or ""), {}),
+                    attribute=attribute,
                 )
             ):
                 latest_key = (
@@ -461,6 +466,10 @@ def adjudicate_claims(
                     candidate_by_id,
                     attribute=attribute,
                     semantic_spec=semantic_spec,
+                )
+                or _record_has_current_attribute_update(
+                    candidate_by_id.get(str(latest.get("memory_id") or ""), {}),
+                    attribute=attribute,
                 )
             ):
                 latest_key = (
@@ -948,6 +957,7 @@ def _stage2_attribute_fallback(
             record,
             question=question,
             target_entities=target_entities,
+            attribute=attribute,
         ):
             continue
         scope_score = _record_query_scope_score(
@@ -960,7 +970,16 @@ def _stage2_attribute_fallback(
         # name, so entity-token scope alone must not discard it before the
         # chronology resolver compares it with older claims.  Conflicting
         # records remain closed-set candidates and are resolved below.
-        if scope_score < 0 and attribute not in served and not authoritative_update:
+        current_update_context = _record_has_current_attribute_update(
+            record,
+            attribute=attribute,
+        )
+        if (
+            scope_score < 0
+            and attribute not in served
+            and not authoritative_update
+            and not current_update_context
+        ):
             continue
         claim_slot_names = {
             str(claim.get("slot_name") or "").strip()
@@ -1158,6 +1177,43 @@ def _record_has_authoritative_update(
         ):
             return True
     return False
+
+
+def _record_has_current_attribute_update(
+    record: dict[str, Any], *, attribute: str
+) -> bool:
+    """Recognize a source-local current update for one requested field.
+
+    Utility source closure may include a later update whose sentence relies on
+    the surrounding dialogue for object identity.  Admit it only when the
+    source itself carries a current/update marker and its typed claim context
+    names the requested role.  This keeps chronology recovery closed and does
+    not turn an unrelated neighboring record into evidence.
+    """
+    if not record.get("utility_source_closure"):
+        return False
+    source = str(record.get("source_text") or "")
+    if not re.search(
+        r"\b(?:current(?:ly)?|latest|updated?|moved?|changed?|revised?|"
+        r"replaced?|chang(?:e|ed|ing)|still|confirmed|remaining|held)\b",
+        source,
+        re.IGNORECASE,
+    ):
+        return False
+    attribute_tokens = _meaningful_field_tokens(attribute)
+    if not attribute_tokens:
+        return False
+    context_parts = [
+        str(record.get("event_identity", {}).get(key) or "")
+        for key in ("entity_key", "entity_surface_span", "subject_span")
+    ]
+    for claim in list(record.get("claim_slots") or []):
+        context_parts.extend([
+            str(claim.get("slot_name") or ""),
+            str(claim.get("subject_span") or ""),
+            str(claim.get("claim_span") or ""),
+        ])
+    return bool(attribute_tokens & _meaningful_field_tokens(" ".join(context_parts)))
 
 
 def _fallback_is_authoritative_update(
@@ -1537,6 +1593,7 @@ def _record_has_explicit_scope_conflict(
     *,
     question: str,
     target_entities: list[str] | None,
+    attribute: str = "",
 ) -> bool:
     """Reject only records with an explicit conflicting event identity.
 
@@ -1551,6 +1608,12 @@ def _record_has_explicit_scope_conflict(
         for key in ("entity_key", "entity_surface_span", "subject_span")
     ).strip()
     if not identity_text or not target_entities:
+        return False
+    # A current utility update can use a field identity (for example a color,
+    # date, or helper window) rather than repeating the outer object name.
+    # Its typed claim context is a sufficient local bridge; unrelated records
+    # still fail the source-role and lifecycle checks below.
+    if attribute and _record_has_current_attribute_update(record, attribute=attribute):
         return False
     return _record_query_scope_score(
         record,
@@ -2065,6 +2128,14 @@ def _slot_matches_attribute(
     temporal_tokens = {"time", "window", "date", "schedule", "interval", "weekday", "day", "hour", "deadline"}
     spatial_tokens = {"location", "locations", "destination", "destinations", "zone", "zones", "area", "areas", "room", "rooms", "desk", "desks", "path", "paths", "route", "routes", "place", "places", "bay", "bays", "point", "points"}
     access_tokens = {"code", "pin", "password", "passcode", "token", "credential", "secret", "key", "phrase"}
+    access_tokens.update({"badge", "badge_id", "credential_id"})
+    expected_slots = _expected_slot_names(attribute, semantic_spec)
+    if (
+        str((semantic_spec or {}).get("temporal_scope") or "").strip().lower() == "current"
+        and _historical_slot_tokens(slot_name)
+        and not _historical_slot_tokens(attribute)
+    ):
+        return False
     is_summary_request = bool(
         {"summary", "overview", "recap"} & direct_role_tokens
     )
@@ -2078,7 +2149,22 @@ def _slot_matches_attribute(
         # value. Accepting it lets an aggregate extractor field replace
         # newer component claims and carry unrelated neighboring facts.
         return False
-    if slot_tokens & status_tokens and not (attr_tokens & status_tokens or attr_tokens & presence_tokens):
+    collection_component = bool(
+        _is_collection_attribute(attribute, semantic_spec or {})
+        and (
+            slot_name in expected_slots
+            or any(
+                isinstance(field, dict)
+                and str(field.get("attribute") or "").strip() == attribute
+                and str(field.get("slot_name") or field.get("slot") or "").strip() == slot_name
+                for field in list((record or {}).get("stage2_typed_fields") or [])
+            )
+        )
+    )
+    if (
+        slot_tokens & status_tokens
+        and not (attr_tokens & status_tokens or attr_tokens & presence_tokens or collection_component)
+    ):
         return False
     if (attr_tokens & temporal_tokens and slot_tokens & spatial_tokens) or (
         attr_tokens & spatial_tokens and slot_tokens & temporal_tokens
@@ -2089,6 +2175,18 @@ def _slot_matches_attribute(
     # a source record contains several neighboring operational fields.
     if (attr_tokens & access_tokens and slot_tokens & temporal_tokens) or (
         attr_tokens & temporal_tokens and slot_tokens & access_tokens
+    ):
+        return False
+    # A single shared qualifier is not a typed mapping.  In a source record
+    # with ``active_private_badge`` and ``private_review_target``, for example,
+    # the word ``private`` is common to both fields but carries no role.  Keep
+    # exact semantic-contract slots and genuinely shared field heads, while
+    # rejecting weak one-token bridges before Stage 2 fallback can promote
+    # them into factual answers.
+    if (
+        not _is_collection_attribute(attribute, semantic_spec or {})
+        and slot_name not in expected_slots
+        and _ambiguous_single_token_overlap(attr_tokens, slot_tokens)
     ):
         return False
     if (
@@ -2245,9 +2343,18 @@ def _slot_matches_attribute(
             if claim_tokens & direct_role_tokens:
                 return True
         return False
+    if record is not None and _record_has_current_attribute_update(
+        record,
+        attribute=attribute,
+    ) and any(
+        str(claim.get("slot_name") or "").strip() == slot_name
+        for claim in list(record.get("claim_slots") or [])
+    ):
+        # The update marker and claim context establish the requested role;
+        # the caller still requires an exact observed value and source span.
+        return True
     if not slot_tokens:
         return False
-    expected_slots = _expected_slot_names(attribute, semantic_spec)
     if slot_name in expected_slots:
         return True
     overlap = len(attr_tokens & slot_tokens)
@@ -2331,6 +2438,30 @@ def _meaningful_field_tokens(value: str) -> set[str]:
         "a", "an", "the", "and", "any", "all", "current", "latest", "opening",
         "active", "available", "for", "in", "of", "to", "where", "used", "use",
         "currently", "currently", "requested", "property",
+    }
+
+
+def _ambiguous_single_token_overlap(left: set[str], right: set[str]) -> bool:
+    """Detect a one-token overlap surrounded by different field vocabulary."""
+    overlap = left & right
+    return bool(
+        len(overlap) == 1
+        and left - overlap
+        and right - overlap
+        and (
+            overlap <= {
+                "current", "active", "private", "public", "approved", "main",
+                "primary", "secondary", "latest", "scheduled", "target",
+            }
+            or overlap & {"secret"}
+        )
+    )
+
+
+def _historical_slot_tokens(value: str) -> set[str]:
+    return _meaningful_field_tokens(value) & {
+        "previous", "prior", "initial", "first", "old", "former", "original",
+        "opening", "historical", "retired", "superseded",
     }
 
 

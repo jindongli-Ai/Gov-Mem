@@ -4,6 +4,7 @@ from dataclasses import replace
 from dataclasses import asdict
 from pathlib import Path
 import re
+import calendar
 from typing import Any
 
 from gov_mem.backbones.common import (
@@ -52,6 +53,7 @@ from gov_mem.governance_runtime.provenance_authorization import (
 )
 from gov_mem.governance_runtime.graph_slot_renderer import (
     build_graph_authorized_projection,
+    graph_certificate_typed_compatibility,
     render_graph_authorized_slots,
 )
 from gov_mem.governance_runtime.semantic_alignment import align_requested_attributes
@@ -171,6 +173,31 @@ def _safe_projection_semantic_spec(
     return result
 
 
+def _is_pure_collection_utility_request(semantic_spec: dict[str, Any] | None) -> bool:
+    """Return whether every requested attribute is an open record collection."""
+    spec = dict(semantic_spec or {})
+    requested: set[str] = set()
+    collection: set[str] = set()
+    for key in ("attribute_bindings", "certifiable_needs"):
+        for item in list(spec.get(key) or []):
+            if not isinstance(item, dict):
+                continue
+            attribute = str(item.get("attribute") or item.get("need_id") or "").strip()
+            if not attribute:
+                continue
+            requested.add(attribute)
+            need_kind = str(item.get("need_kind") or item.get("binding_kind") or "").strip().lower()
+            if need_kind in {"record_collection", "collection", "list"}:
+                collection.add(attribute)
+    if not requested:
+        requested.update(
+            str(value).strip()
+            for value in list(spec.get("requested_attributes") or spec.get("requested_slots") or [])
+            if str(value).strip()
+        )
+    return bool(requested) and requested == collection
+
+
 def _projection_typed_field_keys(
     projection: list[RetrievedEvidence] | RetrievedEvidence | None,
 ) -> set[tuple[str, str, str]]:
@@ -206,13 +233,64 @@ def _should_prefer_graph_utility_projection(
     certificate: dict[str, Any],
     graph_projection: RetrievedEvidence | None,
     utility_projection: list[RetrievedEvidence],
+    semantic_spec: dict[str, Any] | None = None,
 ) -> bool:
     """Prefer a fuller graph projection without broadening the disclosure set."""
     if str(query_type or "").strip().lower() != "utility" or graph_projection is None:
         return False
+    requested = {
+        str(item.get("attribute") or item.get("need_id") or "").strip()
+        for key in ("attribute_bindings", "certifiable_needs")
+        for item in list((semantic_spec or {}).get(key) or [])
+        if isinstance(item, dict)
+        and str(item.get("attribute") or item.get("need_id") or "").strip()
+    }
+    collection = {
+        str(item.get("attribute") or item.get("need_id") or "").strip()
+        for key in ("attribute_bindings", "certifiable_needs")
+        for item in list((semantic_spec or {}).get(key) or [])
+        if isinstance(item, dict)
+        and str(item.get("attribute") or item.get("need_id") or "").strip()
+        and str(item.get("need_kind") or item.get("binding_kind") or "").strip().lower()
+        in {"record_collection", "collection", "list"}
+    }
     if not certificate.get("authorized"):
         return False
     if not certificate.get("stage2_operational_capability_authorized"):
+        return False
+    # A graph projection is a complete, source-grounded typed answer when it
+    # exposes every requested attribute. Prefer it even for collection-only
+    # requests: reopening the same closed evidence through the free-form
+    # utility renderer can select a neighboring field (for example a symptom
+    # record for a plan request) or a vague status phrase for an exact scalar.
+    projected_attributes = {
+        attribute
+        for attribute, _slot_name, _value in _projection_typed_field_keys(graph_projection)
+        if attribute
+    }
+    if requested and requested <= projected_attributes:
+        # A collection-only projection can be structurally complete while
+        # still representing the wrong recap/version of an open-ended list.
+        # Keep that case on the source-local utility path; graph remains the
+        # canonical projection for scalar-only requests and for mixed requests
+        # whose temporal anchor has passed the coherence check below.
+        if not collection:
+            return True
+        if requested - collection and _graph_collection_has_coherent_temporal_anchor(
+            projection=graph_projection,
+            collection_attributes=collection,
+        ):
+            return True
+    # The graph projection is needed for mixed outer-record requests, where
+    # it can preserve a certified context anchor alongside scalar fields.
+    # An incomplete collection-only projection must still use the utility
+    # path; the complete-projection branch above is the explicit exception.
+    if not collection or not (requested - collection):
+        return False
+    if not _graph_collection_has_coherent_temporal_anchor(
+        projection=graph_projection,
+        collection_attributes=collection,
+    ):
         return False
     if (
         certificate.get("requires_redaction")
@@ -228,6 +306,40 @@ def _should_prefer_graph_utility_projection(
     # checks make it the canonical utility projection even when the noisier
     # utility row contains more typed keys.
     return bool(graph_fields) and bool(utility_fields or graph_fields)
+
+
+def _graph_collection_has_coherent_temporal_anchor(
+    *,
+    projection: RetrievedEvidence,
+    collection_attributes: set[str],
+) -> bool:
+    """Require a mixed outer-record projection to retain a coherent date."""
+    candidates = [
+        item for item in list((projection.metadata or {}).get("typed_candidates") or [])
+        if isinstance(item, dict)
+    ]
+    scalar_text = " ".join(
+        str(item.get("source_text") or "").lower()
+        for item in candidates
+        if str(item.get("attribute") or "").strip() not in collection_attributes
+    )
+    if not scalar_text:
+        return False
+    weekdays = tuple(day.lower() for day in calendar.day_name if day)
+    months = tuple(month.lower() for month in calendar.month_name if month)
+    for item in candidates:
+        if str(item.get("attribute") or "").strip() not in collection_attributes:
+            continue
+        slot = str(item.get("slot_name") or "").lower().replace("-", "_")
+        value = str(item.get("value") or "").lower()
+        if "date" not in set(slot.split("_")) and slot not in {"date", "calendar_date", "event_date"}:
+            continue
+        value_days = [day for day in weekdays if re.search(rf"\b{day}\b", value)]
+        value_months = [month for month in months if re.search(rf"\b{month}\b", value)]
+        anchors = value_days or value_months
+        if not anchors or any(re.search(rf"\b{anchor}\b", scalar_text) for anchor in anchors):
+            return True
+    return False
 
 
 class RAGPolicyAMemBackbone:
@@ -1013,6 +1125,7 @@ class RAGPolicyAMemBackbone:
             certificate=graph_authorization_certificate,
             graph_projection=graph_authorized_projection,
             utility_projection=utility_adjudicated_projection,
+            semantic_spec=plan.semantic_spec,
         )
         if graph_authorized_projection is not None and (
             not utility_adjudicated_projection or prefer_graph_utility_projection
@@ -1472,6 +1585,8 @@ class RAGPolicyAMemBackbone:
                 utility_realization_evidence = (
                     [graph_authorized_projection]
                     if prefer_graph_utility_projection and graph_authorized_projection is not None
+                    else claim_evidence
+                    if _is_pure_collection_utility_request(plan.semantic_spec)
                     else utility_adjudicated_projection
                     if utility_adjudicated_projection
                     else stage2_allowed
@@ -1554,6 +1669,10 @@ class RAGPolicyAMemBackbone:
             and not graph_authorization_certificate.get("requires_redaction")
             and not graph_authorization_certificate.get("redacted_slot_names")
             and not graph_authorization_certificate.get("unresolved_requested_attributes")
+            and graph_certificate_typed_compatibility(
+                certificate=graph_authorization_certificate,
+                semantic_spec=plan.semantic_spec,
+            )
         )
         if utility_graph_direct and action == "answer_redacted":
             action = "answer"
@@ -1613,6 +1732,20 @@ class RAGPolicyAMemBackbone:
                 if graph_authorized_projection is not None:
                     selected_evidence[:] = [graph_authorized_projection]
                     selected_frames[:] = [compile_evidence_frame(graph_authorized_projection)]
+
+        # Comparative references such as "the other patient" are not an
+        # entity identity. Never let retrieval or a requester-grounded
+        # fallback silently resolve them to the asking user's record.
+        if plan.semantic_spec.get("unresolved_entity_reference"):
+            action = "no_memory"
+            action_decision.action = action
+            selected_evidence[:] = []
+            selected_frames[:] = []
+            answer_result = build_action_only_answer_result(
+                action=action,
+                reasoning_summary="The requested comparative entity could not be resolved to an authorized source record.",
+                used_memory_ids=[],
+            )
 
         # A downstream governance boundary may safely narrow a direct answer
         # into an answer_redacted response.
