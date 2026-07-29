@@ -617,21 +617,26 @@ def _mixed_reasoning_prompt(
         "question. Identify the candidates that best support every requested field, "
         "prefer current/approved/latest evidence over stale or superseded evidence, "
         "and resolve conflicts using explicit qualifiers and source chronology. "
-        "You may only return memory_ids present in CANDIDATES. This is relevance and "
-        "conflict resolution, not authorization.\n\n"
+        "You may only return candidate references present in CANDIDATES. To avoid "
+        "copying long IDs, use the integer rank from each candidate row in every "
+        "memory-id field; the validator maps ranks back to the supplied memory IDs. "
+        "If field_support is included, use integer indexes into REQUESTED_FIELDS "
+        "as keys (for example, {\"0\":[1]}), never natural-language field names. "
+        "Do not invent field names or answer the user. This is relevance and conflict "
+        "resolution, not authorization.\n\n"
         f"QUESTION: {question}\n"
         f"REQUESTED_FIELDS: {json.dumps(requested_slots, ensure_ascii=True)}\n\n"
         "Return exactly one JSON object with this shape:\n"
         '{"ranked_memory_ids":["candidate_id"],'
         '"selected_memory_ids":["candidate_id"],'
-        '"field_support":{"field":["candidate_id"]},'
+        '"field_support":{"0":[1]},'
         '"evidence_quotes":[{"memory_id":"candidate_id","quote":"exact substring"}],'
         '"conflicts":[{"field":"field","older_memory_id":"candidate_id",'
         '"current_memory_id":"candidate_id"}],"confidence":0.0}\n'
-        "ranked_memory_ids must contain the useful candidates in answer order. "
+        "ranked_memory_ids must contain candidate rank integers in answer order. "
         "selected_memory_ids must be a non-empty subset of ranked_memory_ids and "
         "must collectively support every requested field. field_support and conflicts "
-        "are for audit only; evidence_quotes is mandatory for every selected candidate, "
+        "are optional audit fields; evidence_quotes is mandatory for every selected candidate, "
         "and each quote must be copied exactly from that candidate's text. Do not add "
         "ids outside CANDIDATES. Use confidence between 0 and 1.\n\n"
         f"CANDIDATES:\n{json.dumps(candidate_rows, ensure_ascii=False)}"
@@ -650,17 +655,45 @@ def _validate_mixed_reasoning_output(
     if not isinstance(raw, dict):
         return list(evidence), {}, "malformed reasoning response"
     candidate_by_id = {row.memory_id: row for row in evidence}
+    source_message_to_ids: dict[str, list[str]] = {}
+    for row in evidence:
+        for source_message_id in row.source_message_ids:
+            source_message_to_ids.setdefault(str(source_message_id), []).append(row.memory_id)
+
+    def resolve_candidate_id(value: Any) -> str | None:
+        """Resolve only aliases that point to one supplied candidate.
+
+        Compact rank references and unique source-message references are useful
+        fallbacks for small models that copy long memory IDs unreliably.  Both
+        remain closed-set references; no new candidate can be introduced.
+        """
+
+        text = str(value).strip()
+        if text in candidate_by_id:
+            return text
+        rank_match = re.fullmatch(r"(?:candidate|rank)[ _-]?(\d+)", text, re.IGNORECASE)
+        if rank_match:
+            rank = int(rank_match.group(1))
+            if 0 <= rank < len(evidence):
+                return evidence[rank].memory_id
+        if isinstance(value, int) and not isinstance(value, bool) and 0 <= value < len(evidence):
+            return evidence[value].memory_id
+        source_matches = source_message_to_ids.get(text, [])
+        if len(source_matches) == 1:
+            return source_matches[0]
+        return None
 
     def ids_field(name: str) -> list[str] | None:
         value = raw.get(name)
         if not isinstance(value, list) or not value:
             return None
-        ids = [str(item).strip() for item in value if str(item).strip()]
-        if len(ids) != len(value) or len(set(ids)) != len(ids):
+        ids = [resolve_candidate_id(item) for item in value]
+        if any(memory_id is None for memory_id in ids):
             return None
-        if any(memory_id not in candidate_by_id for memory_id in ids):
+        normalized_ids = [str(memory_id) for memory_id in ids]
+        if len(set(normalized_ids)) != len(normalized_ids):
             return None
-        return ids
+        return normalized_ids
 
     ranked_ids = ids_field("ranked_memory_ids")
     selected_ids = ids_field("selected_memory_ids")
@@ -677,19 +710,78 @@ def _validate_mixed_reasoning_output(
     # Requiring the old lexical matcher to rediscover every semantic field
     # rejected valid rerank results (for example, "bay" vs. "room").
     field_support = raw.get("field_support", {})
-    if not isinstance(field_support, dict):
-        return list(evidence), {}, "field_support is not an object"
     normalized_support: dict[str, list[str]] = {}
-    for field, field_ids in field_support.items():
-        field_name = str(field).strip()
-        if field_name not in requested_slots or not isinstance(field_ids, list) or not field_ids:
-            return list(evidence), {}, "field_support contains an invalid field"
-        normalized_ids = [str(memory_id).strip() for memory_id in field_ids if str(memory_id).strip()]
-        if len(normalized_ids) != len(field_ids) or any(memory_id not in selected_set for memory_id in normalized_ids):
-            return list(evidence), {}, "field_support references an unselected candidate"
-        normalized_support[field_name] = list(dict.fromkeys(normalized_ids))
-    if set(normalized_support) != set(requested_slots):
-        return list(evidence), {}, "field_support does not cover requested fields"
+    field_support_validated = False
+    requested_slot_set = set(requested_slots)
+    field_aliases = {
+        "review date": "target_date",
+        "target date": "target_date",
+        "showcase date": "public_event_date",
+        "public date": "public_event_date",
+        "amount": "monthly_stipend",
+        "approved amount": "monthly_stipend",
+        "support amount": "monthly_stipend",
+        "stipend": "monthly_stipend",
+        "budget": "approved_budget",
+        "discount": "approved_discount_cap",
+        "maximum discount": "approved_discount_cap",
+        "discount cap": "approved_discount_cap",
+        "room": "access_room",
+        "bay": "access_room",
+        "booth": "access_room",
+        "suite": "access_room",
+        "badge": "access_badge",
+        "safe label": "safe_wording",
+        "safe wording": "safe_wording",
+        "blocker state": "blocker",
+        "release scope": "family_release_scope",
+        "family release scope": "family_release_scope",
+    }
+
+    def normalize_field_name(value: Any) -> str:
+        raw_name = str(value).strip().lower()
+        if re.fullmatch(r"\d+", raw_name):
+            index = int(raw_name)
+            if 0 <= index < len(requested_slots):
+                return requested_slots[index]
+        if raw_name in requested_slot_set:
+            return raw_name
+        field_name = re.sub(r"[_-]+", " ", raw_name)
+        field_name = " ".join(field_name.split())
+        alias = field_aliases.get(field_name)
+        if alias in requested_slot_set:
+            # Generic labels such as "room" are safe only when the query has
+            # one possible room slot; public and private rooms must not merge.
+            if field_name in {"room", "date", "amount"}:
+                same_family = {
+                    "room": {"access_room", "public_room"},
+                    "date": {"date", "target_date", "public_event_date"},
+                    "amount": {"monthly_stipend", "approved_budget"},
+                }[field_name]
+                if len(requested_slot_set & same_family) != 1:
+                    return field_name
+            return alias
+        return field_name
+
+    if isinstance(field_support, dict):
+        support_is_well_formed = True
+        for field, field_ids in field_support.items():
+            field_name = normalize_field_name(field)
+            if field_name not in requested_slot_set or not isinstance(field_ids, list) or not field_ids:
+                support_is_well_formed = False
+                break
+            normalized_ids = [resolve_candidate_id(memory_id) for memory_id in field_ids]
+            if (
+                any(memory_id is None for memory_id in normalized_ids)
+                or any(memory_id not in selected_set for memory_id in normalized_ids)
+            ):
+                support_is_well_formed = False
+                break
+            normalized_support[field_name] = list(dict.fromkeys(str(memory_id) for memory_id in normalized_ids))
+        if not support_is_well_formed:
+            normalized_support = {}
+        else:
+            field_support_validated = bool(normalized_support)
 
     evidence_quotes = raw.get("evidence_quotes")
     if not isinstance(evidence_quotes, list):
@@ -698,7 +790,7 @@ def _validate_mixed_reasoning_output(
     for item in evidence_quotes:
         if not isinstance(item, dict):
             return list(evidence), {}, "evidence quote is not an object"
-        memory_id = str(item.get("memory_id") or "").strip()
+        memory_id = resolve_candidate_id(item.get("memory_id"))
         quote = str(item.get("quote") or "").strip()
         if memory_id not in selected_set or not quote:
             return list(evidence), {}, "evidence quote references an unselected candidate"
@@ -724,7 +816,7 @@ def _validate_mixed_reasoning_output(
         if not isinstance(conflict, dict):
             return list(evidence), {}, "conflict is not an object"
         for key in ("older_memory_id", "current_memory_id"):
-            if str(conflict.get(key) or "") not in candidate_by_id:
+            if resolve_candidate_id(conflict.get(key)) not in candidate_by_id:
                 return list(evidence), {}, "conflict references an unknown candidate"
 
     ranked_rows = [candidate_by_id[memory_id] for memory_id in ranked_ids]
@@ -737,6 +829,7 @@ def _validate_mixed_reasoning_output(
         "selected_memory_ids": [row.memory_id for row in selected_rows],
         "confidence": confidence,
         "field_support": normalized_support,
+        "field_support_validated": field_support_validated,
         "evidence_quotes": quotes_by_id,
         "conflicts": conflicts,
         "reason": "validated closed-set mixed candidate reasoning",

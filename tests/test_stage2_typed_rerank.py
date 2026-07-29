@@ -797,6 +797,37 @@ def test_mixed_reasoning_rerank_reorders_closed_set_candidates_and_preserves_fie
     assert [row.memory_id for row in result] == ["room", "wording", "noise"]
 
 
+def test_mixed_reasoning_accepts_closed_set_rank_and_source_aliases():
+    instance = _instance("Tell me the current private room and safe wording.")
+    evidence = [
+        _evidence("noise", "The prior budget was 3,980 USD.", 0.99, "m_old"),
+        _evidence("room", "The current private room is Cedar Room.", 0.75, "m_new"),
+        _evidence("wording", "The current safe wording is broad customer wording.", 0.74, "m_new"),
+    ]
+    llm = _ReasoningLLM({
+        "ranked_memory_ids": ["rank 1", "rank 2", "rank 0"],
+        "selected_memory_ids": ["rank 1", 2],
+        "field_support": {"0": [2], "1": [1]},
+        "evidence_quotes": [
+            {"memory_id": "room", "quote": "The current private room is Cedar Room."},
+            {"memory_id": "rank 2", "quote": "The current safe wording is broad customer wording."},
+        ],
+        "conflicts": [],
+        "confidence": 0.9,
+    })
+
+    result, info = reason_mixed_evidence_with_llm(
+        instance=instance,
+        evidence=evidence,
+        llm_client=llm,
+        model_name="gpt-4o-mini-2024-07-18",
+        config=_reasoning_config(),
+    )
+
+    assert info["validated"] is True
+    assert [row.memory_id for row in result] == ["room", "wording", "noise"]
+
+
 def test_mixed_reasoning_accepts_semantic_field_mapping_not_seen_by_lexical_matcher():
     instance = _instance("As of now, what are the current review date and current private room?")
     evidence = [
@@ -855,7 +886,7 @@ def test_mixed_reasoning_rerank_rejects_unknown_candidate_and_falls_back():
     assert "invalid candidate ids" in info["reason"]
 
 
-def test_mixed_reasoning_rerank_rejects_incomplete_field_coverage():
+def test_mixed_reasoning_keeps_order_certificate_when_field_audit_is_incomplete():
     instance = _instance("Tell me the current private room and safe wording.")
     evidence = [
         _evidence("room", "The current private room is Cedar Room.", 0.75, "m_new"),
@@ -879,7 +910,38 @@ def test_mixed_reasoning_rerank_rejects_incomplete_field_coverage():
     )
 
     assert result == evidence
-    assert "field_support does not cover requested fields" in info["reason"]
+    assert info["validated"] is True
+    assert info["field_support_validated"] is True
+
+
+def test_mixed_reasoning_ignores_malformed_optional_field_audit():
+    instance = _instance("Tell me the current private room and safe wording.")
+    evidence = [
+        _evidence("room", "The current private room is Cedar Room.", 0.75, "m_room"),
+        _evidence("wording", "The current safe wording is broad customer wording.", 0.74, "m_wording"),
+    ]
+    llm = _ReasoningLLM({
+        "ranked_memory_ids": [0, 1],
+        "selected_memory_ids": [0, 1],
+        "field_support": {"invented_field": [0]},
+        "evidence_quotes": [
+            {"memory_id": 0, "quote": "The current private room is Cedar Room."},
+            {"memory_id": 1, "quote": "The current safe wording is broad customer wording."},
+        ],
+        "conflicts": [],
+        "confidence": 0.8,
+    })
+
+    _, info = reason_mixed_evidence_with_llm(
+        instance=instance,
+        evidence=evidence,
+        llm_client=llm,
+        model_name="gpt-4o-mini-2024-07-18",
+        config=_reasoning_config(),
+    )
+
+    assert info["validated"] is True
+    assert info["field_support_validated"] is False
 
 
 def test_mixed_reasoning_rerank_rejects_hallucinated_quote():
