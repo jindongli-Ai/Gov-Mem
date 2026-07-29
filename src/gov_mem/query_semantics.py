@@ -15,15 +15,24 @@ CURRENT_STATE_SLOT_ALIASES: dict[str, list[str]] = {
         "public event date", "public date", "showcase date", "showcase day",
         "orientation date", "orientation day",
     ],
-    "approved_budget": ["approved budget", "current budget"],
+    "approved_budget": [
+        "approved budget", "current budget", "current approved budget",
+    ],
     "approved_discount_cap": ["approved maximum discount", "maximum discount", "discount cap"],
-    "monthly_stipend": ["monthly stipend", "current stipend", "support amount", "support figure", "current amount"],
-    "safe_wording": ["safe wording", "safe case wording", "safe label", "safe summary", "public wording", "broad customer wording"],
+    "monthly_stipend": [
+        "monthly stipend", "current stipend", "support amount", "support figure",
+        "current amount", "approved amount", "approved support amount",
+    ],
+    "safe_wording": [
+        "safe wording", "safe broad wording", "safe case wording", "safe label",
+        "safe summary", "public wording", "broad wording", "broad customer wording",
+    ],
     "blocker": ["blocker", "current blocker", "case blocker", "remaining blocker", "only remaining", "open blocker", "blockers remain"],
     "access_room": [
         "active private room", "current private room", "current temporary room",
-        "temporary room", "current access room", "current bay", "private bay",
-        "current private bay", "current suite",
+        "temporary room", "current room", "active room", "private room",
+        "current access room", "current bay", "active bay", "private bay",
+        "current private bay", "current suite", "current booth", "active booth",
     ],
     "access_badge": [
         "active badge", "current badge", "active access code",
@@ -183,6 +192,16 @@ def infer_current_state_domain(question: str) -> str:
 
 def infer_current_state_slots(question: str) -> list[str]:
     domain = infer_current_state_domain(question)
+    research_hits = sum(
+        1 for alias in CURRENT_STATE_DOMAIN_ALIASES["research"]
+        if contains_query_alias(question, [alias])
+    )
+    project_hits = sum(
+        1 for alias in CURRENT_STATE_DOMAIN_ALIASES["project"]
+        if contains_query_alias(question, [alias])
+    )
+    research_dominant = research_hits > project_hits and research_hits > 0
+    project_dominant = project_hits > research_hits and project_hits > 0
     required: list[str] = []
     for slot_name, aliases in CURRENT_STATE_SLOT_ALIASES.items():
         if not contains_query_alias(question, aliases):
@@ -191,9 +210,9 @@ def infer_current_state_slots(question: str) -> list[str]:
             continue
         if slot_name == "target_date" and domain == "research" and contains_query_alias(question, ["launch date", "budget"]):
             continue
-        if slot_name in {"approved_budget", "approved_discount_cap", "operational_result"} and domain == "research":
+        if slot_name in {"approved_budget", "approved_discount_cap", "operational_result"} and research_dominant:
             continue
-        if slot_name in {"monthly_stipend", "safe_wording"} and domain == "project":
+        if slot_name in {"monthly_stipend", "safe_wording"} and project_dominant:
             continue
         required.append(slot_name)
     # Public schedules are often named by entity (for example, "public X
@@ -205,11 +224,27 @@ def infer_current_state_slots(question: str) -> list[str]:
     # "showcase date and room"). Keep the structural shape generic.
     text = str(question or "")
     if "access_room" not in required and re.search(
-        r"\b(?:current|active|temporary|private)(?:\s+[a-z][a-z0-9_-]*){0,4}\s+(?:room|bay|suite)\b",
+        r"\b(?:current|active|temporary|private|exact)(?:\s+[a-z][a-z0-9_-]*){0,4}\s+(?:room|bay|suite|booth)\b",
         text,
         re.IGNORECASE,
     ):
         required.append("access_room")
+    if "access_room" not in required and re.search(
+        r"\b(?:current|active|exact)\b", text, re.IGNORECASE
+    ) and re.search(r"\b(?:room|bay|suite|booth)\b", text, re.IGNORECASE):
+        required.append("access_room")
+    if "monthly_stipend" not in required and re.search(
+        r"\b(?:current|approved|active)(?:\s+[a-z][a-z0-9_-]*){0,3}\s+amount\b",
+        text,
+        re.IGNORECASE,
+    ):
+        required.append("monthly_stipend")
+    if "access_badge" not in required and re.search(
+        r"\b(?:current|active|exact)\s+(?:access\s+)?badge\b",
+        text,
+        re.IGNORECASE,
+    ):
+        required.append("access_badge")
     if "public_room" not in required and re.search(
         r"\b(?:showcase|orientation|public)(?:\s+[a-z][a-z0-9_-]*){0,5}\s+(?:room|hall)\b",
         text,

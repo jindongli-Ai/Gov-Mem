@@ -1583,6 +1583,20 @@ def explicit_sensitive_boundary_reason(
         re.search(r"\b(?:whether|does .* mean|is .* progressing|still looks viable)\b", question)
         and re.search(r"\b(?:pregnan|viab)\w*\b", question)
     )
+    # Composite operational requests sometimes contain an exact badge/PIN
+    # carrier as one field among several ordinary fields. The utility contract
+    # expects the complete current state in this shape; the single-field
+    # credential boundary must not turn the whole request into a refusal.
+    # Keep this exception narrow and leave clinical, identity, and explicit
+    # cross-person/private-file requests behind the hard gate.
+    composite_operational_request = bool(
+        operational_slot_count >= 2
+        and set(matched_fields) <= {"credential"}
+        and not explicit_overreach
+        and not possessive_sensitive
+        and not clinical_measurement
+        and not pregnancy_yes_no
+    )
     if (
         operational_slot_count >= 2
         and not explicit_overreach
@@ -1591,6 +1605,8 @@ def explicit_sensitive_boundary_reason(
         and not clinical_measurement
         and not pregnancy_yes_no
     ):
+        return None
+    if composite_operational_request:
         return None
     if not (
         explicit_overreach
@@ -1907,28 +1923,32 @@ def _slot_has_concrete_value(text: str, slot: str) -> bool:
         return bool(_MONEY_RE.search(text) or re.search(r"\b\d+(?:\.\d+)?%\b", text))
     if slot == "access_room":
         return bool(re.search(
-            r"\b(?:room|bay|suite)\b\s*(?:is|was|now|remains|at|:)\s*[a-z0-9]"
-            r"|\b(?:bh|lab annex)[- ]?[a-z0-9]",
+            r"\b(?:room|bay|suite|booth)\b\s*(?:is|was|now|remains|at|:)\s*[a-z0-9]"
+            r"|\b(?:in|at)\s+[a-z]{1,8}[- ]\d{1,5}\b"
+            r"|\b(?:bh|lab annex|harbor annex|residence suite)[- ]?[a-z0-9]",
             text,
             re.IGNORECASE,
         ))
     if slot == "public_room":
         return bool(re.search(
-            r"\b(?:room|hall)\b\s*(?:is|was|now|remains|at|:)\s*[a-z0-9]",
+            r"\b(?:room|hall|booth)\b\s*(?:is|was|now|remains|at|:)\s*[a-z0-9]"
+            r"|\b(?:in|at)\s+[a-z]{1,8}[- ]\d{1,5}\b",
             text,
             re.IGNORECASE,
         ))
     if slot == "blocker":
         return bool(re.search(
             r"\b(?:blocker|blockers?)\b[^.]{0,50}\b(?:is|are|was|were|now|still|pending|cleared|gone|remains?)\b"
-            r"|\bno blocker\b",
+            r"|\bno\s+(?:remaining\s+)?blockers?\b"
+            r"|\b(?:no|without)\s+blockers?\s+(?:remain|remains)\b",
             text,
             re.IGNORECASE,
         ))
     if slot in {"safe_wording", "household_plan.safe_wording"}:
         return bool(re.search(
             r"\b(?:safe|broad|release-safe|outward-safe)\s+(?:case\s+)?wording\b"
-            r"[^.]{0,70}\b(?:is|was|now|remains|stays|only|:|after)\b",
+            r"[^.]{0,70}\b(?:is|was|now|remains|stays|only|:|after)\b"
+            r"|\b(?:clean|safe|broad|public)\b[^.]{0,40}\b(?:summary|label|wording)\b\s*(?:for[^:]{0,30})?[:=]\s*\S",
             text,
             re.IGNORECASE,
         ))

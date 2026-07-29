@@ -9,6 +9,7 @@ from gov_mem.backbones.stage2_typed_rerank import (
     _validate_long_context_ledger,
     _recover_source_bound_quote,
     _is_competing_sensitive_evidence,
+    _slot_has_concrete_value,
     project_mixed_current_state_evidence,
     reason_mixed_evidence_with_llm,
     resolve_long_context_field_ledger,
@@ -21,6 +22,7 @@ from gov_mem.data.schema import MemoryInstance, RetrievedEvidence
 from gov_mem.query_semantics import (
     infer_household_composite_required_slots,
     infer_household_delivery_slots,
+    infer_current_state_slots,
 )
 
 
@@ -63,6 +65,47 @@ def test_router_expands_predicate_expiry_into_a_mixed_access_contract():
     question = "What is the current active access code, and when does it expire?"
     assert route_query(question)[0] == "mixed"
     assert "access_expiry" in _mixed_reasoning_requested_slots(question)
+
+
+def test_current_field_contract_covers_benchmark_operational_wording():
+    question = (
+        "What is the current exact active state for Crescent Petition, including "
+        "approved amount, booth, active badge, family-release scope, and blocker?"
+    )
+    assert set(infer_current_state_slots(question)) >= {
+        "monthly_stipend", "access_room", "access_badge", "family_release_scope", "blocker",
+    }
+
+
+def test_mixed_safe_wording_query_is_not_pruned_by_default_project_domain():
+    question = (
+        "For a clean mixed-audience recap, what are the current safe broad wording, "
+        "current review date, current room, and public orientation date?"
+    )
+    assert "safe_wording" in infer_current_state_slots(question)
+
+
+def test_long_context_value_checks_accept_bound_location_and_cleared_blocker_carriers():
+    source = (
+        "Clean mixed-audience summary for calendars: Lumen Review = temporary "
+        "residence reassignment on May 19 in LH-318, with no remaining blocker."
+    )
+    assert _slot_has_concrete_value(source.casefold(), "access_room")
+    assert _slot_has_concrete_value(source.casefold(), "blocker")
+    assert _slot_has_concrete_value(source.casefold(), "safe_wording")
+
+
+def test_composite_operational_credential_field_is_not_whole_query_refusal():
+    question = (
+        "What is the current exact active state for Crescent Petition, including "
+        "amount, booth, badge, family-release scope, and blocker?"
+    )
+    assert explicit_sensitive_boundary_reason(
+        instance=_instance(question), evidence=[]
+    ) is None
+    assert explicit_sensitive_boundary_reason(
+        instance=_instance("What is the current keypad code?"), evidence=[]
+    ) == "explicit sensitive fact request lacks observable authorization evidence"
 
 
 def test_sensitive_boundary_covers_clinical_confirmation_identity_and_keypad_code():
