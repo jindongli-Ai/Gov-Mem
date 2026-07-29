@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from queue import Queue
 import subprocess
 import sys
 from collections import defaultdict
@@ -14,6 +15,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from gov_mem.eval.benchmark_official import load_and_validate_predictions, run_official_scorer
+from gov_mem.llm.model_registry import resolve_llm_model
 from gov_mem.utils.config import load_yaml_config
 
 
@@ -75,15 +77,20 @@ def _discover_api_keys() -> list[str]:
         return list(dict.fromkeys(values))
 
     readme = ROOT / "README_API_Yunwu.md"
-    if not readme.exists():
-        return []
     keys: list[str] = []
-    for line in readme.read_text(encoding="utf-8").splitlines():
-        if "sk-" not in line:
-            continue
-        candidate = line.split("`")[1] if "`" in line else line.strip()
-        if candidate.startswith("sk-"):
-            keys.append(candidate)
+    if readme.exists():
+        for line in readme.read_text(encoding="utf-8").splitlines():
+            if "sk-" not in line:
+                continue
+            candidate = line.split("`")[1] if "`" in line else line.strip()
+            if candidate.startswith("sk-"):
+                keys.append(candidate)
+    if keys:
+        return list(dict.fromkeys(keys))
+
+    single_key = os.environ.get("YUNWU_API_KEY", "").strip()
+    if single_key:
+        return [single_key]
     return list(dict.fromkeys(keys))
 
 
@@ -165,12 +172,17 @@ def main() -> None:
         default=None,
         help="Override the configured base model for every domain subprocess.",
     )
+    parser.add_argument(
+        "--embedding_model",
+        default=None,
+        help="Override the configured embedding model for every domain subprocess.",
+    )
     parser.add_argument("--resume", action="store_true", help="Strictly resume compatible interrupted domain runs.")
-    parser.add_argument("--parallel_domains", type=int, default=1, help="Number of domain subprocesses to run concurrently.")
+    parser.add_argument("--parallel_domains", type=int, default=4, help="Number of domain subprocesses to run concurrently.")
     parser.add_argument(
         "--parallel_episodes",
         type=int,
-        default=1,
+        default=4,
         help="Run episode shards concurrently with one stable Yunwu key per episode.",
     )
     args = parser.parse_args()
@@ -178,24 +190,43 @@ def main() -> None:
     suite_manifest = Path(args.suite_manifest)
     output_dir = Path(args.output_dir)
     payload = _load_manifest(suite_manifest)
+    config = load_yaml_config(args.config)
     suite_name = str(payload.get("suite_name") or suite_manifest.stem)
     version = int(payload.get("version") or 1)
     grouped = _group_entries_by_domain(payload.get("entries", []))
     api_keys = _discover_api_keys()
-    episode_key_indices: dict[tuple[str, str], int] = {}
-    next_key_index = 0
-    for domain in sorted(grouped):
-        for episode_id in sorted(_episode_groups(grouped[domain])):
-            episode_key_indices[(domain, episode_id)] = next_key_index
-            next_key_index += 1
+    llm_cfg = dict(config.get("llm") or {})
+    judge_cfg = dict((config.get("evaluation") or {}).get("official_judge") or {})
+    memory_system_base_llm = str(
+        args.base_model
+        or llm_cfg.get("base_model")
+        or resolve_llm_model(config, "answering")
+    )
+    official_evaluation_llm = str(judge_cfg.get("model") or "gpt-4o")
+    embedding_model = str(args.embedding_model or (config.get("embedding") or {}).get("model") or "")
+    available_key_indices: Queue[int] | None = None
+    if api_keys:
+        available_key_indices = Queue()
+        for index in range(len(api_keys)):
+            available_key_indices.put(index)
 
     suite_summary: dict[str, dict] = {
         "suite_name": suite_name,
         "version": version,
+        "execution": {
+            "parallel_domains": max(1, int(args.parallel_domains)),
+            "parallel_episodes": max(1, int(args.parallel_episodes)),
+            "yunwu_key_pool_size": len(api_keys),
+            "episode_key_isolation": bool(api_keys),
+            "memory_system_base_llm": memory_system_base_llm,
+            "official_evaluation_llm": official_evaluation_llm,
+            "official_evaluation_provider": str(judge_cfg.get("provider") or "yunwu"),
+            "embedding_model": embedding_model,
+        },
         "domains": {},
     }
 
-    def run_episode(domain: str, episode_id: str, entries: list[dict], key_index: int) -> Path:
+    def run_episode(domain: str, episode_id: str, entries: list[dict]) -> Path:
         domain_output_dir = output_dir / domain
         episode_output_dir = domain_output_dir / "episodes" / episode_id
         episode_manifest = _write_manifest(
@@ -226,14 +257,30 @@ def main() -> None:
         ]
         if args.base_model:
             cmd.extend(["--base_model", args.base_model])
+        if args.embedding_model:
+            cmd.extend(["--embedding_model", args.embedding_model])
         if args.resume:
             cmd.append("--resume")
-        child_env = os.environ.copy()
-        if api_keys:
-            child_env["YUNWU_API_KEY"] = api_keys[key_index % len(api_keys)]
-            child_env["YUNWU_API_KEYS"] = ",".join(api_keys)
-        subprocess.run(cmd, check=True, cwd=str(ROOT), env=child_env)
-        return episode_output_dir
+        key_index: int | None = None
+        if available_key_indices is not None:
+            # A lease is held for the complete child process lifetime. This
+            # guarantees that concurrent episodes never share a Yunwu key;
+            # when the pool is smaller than the requested parallelism, later
+            # episodes wait and reuse keys only after an earlier episode ends.
+            key_index = available_key_indices.get()
+        try:
+            child_env = os.environ.copy()
+            if key_index is not None:
+                child_env["YUNWU_API_KEY"] = api_keys[key_index]
+                # Keep retries inside this episode on its leased key. Passing
+                # the global pool here would let LLMClient rotate into a key
+                # currently owned by another concurrent episode.
+                child_env["YUNWU_API_KEYS"] = api_keys[key_index]
+            subprocess.run(cmd, check=True, cwd=str(ROOT), env=child_env)
+            return episode_output_dir
+        finally:
+            if key_index is not None:
+                available_key_indices.put(key_index)
 
     def run_domain(domain: str, entries: list[dict]) -> tuple[str, dict]:
         domain_output_dir = output_dir / domain
@@ -248,7 +295,6 @@ def main() -> None:
                     domain,
                     episode_id,
                     episode_entries,
-                    episode_key_indices[(domain, episode_id)],
                 )
                 for episode_id, episode_entries in indexed_episodes
             ]

@@ -1,4 +1,4 @@
-"""Batch claim/state adjudication over a closed Stage-2 evidence set.
+"""LEGACY: batch claim/state adjudication over a closed Stage-2 evidence set.
 
 The model resolves claim identity, current-state scope, and field selection.
 It cannot expand the evidence set or grant access.  The deterministic layer
@@ -12,6 +12,8 @@ import re
 from typing import Any
 
 from gov_mem.data.schema import RetrievedEvidence
+from gov_mem.governance_runtime.factual_claim_quality import factual_value_is_eligible
+from gov_mem.governance_runtime.source_grounding import row_grounded_source_text
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
 from gov_mem.query_semantics import CURRENT_STATE_SLOT_ALIASES
 
@@ -33,13 +35,39 @@ def adjudicate_claims(
     """Select requested fields from Stage-2 records in one closed-set call."""
     requested = _requested_attributes(semantic_spec)
     current_scope = str((semantic_spec or {}).get("temporal_scope") or "").lower() == "current"
+    # Planner target_entities can contain the query's open request object (for
+    # example, a noun that is also one of requested attributes). It is not an
+    # entity-identity boundary. Keep genuine named entities for scope checks,
+    # but do not reject a source record merely because its event identity uses
+    # a more specific typed subject than that open request object.
+    scope_target_entities = [
+        str(entity).strip()
+        for entity in list(target_entities or [])
+        if str(entity).strip() and str(entity).strip() not in set(requested)
+    ]
     candidates = _candidate_payload(evidence)
+    strict_stage2 = any(
+        str(record.get("stage2_binding_mode") or "").startswith("closed_set_candidate_fields_v")
+        for record in candidates
+    )
+    if strict_stage2:
+        # Stage 2 v2 is already the semantic decision boundary.  Calling a
+        # second adjudicator here re-ranks the same records with a different
+        # prompt and can resurrect an older status/date.  Carry only the
+        # source-local Stage-2 bindings across; deduplicate structurally by
+        # latest source turn, without another semantic choice.
+        return _stage2_passthrough_decisions(
+            candidates=candidates,
+            requested=requested,
+            semantic_spec=semantic_spec,
+        )
     if not requested or not candidates or llm_client is None or not llm_client.is_available():
         return [], {
             "available": False,
             "reason": "claim_adjudication_unavailable",
             "requested_attributes": requested,
         }
+
     try:
         raw = llm_client.chat_json(
             model=model_name,
@@ -158,6 +186,11 @@ def adjudicate_claims(
         }
 
     accepted: list[dict[str, Any]] = []
+    rejection_counts: dict[str, int] = {}
+
+    def reject(reason: str) -> None:
+        rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
+
     candidate_by_id = {str(row["memory_id"]): row for row in candidates}
     for item in _decision_rows(raw):
         attribute = str(item.get("attribute") or "").strip()
@@ -167,15 +200,23 @@ def adjudicate_claims(
         evidence_span = str(item.get("evidence_span") or "").strip()
         decision = str(item.get("decision") or "").strip().lower()
         record = candidate_by_id.get(memory_id)
+        # The model may emit a stale or hallucinated id.  Closed-set
+        # adjudication must reject it before any record-field validation;
+        # otherwise the lifecycle check below dereferences None and aborts
+        # the whole checkpoint instead of treating this as one bad proposal.
+        if record is None:
+            reject("unknown_memory")
+            continue
         # A closed source record can still be the wrong named lane. Apply the
         # same event-identity scope boundary used by deterministic fallback
         # before accepting the model's first-choice binding.
         if record is not None and _record_has_explicit_scope_conflict(
             record,
             question=question,
-            target_entities=target_entities,
+            target_entities=scope_target_entities,
             attribute=attribute,
         ):
+            reject("explicit_scope_conflict")
             continue
         value = _coerce_observed_slot_value(
             record,
@@ -187,20 +228,31 @@ def adjudicate_claims(
             value=value,
             source_text=str(record.get("source_text") or "") if record else "",
         )
-        if (
-            attribute not in requested
-            or memory_id not in candidate_by_id
-            or decision not in _DECISION_CLASSES
-            or not slot_name
-            or not value
-            or not evidence_span
-            or not _slot_matches(record, slot_name, proposed_value, attribute)
-            or not _slot_matches_attribute(attribute, slot_name, semantic_spec, record)
-            or value not in str(record.get("source_text") or "")
-            or evidence_span not in str(record.get("source_text") or "")
-            or value not in evidence_span
-            or str(record.get("lifecycle_status") or "active").lower() in _ACTIVE_BLOCKLIST
-        ):
+        source_text = str(record.get("source_text") or "") if record else ""
+        checks = (
+            (attribute not in requested, "unknown_attribute"),
+            (memory_id not in candidate_by_id, "unknown_memory"),
+            (decision not in _DECISION_CLASSES, "invalid_decision"),
+            (not slot_name, "missing_slot_name"),
+            (not value, "unobserved_value"),
+            (not evidence_span, "missing_evidence_span"),
+            (not _slot_matches(record, slot_name, proposed_value, attribute), "slot_value_mismatch"),
+            (not _slot_matches_attribute(attribute, slot_name, semantic_spec, record), "slot_attribute_mismatch"),
+            (value not in source_text, "value_not_source_grounded"),
+            (evidence_span not in source_text, "evidence_span_not_source_grounded"),
+            (value not in evidence_span, "value_not_in_evidence_span"),
+            (not factual_value_is_eligible(
+                attribute=attribute,
+                slot_name=slot_name,
+                value=value,
+                semantic_spec=semantic_spec,
+                source_text=source_text,
+            ), "ineligible_factual_value"),
+            (str(record.get("lifecycle_status") or "active").lower() in _ACTIVE_BLOCKLIST, "blocked_lifecycle"),
+        )
+        failed = next((reason for condition, reason in checks if condition), None)
+        if failed:
+            reject(failed)
             continue
         try:
             confidence = min(max(float(item.get("confidence") or 0.0), 0.0), 1.0)
@@ -218,6 +270,52 @@ def adjudicate_claims(
             "confidence": confidence,
             "reason": str(item.get("reason") or "").strip(),
         })
+
+    strict_stage2 = any(
+        str(record.get("stage2_binding_mode") or "").startswith("closed_set_candidate_fields_v")
+        for record in candidates
+    )
+    if strict_stage2:
+        # Stage-2 v1 is already the semantic closed-set binding boundary.
+        # Do not reopen unresolved attributes through the legacy deterministic
+        # fallback/chronology cascade; that cascade can replace a valid date,
+        # amount, or status with a neighboring source field. Keep only the
+        # model-adjudicated, source-grounded decisions above and apply only
+        # structural deduplication here.
+        chosen: list[dict[str, Any]] = []
+        grouped_strict: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for item in accepted:
+            if item.get("decision") not in {"answer", "redact"}:
+                continue
+            key = (
+                str(item.get("attribute") or ""),
+                str(item.get("memory_id") or ""),
+                str(item.get("slot_name") or ""),
+            )
+            prior = grouped_strict.get(key)
+            if prior is None or float(item.get("confidence") or 0.0) > float(prior.get("confidence") or 0.0):
+                grouped_strict[key] = item
+        scalar_best: dict[str, dict[str, Any]] = {}
+        for item in grouped_strict.values():
+            attribute = str(item.get("attribute") or "")
+            if _is_collection_attribute(attribute, semantic_spec):
+                chosen.append(item)
+                continue
+            prior = scalar_best.get(attribute)
+            if prior is None or float(item.get("confidence") or 0.0) > float(prior.get("confidence") or 0.0):
+                scalar_best[attribute] = item
+        chosen.extend(scalar_best.values())
+        return chosen, {
+            "available": True,
+            "reason": "closed_set_stage2_passthrough",
+            "requested_attributes": requested,
+            "candidate_count": len(candidates),
+            "accepted_count": len(accepted),
+            "selected_count": len(chosen),
+            "accepted_decisions": accepted,
+            "rejection_counts": dict(sorted(rejection_counts.items())),
+            "legacy_fallbacks_disabled": True,
+        }
 
     # Stage 2 has already made a closed-set, source-span-validated relevance
     # decision. If the batch adjudicator under-covers a requested attribute,
@@ -247,7 +345,7 @@ def adjudicate_claims(
                 candidates,
                 semantic_spec,
                 question=question,
-                target_entities=target_entities,
+                target_entities=scope_target_entities,
                 requester_id=requester_id,
             )
             if latest is not None and (
@@ -291,8 +389,8 @@ def adjudicate_claims(
                 attribute,
                 candidates,
                 semantic_spec,
-                question=question,
-                target_entities=target_entities,
+                    question=question,
+                    target_entities=scope_target_entities,
                 excluded_memory_ids={
                     str(item.get("memory_id") or "")
                     for item in accepted
@@ -310,13 +408,16 @@ def adjudicate_claims(
                     existing_keys.add(key)
             if any(str(item.get("attribute") or "") == attribute for item in accepted):
                 accepted_attributes.add(attribute)
-                continue
+            # A collection contract is complete only from collection members;
+            # never reinterpret its outer label as a scalar field when no
+            # typed member was found.
+            continue
         fallback = _stage2_attribute_fallback(
             attribute,
             candidates,
             semantic_spec,
             question=question,
-            target_entities=target_entities,
+            target_entities=scope_target_entities,
         )
         if fallback is not None:
             accepted.append(fallback)
@@ -452,7 +553,7 @@ def adjudicate_claims(
                 candidates,
                 semantic_spec,
                 question=question,
-                target_entities=target_entities,
+                target_entities=scope_target_entities,
                 requester_id=requester_id,
             )
             if latest is not None and (
@@ -531,7 +632,44 @@ def adjudicate_claims(
         "accepted_count": len(accepted),
         "selected_count": len(chosen),
         "accepted_decisions": accepted,
+        "rejection_counts": dict(sorted(rejection_counts.items())),
     }
+
+
+def build_canonical_field_map(decisions: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Collapse duplicate scalar proposals into one canonical field proposal.
+
+    Stage-2 may retain low-confidence coverage fallbacks for diagnostics and
+    collection completion. They are not allowed to overwrite a stronger
+    source-grounded proposal when the field map crosses into final alignment.
+    The map is a handoff contract; it is not a new evidence selector.
+    """
+    best: dict[str, tuple[tuple[int, float, int, int], dict[str, Any]]] = {}
+    for item in decisions:
+        if not isinstance(item, dict):
+            continue
+        attribute = str(item.get("attribute") or "").strip()
+        value = str(item.get("value") or "").strip()
+        if not attribute or not value:
+            continue
+        reason = str(item.get("reason") or "").strip()
+        try:
+            confidence = min(max(float(item.get("confidence") or 0.0), 0.0), 1.0)
+        except (TypeError, ValueError):
+            confidence = 0.0
+        # A coverage fallback remains visible in the full adjudication trace,
+        # but must lose to an explicit claim for the same attribute.
+        explicit = int(reason != "stage2_closed_set_attribute_coverage_fallback")
+        rank = (
+            explicit,
+            confidence,
+            int(bool(str(item.get("claim_span") or "").strip())),
+            len(value),
+        )
+        prior = best.get(attribute)
+        if prior is None or rank > prior[0]:
+            best[attribute] = (rank, dict(item))
+    return {attribute: item for attribute, (_rank, item) in best.items()}
 
 
 def build_adjudicated_projection(
@@ -592,7 +730,7 @@ def build_adjudicated_projection(
                 "slot_name": str(item.get("slot_name") or "").strip(),
                 "value": str(item.get("value") or "").strip(),
                 "claim_span": str(item.get("claim_span") or "").strip(),
-                "source_text": str(source.content or ""),
+                "source_text": row_grounded_source_text(source),
                 "source_memory_id": str(source.memory_id),
             }
             for item in valid_items
@@ -618,7 +756,7 @@ def build_adjudicated_projection(
             value = str(item.get("value") or "").strip()
             evidence_span = str(item.get("evidence_span") or "").strip()
             claim_span = str(item.get("claim_span") or "").strip()
-            if not claim_span or claim_span not in str(source.content or "") or value not in claim_span:
+            if not claim_span or claim_span not in row_grounded_source_text(source) or value not in claim_span:
                 claim_span = evidence_span
             selected_claims.append({
                 "property_label": str(item.get("slot_name") or "").strip(),
@@ -657,6 +795,76 @@ def build_adjudicated_projection(
             metadata=metadata,
         ))
     return projected
+
+
+def _stage2_passthrough_decisions(
+    *,
+    candidates: list[dict[str, Any]],
+    requested: list[str],
+    semantic_spec: dict[str, Any],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Project Stage-2 bindings without reopening semantic reranking."""
+    chosen_by_attribute: dict[str, dict[str, Any]] = {}
+    rows_by_id: dict[str, dict[str, Any]] = {}
+
+    def source_order(record: dict[str, Any]) -> int:
+        return max(
+            (
+                int(match.group(1))
+                for source_id in list(record.get("source_message_ids") or [])
+                for match in [re.search(r"(?:^|_)t(\d+)(?:$|_)", str(source_id), re.IGNORECASE)]
+                if match
+            ),
+            default=-1,
+        )
+
+    for record in candidates:
+        if str(record.get("lifecycle_status") or "active").lower() in _ACTIVE_BLOCKLIST:
+            continue
+        memory_id = str(record.get("memory_id") or "")
+        source_text = str(record.get("source_text") or "")
+        stage2_span = str(record.get("stage2_support_span") or "").strip()
+        if not memory_id or not source_text:
+            continue
+        for field in list(record.get("stage2_typed_fields") or []):
+            if not isinstance(field, dict):
+                continue
+            attribute = str(field.get("attribute") or "").strip()
+            slot_name = str(field.get("slot_name") or "").strip()
+            value = str(field.get("value") or "").strip()
+            if attribute not in requested or not slot_name or not value or value not in source_text:
+                continue
+            evidence_span = stage2_span if stage2_span and stage2_span in source_text else value
+            proposal = {
+                "attribute": attribute,
+                "memory_id": memory_id,
+                "source_message_ids": list(record.get("source_message_ids") or []),
+                "slot_name": slot_name,
+                "value": value,
+                "evidence_span": evidence_span,
+                "decision": "answer",
+                "confidence": 1.0,
+                "reason": "stage2_attributewise_binding_passthrough",
+            }
+            prior = chosen_by_attribute.get(attribute)
+            if prior is None or source_order(record) > source_order(rows_by_id.get(str(prior.get("memory_id") or ""), {})):
+                chosen_by_attribute[attribute] = proposal
+                rows_by_id[memory_id] = record
+
+    chosen = list(chosen_by_attribute.values())
+    selected_ids = {str(item.get("memory_id") or "") for item in chosen}
+    return chosen, {
+        "available": True,
+        "reason": "closed_set_stage2_passthrough",
+        "requested_attributes": requested,
+        "candidate_count": len(candidates),
+        "accepted_count": len(chosen),
+        "selected_count": len(chosen),
+        "accepted_decisions": chosen,
+        "rejection_counts": {},
+        "legacy_fallbacks_disabled": True,
+        "selected_memory_ids": sorted(selected_ids),
+    }
 
 
 def _requested_attributes(semantic_spec: dict[str, Any]) -> list[str]:
@@ -779,7 +987,7 @@ def _candidate_payload(evidence: list[RetrievedEvidence]) -> list[dict[str, Any]
             value = str(candidate.get("value") or "").strip()
             if key and value:
                 slots.setdefault(key, value)
-        source_text = str(row.content or "")
+        source_text = row_grounded_source_text(row)
         for field in list((metadata.get("stage2_semantic_rerank") or {}).get("typed_fields") or []):
             if not isinstance(field, dict):
                 continue
@@ -788,7 +996,7 @@ def _candidate_payload(evidence: list[RetrievedEvidence]) -> list[dict[str, Any]
                 slot_name=key,
                 proposed_value=str(field.get("value") or "").strip(),
                 claim_slots=claim_slots,
-                source_text=str(row.content or ""),
+                source_text=row_grounded_source_text(row),
             )
             # A sentence-shaped Stage-2 alias is not useful when semantic
             # claims already expose the record's precise fields. Dropping
@@ -849,6 +1057,7 @@ def _candidate_payload(evidence: list[RetrievedEvidence]) -> list[dict[str, Any]
             "source_text": source_text,
             "source_message_ids": list(row.source_message_ids or []),
             "timestamp": str(row.time or ""),
+            "memory_type": str(row.memory_type or ""),
             "lifecycle_status": str(metadata.get("lifecycle_status") or metadata.get("memory_status") or "active"),
             "event_identity": dict(semantic_tags.get("event_identity") or {}),
             "state_delta": state_delta,
@@ -858,6 +1067,9 @@ def _candidate_payload(evidence: list[RetrievedEvidence]) -> list[dict[str, Any]
             ),
             "stage2_support_span": str(
                 ((metadata.get("stage2_semantic_rerank") or {}).get("support_span") or "")
+            ),
+            "stage2_binding_mode": str(
+                ((metadata.get("stage2_semantic_rerank") or {}).get("stage2_binding_mode") or "")
             ),
             "typed_fields": typed_fields,
             "stage2_typed_fields": typed_fields,
@@ -1020,17 +1232,63 @@ def _stage2_attribute_fallback(
             overlap = len(normalized_attribute & slot_tokens)
             exact = int(slot_tokens == normalized_attribute and bool(normalized_attribute))
             schema_match = int(slot_name in expected_slots)
-            if not exact and not overlap and not schema_match and not (is_claim and slot_name in claim_slot_names):
+            explicit_stage2_binding = bool(
+                priority == 5
+                and not is_claim
+                and any(
+                    isinstance(field, dict)
+                    and str(field.get("attribute") or "").strip() == attribute
+                    and str(field.get("slot_name") or "").strip() == slot_name
+                    for field in list(record.get("stage2_typed_fields") or [])
+                )
+            )
+            if (
+                not exact
+                and not overlap
+                and not schema_match
+                and not explicit_stage2_binding
+                and not (is_claim and slot_name in claim_slot_names)
+            ):
                 continue
-            # Scalar fallback must stay on an explicit Stage-2 binding or an
-            # exact claim. Raw extractor slots/state deltas are useful recall
-            # evidence, but they also expose qualifier and policy fields
-            # under broad labels such as ``blocker``. Those fields must not
-            # re-enter the answer after Stage 2 has already closed the set.
-            if not is_claim and priority != 5:
+            # Scalar fallback normally stays on an explicit Stage-2 binding
+            # or an exact claim. A utility source closure is already a
+            # locator-selected, source-local factual set, so retain its
+            # observed typed slot/state-delta candidates for later chronology
+            # and role adjudication. Privacy/deletion paths never set this
+            # marker, and the source-grounding/role checks below still apply.
+            if (
+                not is_claim
+                and priority != 5
+                and not bool(record.get("utility_source_closure"))
+            ):
                 continue
+            # A fallback for one requested scalar must not borrow a slot that
+            # Stage 2 assigned to a different requested scalar in the same
+            # source record. This prevents a helper start time from becoming
+            # the setup start time merely because both values are timestamps.
+            if not is_claim:
+                served_attributes = {
+                    str(field.get("attribute") or "").strip()
+                    for field in list(record.get("typed_attributes") or [])
+                    if isinstance(field, dict)
+                    and str(field.get("attribute") or "").strip()
+                    and str(field.get("attribute") or "").strip() != attribute
+                }
+                if any(
+                    _slot_matches_attribute(other, slot_name, semantic_spec, record)
+                    for other in served_attributes
+                ):
+                    continue
             value_shape = _attribute_value_shape_score(attribute, value)
             if not _slot_matches_attribute(attribute, slot_name, semantic_spec, record):
+                continue
+            if not factual_value_is_eligible(
+                attribute=attribute,
+                slot_name=slot_name,
+                value=value,
+                semantic_spec=semantic_spec,
+                source_text=source,
+            ):
                 continue
             specificity = _slot_semantic_specificity(
                 attribute=attribute,
@@ -1130,7 +1388,7 @@ def _fallback_slot_is_structurally_compatible(
             direct = attribute_tokens & slot_tokens
             if not direct:
                 return False
-        return True
+        return _slot_matches_attribute(attribute, slot_name, semantic_spec, record)
     # A source claim can use a domain-neutral slot label while its claim span
     # states the requested property explicitly (for example, ``pin_status``
     # with "no helper digits remain"). This is a valid typed bridge. It is
@@ -1160,6 +1418,7 @@ def _fallback_slot_is_structurally_compatible(
     return (
         len(scalar_attributes) <= 1
         and str(attribute).strip() in scalar_attributes
+        and _slot_matches_attribute(attribute, slot_name, semantic_spec, record)
     )
 
 
@@ -1296,6 +1555,14 @@ def _stage2_collection_fallbacks(
             if isinstance(field, dict)
             and str(field.get("attribute") or "").strip() == attribute
         ]
+        if (
+            not excluded
+            and utility_closure
+            and explicit_collection_contract
+            and not served
+            and _collection_memory_type_compatible(attribute, record)
+        ):
+            field_candidates.extend(_claim_backed_collection_fields(attribute, record))
         if not excluded and str((semantic_spec or {}).get("temporal_scope") or "").lower() == "current" and (
             served or utility_closure
         ):
@@ -1331,12 +1598,34 @@ def _stage2_collection_fallbacks(
             value = str(field.get("value") or "").strip()
             if not slot_name or not value or value not in source:
                 continue
+            derived_collection_claim = bool(field.get("_collection_claim_derived"))
+            claim_backed = derived_collection_claim or any(
+                str(claim.get("slot_name") or "").strip() == slot_name
+                for claim in list(record.get("claim_slots") or [])
+                if isinstance(claim, dict)
+            )
+            # A sentence-shaped extractor alias without a claim boundary is
+            # a record view, not an independently typed collection member.
+            # Keeping it would replay policy/questions or collapse several
+            # neighboring fields into one answer value. Claim-backed spans
+            # and shorter typed components remain eligible.
+            grounded_lines = {
+                line.strip()
+                for line in source.splitlines()
+                if line.strip()
+            }
+            if (
+                not claim_backed
+                and value in grounded_lines
+                and len(value.split()) >= 4
+            ):
+                continue
             # A source-local composite claim can contribute several typed
             # operational members, but it must still pass the role boundary.
             # The previous explicit-collection shortcut bypassed that check
             # for claim-backed fields and allowed access-like siblings to
             # re-enter an otherwise safe collection.
-            if not _is_shared_composite_claim_component(
+            if not derived_collection_claim and not _is_shared_composite_claim_component(
                 attribute=attribute,
                 field=field,
                 record=record,
@@ -1350,7 +1639,15 @@ def _stage2_collection_fallbacks(
                     continue
             if slot_name in reserved_scalar_slots:
                 continue
-            if not _slot_matches_attribute(attribute, slot_name, semantic_spec, record):
+            if not derived_collection_claim and not _slot_matches_attribute(attribute, slot_name, semantic_spec, record):
+                continue
+            if not factual_value_is_eligible(
+                attribute=attribute,
+                slot_name=slot_name,
+                value=value,
+                semantic_spec=semantic_spec,
+                source_text=source,
+            ):
                 continue
             if (
                 not _slot_matches_attribute(
@@ -1385,6 +1682,54 @@ def _stage2_collection_fallbacks(
                 "reason": "stage2_closed_set_collection_typed_field_fallback",
             })
     return result
+
+
+def _collection_memory_type_compatible(attribute: str, record: dict[str, Any]) -> bool:
+    """Use a typed memory kind as a narrow outer-collection role signal."""
+    memory_type_tokens = _meaningful_field_tokens(str(record.get("memory_type") or ""))
+    attribute_tokens = _meaningful_field_tokens(attribute)
+    if not memory_type_tokens or not attribute_tokens:
+        return False
+    normalized_memory = {
+        token[:-1] if token.endswith("s") and len(token) > 3 else token
+        for token in memory_type_tokens
+    }
+    normalized_attribute = {
+        token[:-1] if token.endswith("s") and len(token) > 3 else token
+        for token in attribute_tokens
+    }
+    return bool(normalized_memory & normalized_attribute)
+
+
+def _claim_backed_collection_fields(
+    attribute: str,
+    record: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Project complete claim spans for a type-compatible collection record."""
+    fields: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for claim in list(record.get("claim_slots") or []):
+        if not isinstance(claim, dict):
+            continue
+        claim_span = str(claim.get("claim_span") or "").strip()
+        if not claim_span or claim_span in seen:
+            continue
+        if not factual_value_is_eligible(
+            attribute=attribute,
+            slot_name="source_claim",
+            value=claim_span,
+            source_text=str(record.get("source_text") or ""),
+        ):
+            continue
+        seen.add(claim_span)
+        fields.append({
+            "attribute": attribute,
+            "slot_name": "source_claim",
+            "value": claim_span,
+            "claim_span": claim_span,
+            "_collection_claim_derived": True,
+        })
+    return fields
 
 
 def _resolve_current_collection_components(
@@ -1966,6 +2311,29 @@ _STRUCTURAL_FIELD_TOKENS = {
     "date", "day", "days", "value", "values", "field", "fields",
 }
 
+# Complete language-level function-word inventory used when comparing typed
+# field labels. These words carry little property identity in English; they
+# are deliberately separated from semantic role tokens such as ``date``,
+# ``status``, or ``scope``. Keeping the inventory explicit makes the token
+# normalization reproducible and avoids a handful of query-specific words
+# acting as an implicit patch.
+_FIELD_STOPWORDS = {
+    "a", "about", "above", "after", "again", "against", "all", "am", "an",
+    "and", "any", "are", "as", "at", "be", "because", "been", "before",
+    "being", "below", "between", "both", "but", "by", "can", "could", "did",
+    "do", "does", "doing", "down", "during", "each", "few", "for", "from",
+    "further", "had", "has", "have", "having", "he", "her", "here", "hers",
+    "herself", "him", "himself", "his", "how", "i", "if", "in", "into", "is",
+    "it", "its", "itself", "just", "me", "more", "most", "my", "myself", "no",
+    "nor", "not", "of", "off", "on", "once", "only", "or", "other", "our",
+    "ours", "ourselves", "out", "over", "own", "same", "she", "should", "so",
+    "some", "such", "than", "that", "the", "their", "theirs", "them", "themselves",
+    "then", "there", "these", "they", "this", "those", "through", "to", "too",
+    "under", "until", "up", "very", "was", "we", "were", "what", "when", "where",
+    "which", "while", "who", "whom", "why", "will", "with", "would", "you", "your",
+    "yours", "yourself", "yourselves",
+}
+
 
 def _field_alias_overlap(left: set[str], right: set[str]) -> bool:
     """Require a discriminative token before copying one typed field to another."""
@@ -2123,6 +2491,24 @@ def _slot_matches_attribute(
         binding_tokens.update(_meaningful_field_tokens(str(binding.get(key) or "")))
     role_binding_tokens = set(binding_tokens)
     direct_role_tokens = attr_tokens | binding_tokens
+    composite_request = bool(
+        {"plan", "schedule", "workflow", "protocol", "procedure"} & direct_role_tokens
+    )
+    # Qualifier and governance wording can be source-grounded while still
+    # describing how a fact may be disclosed rather than the requested fact
+    # itself. Keep this boundary representation-level: it applies to any
+    # scalar property, independent of domain vocabulary.
+    qualifier_tokens = {
+        "allow", "allowed", "authorization", "authorized", "condition",
+        "disclose", "disclosure", "guidance", "institutional", "permission",
+        "policy", "require", "required", "restriction", "scope", "sensitive",
+    }
+    if (
+        not _is_collection_attribute(attribute, semantic_spec or {})
+        and slot_tokens & qualifier_tokens
+        and not direct_role_tokens & qualifier_tokens
+    ):
+        return False
     status_tokens = {"state", "status", "condition", "predicate"}
     presence_tokens = {"whether", "remain", "remains", "remaining", "any", "some", "none", "present", "exist", "exists", "left"}
     temporal_tokens = {"time", "window", "date", "schedule", "interval", "weekday", "day", "hour", "deadline"}
@@ -2130,6 +2516,21 @@ def _slot_matches_attribute(
     access_tokens = {"code", "pin", "password", "passcode", "token", "credential", "secret", "key", "phrase"}
     access_tokens.update({"badge", "badge_id", "credential_id"})
     expected_slots = _expected_slot_names(attribute, semantic_spec)
+    if (
+        str((semantic_spec or {}).get("temporal_scope") or "").strip().lower() == "current"
+        and _is_collection_attribute(attribute, semantic_spec or {})
+        and (
+            slot_tokens & {"taken", "intake", "consumed", "consumption"}
+            or _meaningful_field_tokens(
+                str(((record or {}).get("event_identity") or {}).get("entity_key") or "")
+            ) & {"intake", "consumption"}
+        )
+        and not attr_tokens & {"taken", "intake", "consumed", "consumption"}
+    ):
+        # A current collection must not reuse an event/intake observation as
+        # the current state of the represented object. The distinction is
+        # carried by the typed role and event identity, not by a domain name.
+        return False
     if (
         str((semantic_spec or {}).get("temporal_scope") or "").strip().lower() == "current"
         and _historical_slot_tokens(slot_name)
@@ -2146,9 +2547,23 @@ def _slot_matches_attribute(
         and slot_tokens
     ):
         # An outer collection key is a contract label, not a source-local
-        # value. Accepting it lets an aggregate extractor field replace
-        # newer component claims and carry unrelated neighboring facts.
-        return False
+        # value. A claim-backed component is the exception: its explicit
+        # claim boundary makes the source-local field independently
+        # auditable, even when its extractor slot has the same normalized
+        # label as the outer collection. Without that boundary, accepting the
+        # slot would let an aggregate extractor field replace newer component
+        # claims and carry unrelated neighboring facts.
+        claim_backed_component = any(
+            isinstance(claim, dict)
+            and str(claim.get("slot_name") or "").strip() == slot_name
+            and str(claim.get("claim_span") or "").strip()
+            and str(claim.get("claim_span") or "").strip() in str(
+                (record or {}).get("source_text") or ""
+            )
+            for claim in list((record or {}).get("claim_slots") or [])
+        )
+        if not claim_backed_component:
+            return False
     collection_component = bool(
         _is_collection_attribute(attribute, semantic_spec or {})
         and (
@@ -2218,6 +2633,34 @@ def _slot_matches_attribute(
                 observed_tokens = _meaningful_field_tokens(str(observed_slot)) - structural_tokens
                 if discriminative_attribute_tokens & observed_tokens:
                     return False
+        if composite_request and _record_has_complete_composite_binding(
+            attribute=attribute,
+            record=record,
+            semantic_spec=semantic_spec or {},
+        ):
+            # A composite request is allowed to expose several independently
+            # typed members from one admitted source record. This exception is
+            # source-local and requires multiple fields plus query/source
+            # overlap; it cannot authorize a lone neighboring scalar.
+            return True
+        # A noisy Stage-2 batch can assign one component slot to several
+        # attributes. When another observed slot carries more of the
+        # requested role, the weaker one is a neighboring field, not an
+        # equivalent answer. This catches labels/status helpers without
+        # enumerating domain-specific names.
+        candidate_role_tokens = direct_role_tokens - structural_tokens
+        candidate_overlap = len(candidate_role_tokens & slot_tokens)
+        stronger_alternative = any(
+            other_name != slot_name
+            and len(candidate_role_tokens & _meaningful_field_tokens(str(other_name))) > candidate_overlap
+            for other_name in dict(record.get("slots") or {})
+        )
+        if (
+            not _is_collection_attribute(attribute, semantic_spec or {})
+            and candidate_overlap <= 1
+            and stronger_alternative
+        ):
+            return False
     if attr_tokens & spatial_tokens and slot_tokens & access_tokens and not (attr_tokens & access_tokens):
         return False
     if (
@@ -2434,11 +2877,44 @@ def _binding_for_attribute(
 def _meaningful_field_tokens(value: str) -> set[str]:
     """Tokenize field labels while ignoring structural modifiers."""
     tokens = set(re.findall(r"[a-z0-9]+", str(value or "").lower()))
-    return tokens - {
-        "a", "an", "the", "and", "any", "all", "current", "latest", "opening",
+    meaningful = tokens - _FIELD_STOPWORDS - {
+        "any", "all", "current", "latest", "opening",
         "active", "available", "for", "in", "of", "to", "where", "used", "use",
         "currently", "currently", "requested", "property",
     }
+    # Typed extractors commonly use a singular field label while the query
+    # contract uses its plural form (or the reverse).  Keep both forms in the
+    # representation so this normalization does not depend on domain terms.
+    meaningful.update(
+        token[:-1]
+        for token in tuple(meaningful)
+        if len(token) > 3 and token.endswith("s")
+    )
+    return meaningful
+
+
+def _record_has_complete_composite_binding(
+    *, attribute: str, record: dict[str, Any], semantic_spec: dict[str, Any]
+) -> bool:
+    """Check whether one source record contains a complete composite answer."""
+    fields = [
+        field for field in list(record.get("stage2_typed_fields") or [])
+        if isinstance(field, dict)
+        and str(field.get("attribute") or "").strip() == str(attribute).strip()
+        and str(field.get("slot_name") or "").strip()
+        and str(field.get("value") or "").strip()
+    ]
+    if len({str(field.get("slot_name") or "").strip() for field in fields}) < 2:
+        return False
+    binding = _binding_for_attribute(attribute, semantic_spec)
+    role_text = " ".join((str(attribute), str(binding.get("support_span") or "")))
+    role_tokens = _meaningful_field_tokens(role_text) - {"plan", "schedule", "workflow", "protocol", "procedure"}
+    source_tokens = _meaningful_field_tokens(str(record.get("source_text") or ""))
+    return bool(
+        {"plan", "schedule", "workflow", "protocol", "procedure"}
+        & _meaningful_field_tokens(role_text)
+        and len(role_tokens & source_tokens) >= 2
+    )
 
 
 def _ambiguous_single_token_overlap(left: set[str], right: set[str]) -> bool:

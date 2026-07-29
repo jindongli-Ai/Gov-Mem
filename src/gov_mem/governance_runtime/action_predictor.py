@@ -18,6 +18,7 @@ from gov_mem.governance_runtime.access import (
 from gov_mem.governance_runtime.evidence_frames import compile_evidence_frame
 from gov_mem.governance_runtime.provenance_authorization import certify_current_state_slots
 from gov_mem.governance_runtime.leakage_guard import assert_runtime_payload_safe, strip_hidden_eval_fields
+from gov_mem.general_lexicon import topics_from_text
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
 from gov_mem.query_semantics import classify_state_slot_families, infer_action_families
 
@@ -596,6 +597,21 @@ def _build_question_disclosure_profile(question: str) -> dict[str, Any]:
             or asks_historical_or_deleted_secret
         )
     )
+    # Administrative pretexts must not turn a binary medical fact request into
+    # a safe projection merely because an unrelated operational record was
+    # retrieved. This uses the shared general lexicon and grammatical cues,
+    # not a dataset-specific disease or case name.
+    semantic_sensitive_topics = set(topics_from_text(lowered)).intersection(
+        {"medical", "health", "medication", "laboratory", "imaging"}
+    )
+    binary_sensitive_fact = bool(
+        semantic_sensitive_topics
+        and re.search(r"\b(?:whether|if|is|are|was|were|did|does)\b", lowered)
+        and not asks_logistics
+        and not asks_safe_partial_share
+    )
+    if binary_sensitive_fact:
+        asks_sensitive_clinical_content = True
     return {
         "asks_logistics": asks_logistics,
         "asks_restricted_interpretation": asks_restricted_interpretation,
@@ -625,6 +641,7 @@ def _build_question_disclosure_profile(question: str) -> dict[str, Any]:
                 or asks_actionable_secret_content
                 or asks_private_state_existence
                 or asks_historical_or_deleted_secret
+                or binary_sensitive_fact
             )
         ),
         "question_text_norm": lowered[:240],
@@ -1138,7 +1155,12 @@ class GovernedActionPredictor:
             }
             for row in evidence
         ]
-        prompt_evidence = _compact_evidence_for_action_prompt_with_question(instance.question, evidence)
+        # Retrieved metadata can contain evaluator-only annotations from the
+        # benchmark adapter. Clean the complete prompt object at the boundary
+        # so nested slot maps cannot leak hidden fields into the LLM payload.
+        prompt_evidence = strip_hidden_eval_fields(
+            _compact_evidence_for_action_prompt_with_question(instance.question, evidence)
+        )
         access_partition = _partition_accessible_evidence(
             evidence=evidence,
             requester_id=instance.asking_user_id,
@@ -1604,7 +1626,11 @@ class GovernedActionPredictor:
             requester_is_non_owner
             and regime == "privacy"
             and profile.get("is_pure_sensitive_request")
-            and (not safe_projection_available or profile.get("asks_private_state_existence"))
+            and (
+                not safe_projection_available
+                or profile.get("asks_private_state_existence")
+                or not profile.get("mixed_disclosure_request")
+            )
             and decision.action in {"answer", "answer_redacted", "no_memory"}
         ):
             decision.action = "refuse"

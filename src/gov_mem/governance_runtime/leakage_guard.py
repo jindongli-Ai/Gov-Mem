@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
+
+from gov_mem.data.schema import MemoryInstance
 
 
 HIDDEN_EVAL_KEYS = {
@@ -73,3 +76,17 @@ def assert_runtime_payload_safe(payload: Any, *, context: str) -> None:
             f"Runtime payload leakage detected in {context} at {', '.join(paths[:8])}. "
             "Hidden evaluation fields must not enter runtime prompts."
         )
+
+
+def runtime_instance_view(instance: MemoryInstance) -> MemoryInstance:
+    """Create the runtime view while leaving evaluator metadata post-hoc only.
+
+    The evaluator still receives the original adapter instance after the
+    backbone finishes.  No answer, expected action, query category, judge
+    specification, or leak target can enter a runtime backbone through this
+    view.
+    """
+    cleaned_metadata = strip_hidden_eval_fields(dict(instance.metadata or {}))
+    runtime = replace(instance, answer=None, metadata=cleaned_metadata)
+    assert_runtime_payload_safe(runtime.metadata, context="runtime_instance_metadata")
+    return runtime

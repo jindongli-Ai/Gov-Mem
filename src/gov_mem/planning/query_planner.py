@@ -530,7 +530,18 @@ class QueryUnderstandingAgent:
             + _infer_security_relevant_slots(instance.question)
         )
         if _is_record_bundle_request(instance.question):
+            # A bundle/list request asks for one coherent record view. Keep
+            # the explicitly supplied open slots as the view surface and do
+            # not promote unrelated planner attributes into scalar
+            # authorization obligations.
             semantic_spec["request_shape"] = "mixed"
+            semantic_spec["requested_attributes"] = []
+            semantic_spec["attribute_bindings"] = []
+            semantic_spec["certifiable_needs"] = []
+            semantic_spec["attribute_bindings_valid"] = False
+            semantic_spec["raw_requested_attributes"] = _normalize_open_attributes(
+                _semantic_spec_from_response(raw).get("requested_attributes")
+            )
         elif inferred_slots:
             # Deterministic semantic grounding is anchored in the query text.
             # Do not let unsupported LLM-proposed slots broaden authorization.
@@ -749,6 +760,7 @@ def _normalize_certifiable_contract(
     )
     raw_bindings = _normalize_attribute_bindings(normalized.get("attribute_bindings"))
     raw_bindings = _separate_outer_collection_bindings(raw_bindings)
+    raw_bindings = _sanitize_query_property_bindings(raw_bindings, question)
     normalized["rejected_query_property_spans"] = list(dict.fromkeys(
         " ".join(re.findall(r"[a-z0-9]+", str(binding.get("support_span") or "").lower()))
         for binding in raw_bindings
@@ -764,6 +776,8 @@ def _normalize_certifiable_contract(
         raw_attributes,
         question,
     )
+    raw_bindings = _augment_contextual_collection_bindings(raw_bindings, question)
+    raw_bindings = _infer_composite_collection_bindings(raw_bindings)
     grounded, bindings_valid = _ground_attribute_contract(
         raw_attributes,
         raw_bindings,
@@ -772,6 +786,11 @@ def _normalize_certifiable_contract(
     )
     bindings = raw_bindings
     constraints = _normalize_disclosure_constraints(normalized.get("disclosure_constraints"))
+    for support_span in _temporal_reference_spans(question):
+        constraints.append({
+            "constraint_kind": "temporal_access_boundary",
+            "support_span": support_span,
+        })
     # A planner can express a boundary either directly or by assigning a
     # temporal/disclosure role to a span. Both are query-local and never become
     # evidence attributes merely because they occur beside a requested fact.
@@ -812,6 +831,10 @@ def _normalize_certifiable_contract(
             need["need_kind"] = "record_collection"
         certifiable_needs.append(need)
     certifiable_needs = _deduplicate_temporal_alias_needs(certifiable_needs)
+    certifiable_needs = _deduplicate_semantic_alias_needs(
+        certifiable_needs,
+        target_entities=target_entities,
+    )
     # These compatibility fields are now derived views, never independently
     # merged planner output. This prevents an entity/modifier from poisoning a
     # certificate after the binding set has already been validated.
@@ -930,7 +953,7 @@ def _merge_query_grounded_slot_contract(
     )
     if merged_bindings:
         merged["attribute_bindings"] = merged_bindings
-        merged["raw_requested_attributes"] = list(dict.fromkeys(
+        merged_raw_attributes = list(dict.fromkeys(
             [
                 *_normalize_open_attributes((candidate or {}).get("raw_requested_attributes")),
                 *_normalize_open_attributes((fallback or {}).get("raw_requested_attributes")),
@@ -941,6 +964,17 @@ def _merge_query_grounded_slot_contract(
                 ],
             ]
         ))
+        rejected_raw_keys = {
+            _span_attribute_key(value)
+            for view in (candidate, fallback)
+            if isinstance(view, dict)
+            for value in list(view.get("rejected_query_property_spans") or [])
+            if str(value).strip()
+        }
+        merged["raw_requested_attributes"] = [
+            attribute for attribute in merged_raw_attributes
+            if _span_attribute_key(attribute) not in rejected_raw_keys
+        ]
     merged["requested_slots"] = _normalize_requested_slots(
         list(merged.get("requested_slots") or [])
         + list((fallback or {}).get("requested_slots") or [])
@@ -967,6 +1001,20 @@ def _merge_query_grounded_bindings(
         for value in list(view.get("rejected_query_property_spans") or [])
         if str(value).strip()
     }
+    # An independently audited view can reject a span by role even when its
+    # serialized diagnostic list is absent.  Preserve that negative evidence
+    # while merging query-grounded bindings; otherwise an earlier planner view
+    # can reintroduce an entity or temporal modifier as a factual attribute.
+    for view in views:
+        for raw_binding in list(view.get("attribute_bindings") or []):
+            if not isinstance(raw_binding, dict):
+                continue
+            role = str(raw_binding.get("semantic_role") or "").strip().lower()
+            span = " ".join(re.findall(
+                r"[a-z0-9]+", str(raw_binding.get("support_span") or "").lower()
+            ))
+            if span and role not in {"", "requested_property"}:
+                rejected_spans.add(span)
     raw_bindings = [
         raw_binding
         for view in views
@@ -1051,7 +1099,16 @@ def _augment_raw_attribute_bindings(
         if not attribute or attribute in existing:
             continue
         support_span = _find_normalized_surface_span(question, attribute)
+        if _property_span_is_query_clause(support_span):
+            support_span = ""
         if not support_span:
+            support_span = _find_compositional_attribute_surface(attribute, question)
+        if not support_span:
+            continue
+        if _compositional_binding_is_redundant(
+            attribute=attribute,
+            bindings=out,
+        ):
             continue
         out.append({
             "attribute": attribute,
@@ -1061,6 +1118,199 @@ def _augment_raw_attribute_bindings(
         })
         existing.add(attribute)
     return out
+
+
+def _sanitize_query_property_bindings(
+    bindings: list[dict[str, str]],
+    question: str,
+) -> list[dict[str, str]]:
+    """Keep property spans minimal when a planner copied question syntax."""
+    result: list[dict[str, str]] = []
+    for binding in bindings:
+        copied = dict(binding)
+        support_span = str(copied.get("support_span") or "").strip()
+        attribute = str(copied.get("attribute") or "").strip()
+        if _property_span_is_query_clause(support_span):
+            exact = _find_normalized_surface_span(question, attribute)
+            if exact and not _property_span_is_query_clause(exact):
+                copied["support_span"] = exact
+            else:
+                continue
+        result.append(copied)
+    return result
+
+
+def _property_span_is_query_clause(support_span: str) -> bool:
+    tokens = re.findall(r"[a-z0-9]+", str(support_span or "").lower())
+    if len(tokens) < 5:
+        return False
+    text = " ".join(tokens)
+    return bool(
+        re.search(r"\bshould\s+i\b", text)
+        or re.search(r"\bright\s+now\b", text)
+        or re.match(r"^(?:what|which|how|can)\b", text)
+    )
+
+
+def _augment_contextual_collection_bindings(
+    bindings: list[dict[str, str]],
+    question: str,
+) -> list[dict[str, str]]:
+    """Recover explicit member qualifiers from ``outer for X and Y`` text."""
+    result = [dict(binding) for binding in bindings]
+    existing = {str(item.get("attribute") or "").strip() for item in result}
+    for match in re.finditer(
+        r"\bfor\s+([a-z0-9]+)(?:\s+and\s+([a-z0-9]+))?",
+        str(question or ""),
+        re.IGNORECASE,
+    ):
+        qualifiers = [value for value in match.groups() if value]
+        if not qualifiers:
+            continue
+        prefix = str(question or "")[:match.start()]
+        outer = None
+        for binding in reversed(result):
+            attribute = str(binding.get("attribute") or "").strip()
+            surface = _find_normalized_surface_span(prefix, attribute)
+            if surface:
+                outer = (binding, attribute, surface)
+                break
+        if outer is None:
+            continue
+        binding, outer_attribute, outer_surface = outer
+        if str(binding.get("semantic_role") or "") not in {"", "requested_property"}:
+            continue
+        for qualifier in qualifiers:
+            member_attribute = f"{outer_attribute}_for_{qualifier.lower()}"
+            if member_attribute in existing:
+                continue
+            result.append({
+                "attribute": member_attribute,
+                "support_span": str(question)[
+                    str(question).lower().find(outer_surface.lower(), 0, match.start()):match.end()
+                ].strip(),
+                "semantic_role": "requested_property",
+                "evidence_slot_hint": member_attribute,
+            })
+            existing.add(member_attribute)
+    return result
+
+
+_ATTRIBUTE_FILLER_TOKENS = {
+    "a", "an", "and", "are", "at", "be", "for", "from", "has", "have",
+    "i", "in", "is", "it", "me", "my", "now", "of", "on", "should", "the",
+    "to", "use", "what", "which", "with",
+}
+
+
+def _find_compositional_attribute_surface(attribute: str, question: str) -> str:
+    """Ground an open attribute whose meaningful words are query-separated.
+
+    Open-schema planners commonly serialize a phrase such as ``medications for
+    pain`` as ``medications_for_pain`` even when the question inserts verbs or
+    modifiers between the two property words.  Recover only ordered words
+    already present in the question and keep the span closed to that surface.
+    """
+    attribute_tokens = re.findall(r"[a-z0-9]+", str(attribute or "").lower())
+    if len(attribute_tokens) >= 4 and set(attribute_tokens) & {
+        "should", "right", "use", "what", "which", "how", "can",
+    }:
+        # These tokens indicate copied question syntax, not a typed property
+        # identity. Do not reconstruct an open field from the whole clause.
+        return ""
+    meaningful = [token for token in attribute_tokens if token not in _ATTRIBUTE_FILLER_TOKENS]
+    if len(meaningful) < 2:
+        return ""
+    question_matches = list(re.finditer(r"[a-z0-9]+", str(question or ""), re.IGNORECASE))
+    question_tokens = [match.group(0).lower() for match in question_matches]
+    if not question_tokens:
+        return ""
+
+    # A bounded gap keeps a canonical open attribute from matching unrelated
+    # clauses joined by a long discourse context.
+    max_gap = 12
+    start_positions = [
+        index for index, token in enumerate(question_tokens) if token == meaningful[0]
+    ]
+    for start in start_positions:
+        cursor = start
+        matched = True
+        for token in meaningful[1:]:
+            next_index = next(
+                (index for index in range(cursor + 1, min(len(question_tokens), cursor + max_gap + 2))
+                 if question_tokens[index] == token),
+                None,
+            )
+            if next_index is None:
+                matched = False
+                break
+            cursor = next_index
+        if matched:
+            return str(question)[question_matches[start].start():question_matches[cursor].end()]
+    return ""
+
+
+def _compositional_binding_is_redundant(
+    *,
+    attribute: str,
+    bindings: list[dict[str, str]],
+) -> bool:
+    """Avoid a composite alias when an exact binding already names its member."""
+    candidate_tokens = set(re.findall(r"[a-z0-9]+", str(attribute or "").lower()))
+    candidate_meaningful = candidate_tokens - _ATTRIBUTE_FILLER_TOKENS
+    for binding in bindings:
+        existing = str(binding.get("attribute") or "").strip()
+        existing_tokens = set(re.findall(r"[a-z0-9]+", existing.lower()))
+        existing_meaningful = existing_tokens - _ATTRIBUTE_FILLER_TOKENS
+        if not existing_meaningful:
+            continue
+        # If an existing exact property already covers the non-head part of a
+        # composite alias, keep the more faithful existing contract. This
+        # handles forms such as ``medications_to_stop`` beside
+        # ``what_should_i_stop`` without naming a domain vocabulary.
+        ordered_tokens = [
+            token for token in re.findall(r"[a-z0-9]+", str(attribute or "").lower())
+            if token not in _ATTRIBUTE_FILLER_TOKENS
+        ]
+        head = ordered_tokens[0] if ordered_tokens else ""
+        remainder = candidate_meaningful - {head}
+        if remainder and remainder.issubset(existing_meaningful) and head not in existing_meaningful:
+            return True
+    return False
+
+
+def _infer_composite_collection_bindings(
+    bindings: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    """Mark a strict outer property as a collection when it has members.
+
+    The rule uses only the planner's query-grounded attribute identities. An
+    outer binding becomes a collection only when at least two other bindings
+    strictly extend its meaningful token set, so scalar fields are unchanged.
+    """
+    result = [dict(binding) for binding in bindings]
+    property_bindings = [
+        binding for binding in result
+        if str(binding.get("semantic_role") or "") in {"", "requested_property"}
+    ]
+    for binding in property_bindings:
+        if str(binding.get("need_kind") or "scalar") == "record_collection":
+            continue
+        attribute = str(binding.get("attribute") or "").strip()
+        outer_tokens = set(re.findall(r"[a-z0-9]+", attribute.lower())) - _ATTRIBUTE_FILLER_TOKENS
+        if not outer_tokens:
+            continue
+        member_count = 0
+        for peer in property_bindings:
+            peer_attribute = str(peer.get("attribute") or "").strip()
+            if peer_attribute == attribute:
+                continue
+            peer_tokens = set(re.findall(r"[a-z0-9]+", peer_attribute.lower())) - _ATTRIBUTE_FILLER_TOKENS
+            if outer_tokens < peer_tokens:
+                member_count += 1
+        if member_count >= 2:
+            binding["need_kind"] = "record_collection"
+    return result
 
 
 def _find_normalized_surface_span(text: str, phrase: str) -> str:
@@ -1099,6 +1349,149 @@ def _deduplicate_temporal_alias_needs(needs: list[dict[str, str]]) -> list[dict[
         if bare_tokens and bare_tokens.issubset(qualified_tokens):
             drop.add(base)
     return [item for item in needs if str(item.get("attribute") or "").strip() not in drop]
+
+
+_SEMANTIC_ALIAS_MODIFIERS = {
+    "active", "asof", "current", "currently", "final", "latest", "now",
+    "present", "record", "recap", "snapshot", "summary", "overview",
+}
+
+
+def _deduplicate_semantic_alias_needs(
+    needs: list[dict[str, str]],
+    *,
+    target_entities: list[str] | None = None,
+) -> list[dict[str, str]]:
+    """Collapse planner aliases that denote one requested property.
+
+    Open-schema planners often emit both the query property (``date``) and a
+    record-qualified spelling (``project_summary_date``). Treating both as
+    independent obligations creates competing graph anchors and can select a
+    date belonging to a neighboring field. The rule is deliberately
+    representation-level: remove only entity/modifier tokens when the
+    remaining property tokens are identical, and retain the better evidence
+    hint on the surviving need.
+    """
+    if len(needs) < 2:
+        return needs
+
+    entity_tokens = {
+        token
+        for entity in list(target_entities or [])
+        for token in re.findall(r"[a-z0-9]+", str(entity or "").lower())
+        if token
+    }
+
+    def property_tokens(value: str) -> set[str]:
+        tokens = set(re.findall(r"[a-z0-9]+", str(value or "").lower()))
+        return tokens - _SEMANTIC_ALIAS_MODIFIERS - entity_tokens
+
+    def support_tokens(item: dict[str, str]) -> set[str]:
+        return set(re.findall(r"[a-z0-9]+", str(item.get("query_support_span") or "").lower()))
+
+    kept: list[dict[str, str]] = []
+    for candidate in needs:
+        attribute = str(candidate.get("attribute") or "").strip()
+        candidate_tokens = property_tokens(attribute)
+        if not attribute or not candidate_tokens:
+            kept.append(candidate)
+            continue
+        duplicate_index = None
+        for index, prior in enumerate(kept):
+            prior_attribute = str(prior.get("attribute") or "").strip()
+            if not prior_attribute:
+                continue
+            prior_support = " ".join(re.findall(
+                r"[a-z0-9]+", str(prior.get("query_support_span") or "").lower()
+            ))
+            candidate_support = " ".join(re.findall(
+                r"[a-z0-9]+", str(candidate.get("query_support_span") or "").lower()
+            ))
+            prior_hint = str(prior.get("evidence_slot_hint") or "").strip()
+            candidate_hint = str(candidate.get("evidence_slot_hint") or "").strip()
+            same_grounded_alias = bool(
+                prior_support
+                and candidate_support
+                and prior_support == candidate_support
+                and (
+                    prior_hint == prior_attribute
+                    or candidate_hint == attribute
+                    or prior_hint == attribute
+                    or candidate_hint == prior_attribute
+                    or (prior_hint and candidate_hint and prior_hint == candidate_hint)
+                )
+            )
+            if not same_grounded_alias and property_tokens(prior_attribute) != candidate_tokens:
+                continue
+            duplicate_index = index
+            break
+        if duplicate_index is None:
+            kept.append(candidate)
+            continue
+
+        prior = kept[duplicate_index]
+        prior_attribute = str(prior.get("attribute") or "").strip()
+        prior_hint = str(prior.get("evidence_slot_hint") or "").strip()
+        candidate_hint = str(candidate.get("evidence_slot_hint") or "").strip()
+        # When independently generated views share an exact query span, an
+        # evidence hint that names one of the competing attributes is a
+        # closed-set structural signal for the canonical key. This handles
+        # question-form aliases without maintaining a domain vocabulary.
+        if candidate_hint == attribute and prior_hint != prior_attribute:
+            winner = dict(candidate)
+            loser = prior
+        elif prior_hint == prior_attribute and candidate_hint != attribute:
+            winner = dict(prior)
+            loser = candidate
+        # The shortest canonical spelling is the stable contract identity;
+        # query support and evidence hints are merged from both views.
+        elif (len(attribute), attribute) < (len(prior_attribute), prior_attribute):
+            winner = dict(candidate)
+            loser = prior
+        else:
+            winner = dict(prior)
+            loser = candidate
+        if not str(winner.get("query_support_span") or "").strip():
+            winner["query_support_span"] = str(loser.get("query_support_span") or "")
+        if not str(winner.get("evidence_slot_hint") or "").strip():
+            winner["evidence_slot_hint"] = str(loser.get("evidence_slot_hint") or "")
+        # Prefer the more informative source hint while preserving the
+        # canonical attribute ID. This guides field selection without adding
+        # a second governance obligation.
+        winner_support = support_tokens(winner)
+        loser_support = support_tokens(loser)
+        if len(loser_support) > len(winner_support):
+            winner["query_support_span"] = str(loser.get("query_support_span") or "")
+        if len(str(loser.get("evidence_slot_hint") or "")) > len(str(winner.get("evidence_slot_hint") or "")):
+            winner["evidence_slot_hint"] = str(loser.get("evidence_slot_hint") or "")
+        kept[duplicate_index] = winner
+    # A terse scalar alias such as ``stop`` is subsumed by a more explicit
+    # scalar property such as ``what_should_i_stop`` when its query span is a
+    # strict subset. Keep outer collections intact because their members are
+    # intentionally represented by a separate collection contract.
+    filtered: list[dict[str, str]] = []
+    for candidate in kept:
+        candidate_tokens = set(re.findall(r"[a-z0-9]+", str(candidate.get("attribute") or "").lower()))
+        candidate_support = set(re.findall(r"[a-z0-9]+", str(candidate.get("query_support_span") or "").lower()))
+        candidate_collection = str(candidate.get("need_kind") or "").strip().lower() == "record_collection"
+        subsumed = False
+        if not candidate_collection and candidate_tokens and candidate_support:
+            for peer in kept:
+                if peer is candidate:
+                    continue
+                peer_tokens = set(re.findall(r"[a-z0-9]+", str(peer.get("attribute") or "").lower()))
+                peer_support = set(re.findall(r"[a-z0-9]+", str(peer.get("query_support_span") or "").lower()))
+                peer_collection = str(peer.get("need_kind") or "").strip().lower() == "record_collection"
+                if (
+                    not peer_collection
+                    and candidate_tokens < peer_tokens
+                    and candidate_support < peer_support
+                ):
+                    subsumed = True
+                    break
+        if not subsumed:
+            filtered.append(candidate)
+    return filtered
 
 
 def _ground_attribute_contract(
@@ -1148,6 +1541,11 @@ def _ground_attribute_contract(
             # render. This validates the role boundary structurally; the LLM
             # still determines the actual requested property.
             continue
+        if _property_span_is_embedded_temporal_reference(
+            support_span=support_span,
+            question=question,
+        ):
+            continue
         support_tokens = set(re.findall(r"[a-z0-9]+", support_span.lower()))
         # The LLM's explicit role, rather than token overlap with a dynamic
         # entity list, determines whether this span is a requested property.
@@ -1182,8 +1580,29 @@ def _ground_attribute_contract(
             alignment = 1.0
         candidate = (alignment, -index, attribute)
         family_key = span_key
-        for existing_key, (existing_tokens, _) in best_by_span.items():
+        if span_key in best_by_span:
+            existing_attribute = str(best_by_span[span_key][1][2] or "").lower()
+            existing_attribute_tokens = set(re.findall(r"[a-z0-9]+", existing_attribute))
+            if existing_attribute_tokens != attribute_tokens:
+                family_key = f"{span_key}::{attribute}"
+        for existing_key, (existing_tokens, existing_candidate) in best_by_span.items():
             smaller = min(len(span_tokens), len(existing_tokens))
+            existing_attribute_tokens = set(
+                re.findall(r"[a-z0-9]+", str(existing_candidate[2] or "").lower())
+            )
+            # Nested spans can be either aliases or genuinely distinct
+            # composite members. Do not collapse the latter merely because a
+            # member phrase appears inside the outer bundle phrase.
+            if (
+                attribute_tokens < existing_attribute_tokens
+                or existing_attribute_tokens < attribute_tokens
+                or (
+                    attribute_tokens & existing_attribute_tokens
+                    and attribute_tokens - existing_attribute_tokens
+                    and existing_attribute_tokens - attribute_tokens
+                )
+            ):
+                continue
             if smaller >= 2 and len(span_tokens & existing_tokens) == smaller:
                 family_key = existing_key
                 break
@@ -1230,6 +1649,39 @@ def _property_span_is_disclosure_or_temporal_boundary(support_span: str) -> bool
     """Reject a standalone range/access qualifier mislabeled as a property."""
     lowered = " ".join(re.findall(r"[a-z0-9]+", str(support_span or "").lower()))
     return bool(re.match(r"^(?:through|until|before|after|during|within|for)\b", lowered))
+
+
+def _temporal_reference_spans(question: str) -> list[str]:
+    """Extract query-local temporal reference clauses as constraints."""
+    spans: list[str] = []
+    for match in re.finditer(
+        r"\b(?:after|before|until|through|during|within|since)\b[^,?;.!]*",
+        str(question or ""),
+        re.IGNORECASE,
+    ):
+        span = str(match.group(0) or "").strip()
+        if span and span not in spans:
+            spans.append(span)
+    return spans
+
+
+def _property_span_is_embedded_temporal_reference(*, support_span: str, question: str) -> bool:
+    """Reject a noun phrase that is only the object of a time modifier."""
+    lowered_question = str(question or "").lower()
+    lowered_span = str(support_span or "").lower().strip()
+    if not lowered_span:
+        return False
+    start = lowered_question.find(lowered_span)
+    if start < 0:
+        return False
+    prefix = lowered_question[:start]
+    # Permit possessives and ordinary date adjectives between the temporal
+    # marker and the referenced noun, while keeping the window short.
+    return bool(re.search(
+        r"\b(?:after|before|until|through|during|within|since)\b"
+        r"(?:\s+[a-z0-9']+){0,4}\s*$",
+        prefix,
+    ))
 
 
 def _bindings_cover_attributes(*, attributes: list[str], bindings: object) -> bool:
@@ -1358,6 +1810,11 @@ def _separate_outer_collection_bindings(
     ]
     if len(property_bindings) <= 1:
         return bindings
+    requested_attributes = {
+        str(item.get("attribute") or "").strip()
+        for item in property_bindings
+        if str(item.get("attribute") or "").strip()
+    }
     structural_tokens = {
         "state", "plan", "summary", "snapshot", "overview", "recap", "record",
         "collection", "details", "logistics", "workflow", "protocol",
@@ -1370,7 +1827,15 @@ def _separate_outer_collection_bindings(
             and str(copied.get("semantic_role") or "") in {"", "requested_property"}
         ):
             tokens = set(re.findall(r"[a-z0-9]+", str(copied.get("attribute") or "").lower()))
-            if not tokens & structural_tokens:
+            hint = str(copied.get("evidence_slot_hint") or "").strip()
+            # A distinct hint that is itself another requested property is a
+            # typed contract signal for an outer bundle (for example, a
+            # bundle key whose evidence is partitioned into member fields).
+            # Preserve that collection boundary while scalar member bindings
+            # remain scalar. This is representation-level and does not depend
+            # on a domain vocabulary.
+            distinct_requested_hint = bool(hint and hint != copied.get("attribute") and hint in requested_attributes)
+            if not tokens & structural_tokens and not distinct_requested_hint:
                 copied["need_kind"] = "scalar"
         result.append(copied)
     return result

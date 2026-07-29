@@ -9,10 +9,6 @@ from typing import Any
 import os
 
 from gov_mem.answering.answer_agent import AnsweringAgent
-from gov_mem.backbones.govmem_incremental import GovMemIncrementalBackbone
-from gov_mem.backbones.rag_naive import RAGNaiveBackbone
-from gov_mem.backbones.rag_policy import RAGPolicyBackbone
-from gov_mem.backbones.rag_policy_amem import RAGPolicyAMemBackbone
 from gov_mem.data.adapters import DatasetBundle, build_dataset_adapter
 from gov_mem.data.schema import CaseResult, MemoryInstance, QueryPlan, ReasoningState, RetrievedEvidence
 from gov_mem.evaluation.evaluator import Evaluator
@@ -20,6 +16,7 @@ from gov_mem.eval.benchmark_official import run_official_scorer
 from gov_mem.experience.experience_bank import ExperienceBank
 from gov_mem.governance_runtime.action_predictor import GovernedActionPredictor
 from gov_mem.governance_runtime.leakage_guard import contains_hidden_eval_fields
+from gov_mem.governance_runtime.leakage_guard import runtime_instance_view
 from gov_mem.llm.client import LLMClient, LLMConfig, YUNWU_PROVIDER_NAMES, is_real_llm_enabled
 from gov_mem.llm.model_registry import build_resolved_llm_settings, resolve_llm_model
 from gov_mem.memory.dense_index import DenseMemoryIndex
@@ -385,13 +382,25 @@ class GovMemRunner:
             "output_dir": self.output_dir,
             "dataset_name": self.dataset_name,
         }
-        if self.experiment_mode == "rag_naive":
+        if self.experiment_mode == "stateful_policy_reasoning":
+            from gov_mem.backbones.stateful_policy import StatefulPolicyBackbone
+
+            self._backbone = StatefulPolicyBackbone(**kwargs)
+        elif self.experiment_mode in {"rag_naive", "rag_naive_v3_typed_rerank"}:
+            from gov_mem.backbones.rag_naive import RAGNaiveBackbone
+
             self._backbone = RAGNaiveBackbone(**kwargs)
         elif self.experiment_mode == "rag_policy":
+            from gov_mem.backbones.rag_policy import RAGPolicyBackbone
+
             self._backbone = RAGPolicyBackbone(**kwargs)
         elif self.experiment_mode == "rag_policy_amem":
+            from gov_mem.backbones.rag_policy_amem import RAGPolicyAMemBackbone
+
             self._backbone = RAGPolicyAMemBackbone(**kwargs)
         elif self.experiment_mode == "govmem_rag_policy_incremental":
+            from gov_mem.backbones.govmem_incremental import GovMemIncrementalBackbone
+
             self._backbone = GovMemIncrementalBackbone(**kwargs)
         else:
             raise ValueError(f"Unsupported experiment_mode: {self.experiment_mode}")
@@ -560,7 +569,8 @@ class GovMemRunner:
         evaluator: Evaluator,
     ) -> None:
         self.logger.info("Processing instance=%s mode=%s", instance.instance_id, self.experiment_mode)
-        result = self._get_backbone().run_instance(instance)
+        runtime_instance = runtime_instance_view(instance)
+        result = self._get_backbone().run_instance(runtime_instance)
         self._save_query_plan(dataset_name, instance.instance_id, result.query_plan)
         self._save_retrieval(dataset_name, instance.instance_id, result.retrieval_result)
         self._save_reasoning(dataset_name, instance.instance_id, result.reasoning_state)

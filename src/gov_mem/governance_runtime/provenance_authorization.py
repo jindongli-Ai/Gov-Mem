@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import calendar
 from typing import Any
 
 from gov_mem.data.schema import RetrievedEvidence
@@ -344,6 +345,14 @@ def certify_graph_slot_paths(
             superseded_targets.add(edge.target_id)
         if edge.edge_type in {"deletes", "supersedes"}:
             retired_semantic_node_ids.add(edge.target_id)
+    _repair_scalar_bindings_from_stage2(
+        requested=requested,
+        bindings=bindings,
+        graph=graph,
+        nodes=nodes,
+        incoming=incoming,
+        stage2_realizations=stage2_realizations,
+    )
     certified: dict[str, dict[str, Any]] = {}
     realizations: list[dict[str, Any]] = []
     redacted_slot_names: list[str] = []
@@ -351,6 +360,7 @@ def certify_graph_slot_paths(
         binding = dict(bindings.get(requested_attribute) or {})
         binding_kind = str(binding.get("binding_kind") or "")
         binding_source = str(binding.get("source") or "")
+        semantic_llm_adjudicated = bool(binding.get("semantic_llm_adjudicated"))
         record_completion = bool(
             allow_utility_record_completion
             and _is_summary_attribute(requested_attribute)
@@ -365,7 +375,11 @@ def certify_graph_slot_paths(
         # one cross-record version family.
         if binding_kind == "collection" and binding_source in {
             "stage2_closed_record_selection", "stage2_authorized_record_closure"
-            , "stage2_closed_record_slot_projection"
+            , "stage2_closed_record_slot_projection",
+            "llm_collection_record_alignment",
+            "llm_collection_full_set_audit_with_reviewer",
+            "llm_collection_completion",
+            "llm_grouped_collection_typed_projection",
         }:
             selected = []
             skipped = []
@@ -468,6 +482,7 @@ def certify_graph_slot_paths(
                     "typed_slot_value": item["value"],
                     "record_complete": True,
                     **item,
+                    "semantic_llm_adjudicated": semantic_llm_adjudicated,
                 }
                 _merge_stage2_source_grounded_value(
                     realization=realization,
@@ -779,6 +794,7 @@ def certify_graph_slot_paths(
                 # scalar alignment may have certified only one field.
                 "record_complete": binding_kind == "collection" or record_completion,
                 **item,
+                "semantic_llm_adjudicated": semantic_llm_adjudicated,
             }
             _merge_stage2_source_grounded_value(
                 realization=realization,
@@ -787,6 +803,23 @@ def certify_graph_slot_paths(
                 stage2_realizations=stage2_realizations,
             )
             realizations.append(realization)
+    # Mixed utility requests often express a record-level plan plus scalar
+    # members. The graph may certify the scalar members from later update
+    # records while the complete calendar date remains on an earlier,
+    # source-grounded event record. Restore only that temporal anchor; do not
+    # reopen the record's other typed fields.
+    _append_mixed_temporal_anchors(
+        requested=requested,
+        semantic_spec=semantic_spec,
+        bindings=bindings,
+        realizations=realizations,
+        graph=graph,
+        nodes=nodes,
+        incoming=incoming,
+        utility_atom_ids=utility_atom_ids,
+        utility_source_message_ids=utility_source_message_ids,
+        retired_semantic_node_ids=retired_semantic_node_ids,
+    )
     partial_disclosure = bool(missing_alignment or redacted_slot_names)
     return {
         "authorized": True,
@@ -811,6 +844,263 @@ def certify_graph_slot_paths(
     }
 
 
+def _append_mixed_temporal_anchors(
+    *,
+    requested: list[str],
+    semantic_spec: dict[str, Any],
+    bindings: dict[str, Any],
+    realizations: list[dict[str, Any]],
+    graph: GovernedMemoryGraph,
+    nodes: dict[str, Any],
+    incoming: dict[str, list[Any]],
+    utility_atom_ids: set[str] | None,
+    utility_source_message_ids: set[str] | None,
+    retired_semantic_node_ids: set[str],
+) -> None:
+    """Close a mixed collection answer with its best source-grounded date."""
+    collection_attributes = {
+        str(attribute).strip()
+        for attribute, binding in bindings.items()
+        if isinstance(binding, dict)
+        and str(binding.get("binding_kind") or "").strip().lower()
+        in {"collection", "record_collection", "list"}
+    }
+    plan_tokens = {
+        token
+        for value in list(semantic_spec.get("requested_slots") or [])
+        + list(semantic_spec.get("raw_requested_attributes") or [])
+        for token in re.findall(r"[a-z0-9]+", str(value).lower())
+    }
+    plan_like = bool(plan_tokens & {"plan", "summary", "overview", "snapshot", "recap"})
+    if (not collection_attributes and not plan_like) or (
+        collection_attributes and not (set(requested) - collection_attributes)
+    ):
+        return
+    collection_texts = [
+        str(item.get("source_text") or "")
+        for item in realizations
+        if str(item.get("attribute") or "").strip() in collection_attributes
+        and str(item.get("source_text") or "").strip()
+    ]
+    if not collection_texts and plan_like:
+        collection_texts = [
+            str(item.get("source_text") or "")
+            for item in realizations
+            if str(item.get("source_text") or "").strip()
+        ]
+    if not collection_texts:
+        return
+    existing_slots = {
+        str(item.get("slot_name") or "").strip().lower()
+        for item in realizations
+    }
+    candidates: list[tuple[tuple[int, int, int, str], dict[str, Any]]] = []
+    for node in graph.nodes:
+        if node.node_type != "SlotNode":
+            continue
+        attributes = dict(node.attributes or {})
+        slot_name = str(attributes.get("slot_name") or "").strip()
+        value = str(attributes.get("slot_value") or "").strip()
+        if not _is_calendar_anchor_slot(slot_name) or not value:
+            continue
+        if slot_name.lower() in existing_slots or slot_name.lower() in {str(x).lower() for x in requested}:
+            continue
+        semantic_edges = [edge for edge in incoming.get(node.node_id, []) if edge.edge_type == "has_slot"]
+        if not semantic_edges:
+            continue
+        semantic_node = nodes.get(semantic_edges[0].source_id)
+        if semantic_node is None or semantic_node.node_id in retired_semantic_node_ids:
+            continue
+        lifecycle = str((semantic_node.attributes or {}).get("lifecycle") or "active").lower()
+        if lifecycle in {"deleted", "superseded", "canceled"}:
+            continue
+        provenance = dict(node.provenance or {})
+        source_atom_id = str(provenance.get("source_atom_id") or "")
+        source_messages = {str(item) for item in list(provenance.get("source_message_ids") or []) if str(item)}
+        if utility_atom_ids is not None and source_atom_id not in utility_atom_ids:
+            if not utility_source_message_ids or not source_messages.intersection(utility_source_message_ids):
+                continue
+        source_text = str(semantic_node.label or "")
+        if value.lower() not in source_text.lower():
+            continue
+        overlap = _source_token_overlap(source_text, collection_texts)
+        # A collection realization may be a short subject value (for example
+        # an entity label) while the date lives in a separate event record.
+        # In that case the source-message closure is the stronger boundary;
+        # it is still limited to the utility-selected source set above.
+        source_bound = bool(
+            utility_atom_ids is not None and source_atom_id in utility_atom_ids
+        ) or bool(
+            utility_source_message_ids is not None
+            and source_messages.intersection(utility_source_message_ids)
+        )
+        if overlap <= 0 and not source_bound:
+            continue
+        normalized = value.lower()
+        has_month = any(
+            re.search(rf"\b{month.lower()}\b", normalized)
+            for month in calendar.month_name
+            if month
+        )
+        has_day_number = bool(re.search(r"\b\d{1,2}\b", normalized))
+        specificity = int(has_month) + int(has_day_number)
+        turn = max(
+            [
+                int(match.group(1))
+                for message_id in source_messages
+                for match in [re.fullmatch(r"t(\d+)", message_id)]
+                if match
+            ],
+            default=-1,
+        )
+        candidates.append(((specificity, overlap, turn, str(provenance.get("timestamp") or "")), {
+            "attribute": slot_name,
+            "slot_name": slot_name,
+            "slot_role": str(attributes.get("slot_role") or ""),
+            "claim_span": str(attributes.get("claim_span") or ""),
+            "typed_slot_value": value,
+            "record_complete": False,
+            "slot_node_id": node.node_id,
+            "value": value,
+            "timestamp": str(provenance.get("timestamp") or ""),
+            "explicitly_allowed": True,
+            "source_atom_id": source_atom_id,
+            "source_memory_id": str(provenance.get("source_memory_id") or ""),
+            "source_message_ids": sorted(source_messages),
+            "source_text": source_text,
+        }))
+    if candidates:
+        realizations.append(max(candidates, key=lambda item: item[0])[1])
+
+
+def _repair_scalar_bindings_from_stage2(
+    *,
+    requested: list[str],
+    bindings: dict[str, Any],
+    graph: GovernedMemoryGraph,
+    nodes: dict[str, Any],
+    incoming: dict[str, list[Any]],
+    stage2_realizations: list[dict[str, Any]] | None,
+) -> None:
+    """Use closed Stage-2 provenance to repair drifting scalar anchors."""
+    del nodes, incoming  # The repair only needs graph SlotNode provenance.
+    if not stage2_realizations:
+        return
+    for attribute in requested:
+        binding = bindings.get(attribute)
+        if not isinstance(binding, dict):
+            continue
+        if bool(binding.get("semantic_llm_adjudicated")):
+            # The final per-attribute LLM pass is authoritative for semantic
+            # value selection. Stage-2 repair is a fallback for older paths;
+            # it must not overwrite a newer closed-set model decision.
+            continue
+        if str(binding.get("binding_kind") or "").strip().lower() in {"collection", "record_collection", "list"}:
+            continue
+        stage2 = [
+            item for item in stage2_realizations
+            if isinstance(item, dict)
+            and str(item.get("attribute") or "").strip() == attribute
+            and str(item.get("decision") or "answer").strip().lower() == "answer"
+        ]
+        if not stage2:
+            continue
+        best_confidence = max(float(item.get("confidence") or 0.0) for item in stage2)
+        stage2 = [item for item in stage2 if float(item.get("confidence") or 0.0) == best_confidence]
+        source_memories = {
+            str(item.get("memory_id") or "").strip()
+            for item in stage2
+            if str(item.get("memory_id") or "").strip()
+        }
+        source_messages = {
+            str(message_id).strip()
+            for item in stage2
+            for message_id in list(item.get("source_message_ids") or [])
+            if str(message_id).strip()
+        }
+        candidate_nodes = []
+        for node in graph.nodes:
+            if node.node_type != "SlotNode":
+                continue
+            provenance = dict(node.provenance or {})
+            same_memory = str(provenance.get("source_memory_id") or "") in source_memories
+            same_message = bool(source_messages.intersection(
+                {str(value) for value in list(provenance.get("source_message_ids") or [])}
+            ))
+            if same_memory or same_message:
+                candidate_nodes.append(node)
+        if not candidate_nodes:
+            continue
+        requested_names = {
+            str(value).strip()
+            for value in list(binding.get("slot_names") or [])
+            if str(value).strip()
+        }
+        requested_names.update(
+            str(item.get("slot_name") or "").strip()
+            for item in stage2
+            if str(item.get("slot_name") or "").strip()
+        )
+        exact = [
+            node for node in candidate_nodes
+            if str((node.attributes or {}).get("slot_name") or "").strip() in requested_names
+        ]
+        # Prefer exact schema slots. Generic names such as start_time/end_time
+        # are not interchangeable across records (setup vs helper windows).
+        selected = exact
+        if not selected:
+            stage2_values = {
+                str(item.get("value") or "").strip()
+                for item in stage2
+                if str(item.get("value") or "").strip()
+            }
+            selected = [
+                node for node in candidate_nodes
+                if str((node.attributes or {}).get("slot_value") or "").strip()
+                and any(
+                    str((node.attributes or {}).get("slot_value") or "").strip() in value
+                    for value in stage2_values
+                )
+            ]
+        if not selected:
+            continue
+        selected_names = {
+            str((node.attributes or {}).get("slot_name") or "").strip()
+            for node in selected
+            if str((node.attributes or {}).get("slot_name") or "").strip()
+        }
+        # Do not infer a sibling endpoint from a generic slot name. The
+        # source-local Stage-2 value/claim closure is the only safe expansion.
+        if selected_names:
+            binding["slot_names"] = sorted(selected_names)
+            binding["slot_name"] = sorted(selected_names)[0]
+            binding["anchor_slot_node_ids"] = [node.node_id for node in selected]
+            binding["anchor_slot_node_id"] = selected[0].node_id
+            binding["source"] = "stage2_source_grounded_binding_repair"
+
+
+def _is_range_component_name(slot_name: str) -> bool:
+    tokens = set(re.findall(r"[a-z0-9]+", str(slot_name or "").lower()))
+    return bool(tokens & {"start", "end"}) and bool(
+        tokens & {"time", "window", "range", "schedule", "duration"}
+    ) or str(slot_name or "").strip().lower() in {"start_time", "end_time"}
+
+
+def _is_calendar_anchor_slot(slot_name: str) -> bool:
+    normalized = str(slot_name or "").strip().lower().replace("-", "_")
+    return normalized in {"date", "calendar_date", "event_date", "scheduled_date", "target_date"}
+
+
+def _source_token_overlap(source_text: str, reference_texts: list[str]) -> int:
+    def tokens(value: str) -> set[str]:
+        return {
+            token for token in re.findall(r"[a-z0-9]+", value.lower())
+            if len(token) > 2 and token not in {"the", "and", "for", "from", "with", "only"}
+        }
+    source_tokens = tokens(source_text)
+    return max((len(source_tokens.intersection(tokens(text))) for text in reference_texts), default=0)
+
+
 def _merge_stage2_source_grounded_value(
     *,
     realization: dict[str, Any],
@@ -826,6 +1116,8 @@ def _merge_stage2_source_grounded_value(
     requires the same memory, an answer decision, exact source grounding, and
     structural token overlap between the two typed slot names.
     """
+    if bool(realization.get("semantic_llm_adjudicated")):
+        return
     if not stage2_realizations:
         return
     source_memory_id = str(realization.get("source_memory_id") or "")
@@ -883,6 +1175,21 @@ def _merge_stage2_source_grounded_value(
         claim_span = str(candidate.get("claim_span") or "").strip()
         if claim_span and claim_span not in source_text:
             claim_span = ""
+        evidence_span = str(candidate.get("evidence_span") or "").strip()
+        # The graph compiler may have created a short typed slot from the same
+        # source message that Stage 2 adjudicated using a fuller evidence span
+        # (most visibly, ``May 19`` versus ``May 19, 2026``). Reuse that span
+        # only when the source message is identical and it contains the
+        # adjudicated value. This preserves provenance while avoiding a rule
+        # that invents or normalizes the missing suffix.
+        merge_source_text = source_text
+        if (
+            same_source_message
+            and evidence_span
+            and value in evidence_span
+            and current_value in evidence_span
+        ):
+            merge_source_text = evidence_span
         same_claim_span = bool(
             graph_claim_span
             and claim_span
@@ -894,9 +1201,9 @@ def _merge_stage2_source_grounded_value(
             # same source-local claim. Same-source Stage-2 adjudication is a
             # stronger closed-set link than lexical slot-name overlap.
             continue
-        replacement = value if len(value) > len(current_value) and value in source_text and current_value in value else ""
-        if claim_span and current_value in claim_span and len(claim_span) > len(current_value):
-            replacement = claim_span
+        replacement = value if len(value) > len(current_value) and value in merge_source_text and current_value in value else ""
+        if replacement and merge_source_text != source_text:
+            realization["source_text"] = merge_source_text
         if not replacement:
             continue
         candidates.append((len(replacement), candidate, replacement))

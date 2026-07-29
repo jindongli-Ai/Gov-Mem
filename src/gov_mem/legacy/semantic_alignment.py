@@ -1,4 +1,4 @@
-"""LLM-mediated alignment from query attributes to observed graph slots.
+"""LEGACY: LLM-mediated alignment from query attributes to observed graph slots.
 
 The LLM may select only an existing evidence-local SlotNode.  Authorization,
 version selection, and source-span validation remain deterministic.
@@ -11,6 +11,7 @@ import re
 from typing import Any
 
 from gov_mem.graph.governed_graph import GovernedMemoryGraph
+from gov_mem.governance_runtime.factual_claim_quality import factual_value_is_eligible
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
 
 
@@ -642,6 +643,35 @@ def align_requested_attributes(
                 }
             bindings[attribute] = projected_binding
 
+    if allow_record_local_completion:
+        answer_value_bindings, answer_value_rejections, answer_value_trace = _adjudicate_answer_value_bindings(
+            llm_client=llm_client,
+            model_name=model_name,
+            question=question,
+            semantic_spec=semantic_spec,
+            requested=requested,
+            candidates=candidates,
+            bindings=bindings,
+            utility_source_message_ids=utility_source_message_ids,
+        )
+    else:
+        answer_value_bindings, answer_value_rejections, answer_value_trace = {}, {}, {
+            "attempted": False,
+            "skipped_reason": "non_utility_final_alignment",
+        }
+    bindings.update(answer_value_bindings)
+    for reason, count in answer_value_rejections.items():
+        rejection_counts[reason] += count
+    duplicate_scalar_attributes = _duplicate_scalar_binding_attributes(
+        bindings=bindings,
+        requested=requested,
+    )
+    if duplicate_scalar_attributes:
+        for attribute in duplicate_scalar_attributes:
+            bindings.pop(attribute, None)
+        rejection_counts["duplicate_scalar_slot_after_answer_value_adjudication"] += len(duplicate_scalar_attributes)
+        answer_value_trace["duplicate_scalar_attributes"] = duplicate_scalar_attributes
+
     missing = [attribute for attribute in requested if attribute not in bindings]
     return {
         "available": not missing,
@@ -656,6 +686,7 @@ def align_requested_attributes(
             "rejection_counts": dict(sorted(rejection_counts.items())),
             "fact_span_repair": repair_trace,
             "collection_completion": collection_completion,
+            "answer_value_adjudication": answer_value_trace,
             "stage2_empty_state_attributes": sorted(stage2_empty_state_bindings),
         },
     }
@@ -677,6 +708,218 @@ def _source_local_candidates_for_bindings(
         if str(candidate.get("slot_node_id") or "") in anchor_ids
     }
     return [candidate for candidate in candidates if str(candidate.get("source_atom_id") or "") in source_ids]
+
+
+def _adjudicate_answer_value_bindings(
+    *,
+    llm_client: LLMClient | None,
+    model_name: str,
+    question: str,
+    semantic_spec: dict[str, Any],
+    requested: list[str],
+    candidates: list[dict[str, str]],
+    bindings: dict[str, dict[str, Any]],
+    utility_source_message_ids: set[str] | None = None,
+) -> tuple[dict[str, dict[str, Any]], dict[str, int], dict[str, Any]]:
+    """Run a final closed-set pass that grounds answer slots, not sources.
+
+    Earlier alignment establishes the source/claim neighborhood.  This pass is
+    deliberately narrower: it can only replace a scalar binding with another
+    SlotNode from the already selected source atom or same source-message
+    closure.  The LLM supplies semantic judgment; deterministic validation still
+    enforces closed IDs and verbatim spans.
+    """
+    trace: dict[str, Any] = {
+        "attempted": False,
+        "candidate_count": 0,
+        "parsed_binding_count": 0,
+        "accepted_binding_count": 0,
+        "updated_attributes": [],
+        "skipped_attributes": [],
+        "rejection_counts": {},
+    }
+    if llm_client is None or not llm_client.is_available():
+        return {}, {}, trace
+    scalar_attributes = [
+        attribute
+        for attribute in requested
+        if str((bindings.get(attribute) or {}).get("binding_kind") or "scalar") != "collection"
+        and not _is_record_collection_attribute(attribute, semantic_spec)
+    ]
+    if not scalar_attributes:
+        return {}, {}, trace
+    updates: dict[str, dict[str, Any]] = {}
+    all_candidate_ids: set[str] = set()
+    all_raw_keys: set[str] = set()
+    total_items = 0
+    total_rejections: dict[str, int] = defaultdict(int)
+    for attribute in scalar_attributes:
+        candidate_pool = _answer_value_candidates_for_bindings(
+            candidates=candidates,
+            bindings=bindings,
+            attributes=[attribute],
+            utility_source_message_ids=utility_source_message_ids,
+        )
+        if not candidate_pool:
+            continue
+        if not _should_escalate_answer_value(
+            attribute=attribute,
+            semantic_spec=semantic_spec,
+            binding=bindings.get(attribute),
+            candidates=candidate_pool,
+        ):
+            trace["skipped_attributes"].append(attribute)
+            continue
+        trace["attempted"] = True
+        all_candidate_ids.update(str(row.get("slot_node_id") or "") for row in candidate_pool)
+        raw = _request_answer_value_adjudication(
+            llm_client=llm_client,
+            model_name=model_name,
+            question=question,
+            semantic_spec=semantic_spec,
+            requested=[attribute],
+            candidates=candidate_pool,
+            bindings={attribute: dict(bindings.get(attribute) or {})},
+        )
+        local_by_id = {row["slot_node_id"]: row for row in candidate_pool}
+        items = _alignment_items(raw)
+        accepted, rejections = _consume_alignment_items(
+            items=items,
+            unresolved=[attribute],
+            by_id=local_by_id,
+            question=question,
+            semantic_spec=semantic_spec,
+        )
+        total_items += len(items)
+        all_raw_keys.update(str(key) for key in raw if isinstance(raw, dict))
+        for reason, count in rejections.items():
+            total_rejections[reason] += count
+        binding = accepted.get(attribute)
+        if not binding:
+            continue
+        selected = [
+            local_by_id[node_id]
+            for node_id in list(binding.get("anchor_slot_node_ids") or [])
+            if node_id in local_by_id
+        ]
+        if not selected:
+            continue
+        incumbent_ids = list((bindings.get(attribute) or {}).get("anchor_slot_node_ids") or [])
+        selected_ids = [row["slot_node_id"] for row in selected]
+        updates[attribute] = _binding(
+            attribute=attribute,
+            candidates=selected,
+            source="llm_answer_value_adjudication",
+            binding_kind="scalar",
+        )
+        # The model has now made the semantic choice among closed,
+        # source-grounded SlotNodes. Later stages must preserve that choice
+        # while continuing to enforce authorization, lifecycle, and verbatim
+        # provenance constraints.
+        updates[attribute]["semantic_llm_adjudicated"] = True
+        if selected_ids != incumbent_ids:
+            trace["updated_attributes"].append(attribute)
+    trace.update({
+        "candidate_count": len(all_candidate_ids),
+        "raw_top_level_keys": sorted(all_raw_keys),
+        "parsed_binding_count": total_items,
+        "accepted_binding_count": len(updates),
+        "rejection_counts": dict(sorted(total_rejections.items())),
+        "updated_attributes": list(dict.fromkeys(trace["updated_attributes"])),
+        "skipped_attributes": list(dict.fromkeys(trace["skipped_attributes"])),
+    })
+    return updates, dict(total_rejections), trace
+
+
+def _should_escalate_answer_value(
+    *,
+    attribute: str,
+    semantic_spec: dict[str, Any],
+    binding: dict[str, Any] | None,
+    candidates: list[dict[str, str]],
+) -> bool:
+    """Escalate only when deterministic typed selection is semantically weak.
+
+    The rule layer is intentionally used as a triage signal here, not as the
+    final answer decision. Direct, typed, source-grounded values stay on the
+    cheap path. Narrative/meta values, missing bindings, and subject-only
+    anchors require base-model interpretation; ordinary current-value
+    chronology remains a deterministic responsibility.
+    """
+    if not isinstance(binding, dict):
+        return True
+    attribute_tokens = set(re.findall(r"[a-z0-9]+", str(attribute or "").lower()))
+    # Wording and explanatory fields are semantically referential: an
+    # extractor can validly surface the connective phrase around the answer
+    # (for example, ``for broad summaries remains``) while the answer is a
+    # quoted noun phrase elsewhere in the same claim. Let the base model pick
+    # the value from the closed candidate set; provenance validation remains
+    # deterministic below.
+    if attribute_tokens & {"wording", "phrase", "description", "explanation", "meaning"}:
+        return True
+    anchor_ids = {
+        str(value) for value in list(binding.get("anchor_slot_node_ids") or []) if str(value)
+    }
+    if str(binding.get("anchor_slot_node_id") or ""):
+        anchor_ids.add(str(binding.get("anchor_slot_node_id")))
+    incumbent = [
+        candidate for candidate in candidates
+        if str(candidate.get("slot_node_id") or "") in anchor_ids
+    ]
+    if not incumbent:
+        return True
+    for candidate in incumbent:
+        value = str(candidate.get("slot_value") or "").strip()
+        slot_name = str(candidate.get("slot_name") or "").strip()
+        if not factual_value_is_eligible(
+            attribute=attribute,
+            slot_name=slot_name,
+            value=value,
+            semantic_spec=semantic_spec,
+            source_text=str(candidate.get("source_text") or ""),
+        ):
+            return True
+        if str(candidate.get("slot_role") or "").strip().lower() in {
+            "claim_subject_value", "claim_subject", "subject",
+        }:
+            return True
+    return False
+
+
+def _answer_value_candidates_for_bindings(
+    *,
+    candidates: list[dict[str, str]],
+    bindings: dict[str, dict[str, Any]],
+    attributes: list[str],
+    utility_source_message_ids: set[str] | None = None,
+) -> list[dict[str, str]]:
+    by_id = {str(candidate.get("slot_node_id") or ""): candidate for candidate in candidates}
+    source_atom_ids: set[str] = set()
+    source_message_ids: set[str] = {
+        str(message_id) for message_id in set(utility_source_message_ids or set()) if str(message_id)
+    }
+    for attribute in attributes:
+        for node_id in list((bindings.get(attribute) or {}).get("anchor_slot_node_ids") or []):
+            candidate = by_id.get(str(node_id))
+            if not candidate:
+                continue
+            source_atom_id = str(candidate.get("source_atom_id") or "")
+            if source_atom_id:
+                source_atom_ids.add(source_atom_id)
+            for message_id in list(candidate.get("source_message_ids") or []):
+                if str(message_id):
+                    source_message_ids.add(str(message_id))
+    if not source_atom_ids and not source_message_ids:
+        return []
+    selected: list[dict[str, str]] = []
+    for candidate in candidates:
+        candidate_messages = {str(value) for value in list(candidate.get("source_message_ids") or []) if str(value)}
+        if (
+            str(candidate.get("source_atom_id") or "") in source_atom_ids
+            or bool(source_message_ids and candidate_messages & source_message_ids)
+        ):
+            selected.append(candidate)
+    return _merge_candidate_sets(selected)
 
 
 def _binding_source_atom_id(*, binding: dict[str, Any], candidates: list[dict[str, str]]) -> str:
@@ -801,6 +1044,7 @@ def _consume_alignment_items(
     by_id: dict[str, dict[str, str]],
     question: str,
     semantic_spec: dict[str, Any],
+    answer_value_mode: bool = False,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, int]]:
     bindings: dict[str, dict[str, Any]] = {}
     rejection_counts: dict[str, int] = defaultdict(int)
@@ -943,6 +1187,98 @@ def _request_alignment(
                 f"alignments. {repair_instruction}\n"
                 f"Question: {question}\nSemantic contract: {semantic_spec}\n"
                 f"Requested attributes: {requested}\nCandidates: {payload}"
+            ),
+        )
+        return raw if isinstance(raw, dict) else {}
+    except (LLMClientUnavailableError, Exception):
+        return {}
+
+
+def _request_answer_value_adjudication(
+    *,
+    llm_client: LLMClient,
+    model_name: str,
+    question: str,
+    semantic_spec: dict[str, Any],
+    requested: list[str],
+    candidates: list[dict[str, str]],
+    bindings: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    claims: dict[str, dict[str, Any]] = {}
+    for row in candidates:
+        claim = claims.setdefault(str(row["source_atom_id"]), {
+            "source_atom_id": row["source_atom_id"],
+            "source_text": row["source_text"],
+            "source_message_ids": list(row.get("source_message_ids") or []),
+            "atom_type": row.get("atom_type", ""),
+            "lifecycle": row.get("lifecycle", ""),
+            "slots": [],
+            "claim_subjects": [],
+        })
+        claim["slots"].append({
+            "slot_node_id": row["slot_node_id"],
+            "slot_name": row["slot_name"],
+            "slot_value": row["slot_value"],
+            "slot_role": row.get("slot_role", ""),
+            "claim_property_label": row.get("claim_property_label", ""),
+            "claim_property_labels": list(row.get("claim_property_labels") or []),
+            "claim_spans": list(row.get("claim_spans") or []),
+            "claim_value_spans": list(row.get("claim_value_spans") or []),
+        })
+        for subject in row.get("claim_subjects") or []:
+            if subject not in claim["claim_subjects"]:
+                claim["claim_subjects"].append(subject)
+    incumbent_bindings = []
+    by_id = {str(row.get("slot_node_id") or ""): row for row in candidates}
+    for attribute in requested:
+        slot_ids = [
+            str(node_id)
+            for node_id in list((bindings.get(attribute) or {}).get("anchor_slot_node_ids") or [])
+            if str(node_id)
+        ]
+        incumbent_bindings.append({
+            "attribute": attribute,
+            "slot_node_ids": slot_ids,
+            "slot_values": [
+                str((by_id.get(slot_id) or {}).get("slot_value") or "")
+                for slot_id in slot_ids
+                if slot_id in by_id
+            ],
+            "source": str((bindings.get(attribute) or {}).get("source") or ""),
+        })
+    try:
+        raw = llm_client.chat_json(
+            model=model_name,
+            system_prompt=(
+                "You adjudicate final answer-value grounding from already authorized, closed memory evidence. "
+                "Do not answer the user, invent values, create attributes, or authorize disclosure. Return JSON only."
+            ),
+            user_prompt=(
+                "This is final answer-value grounding. Return {\"bindings\":[{\"attribute\":string,"
+                "\"slot_node_ids\":[string],\"binding_kind\":\"scalar\",\"query_support_span\":string,"
+                "\"fact_support_spans\":[{\"slot_node_id\":string,\"source_atom_id\":string,"
+                "\"fact_support_span\":string}],\"reason\":string,\"rejected_neighbor_roles\":[string]}]}. "
+                "Work only from the closed AnswerValueCandidates below. The incumbent bindings are provisional; "
+                "keep an incumbent only when its slot_value is the actual value that should be rendered. "
+                "For each requested scalar attribute, use the base language model reasoning to resolve referential, "
+                "explanatory, or status-like wording into the actual source-grounded noun/value span when that value "
+                "is present in the same closed source context. Prefer concrete answer values such as named objects, "
+                "locations, dates, times, amounts, identifiers, quoted wording, or current remaining states over "
+                "neighboring meta/update instructions, override markers, explanatory connectors, sufficiency/status "
+                "predicates, policy labels, deletion boundaries, or historical predecessors. If the question asks "
+                "for a status, sufficiency judgment, deletion act, or explanation, then a status or explanatory slot "
+                "may be the answer; otherwise it is only context. For current/final requests, choose the current or "
+                "post-update remaining value, not the phrase that says an old value was deleted, superseded, or should "
+                "be overridden. For wording/label/value requests, choose the quoted or named wording itself, not the "
+                "surrounding sentence fragment that introduces it. For window/schedule requests, choose explicit "
+                "date/time values rather than an adequacy phrase. "
+                "Select only existing slot_node_ids. Do not return free-text values. Each query_support_span must be "
+                "copied exactly from the Question or from the semantic contract support span. Each fact_support_span "
+                "must be copied verbatim from that candidate's source_text and must contain the selected slot_value. "
+                "Omit uncertain attributes rather than guessing.\n"
+                f"Question: {question}\nSemantic contract: {semantic_spec}\n"
+                f"Requested attributes: {requested}\nIncumbent bindings: {incumbent_bindings}\n"
+                f"AnswerValueCandidates: {list(claims.values())}"
             ),
         )
         return raw if isinstance(raw, dict) else {}
@@ -1197,6 +1533,8 @@ def _candidate_slots(
             "source_atom_id": source_atom_id,
             "source_memory_id": str((node.provenance or {}).get("source_memory_id") or ""),
             "source_message_ids": sorted(source_message_ids),
+            "atom_type": str((semantic_node.attributes or {}).get("atom_type") or ""),
+            "lifecycle": str((semantic_node.attributes or {}).get("lifecycle") or ""),
             "claim_subjects": list(dict.fromkeys(
                 subject_surfaces_by_semantic_node.get(semantic_node.node_id, [])
             )),

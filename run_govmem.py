@@ -69,16 +69,28 @@ def main() -> None:
         default=None,
         choices=[
             "rag_naive",
+            "rag_naive_v3_typed_rerank",
             "rag_policy",
             "rag_policy_amem",
             "govmem_rag_policy_incremental",
             "govmem_structured_old",
+            "stateful_policy_reasoning",
         ],
     )
     parser.add_argument("--llm_provider", default=None)
     parser.add_argument("--llm_api_base", default=None)
     parser.add_argument("--llm_api_key_env", default=None)
     parser.add_argument("--base_model", default=None)
+    parser.add_argument(
+        "--embedding_model",
+        default=None,
+        help="Override the configured embedding model for retrieval experiments.",
+    )
+    parser.add_argument(
+        "--policy_ablation",
+        default=None,
+        choices=["full", "wo_temporal_transition", "wo_policy_conflict_resolution", "wo_explicit_memory_status", "llm_only", "rule_only"],
+    )
     parser.add_argument(
         "--role_model",
         action="append",
@@ -104,6 +116,18 @@ def main() -> None:
         llm_updates["role_models"] = role_models
     if llm_updates:
         config = deep_update(config, {"llm": llm_updates})
+    if args.embedding_model is not None:
+        config = deep_update(config, {"embedding": {"model": args.embedding_model}})
+    if args.policy_ablation:
+        ablation_updates = {
+            "full": {"mode": "full"},
+            "wo_temporal_transition": {"temporal_transition": False},
+            "wo_policy_conflict_resolution": {"conflict_resolution": False},
+            "wo_explicit_memory_status": {"explicit_memory_status": False},
+            "llm_only": {"mode": "llm_only"},
+            "rule_only": {"mode": "rule_only"},
+        }[args.policy_ablation]
+        config = deep_update(config, {"policy_reasoning": ablation_updates})
     set_random_seed(int(config["project"]["seed"]))
 
     runner = GovMemRunner(

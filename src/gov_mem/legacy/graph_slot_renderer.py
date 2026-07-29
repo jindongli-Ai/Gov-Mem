@@ -1,4 +1,4 @@
-"""Minimal realization for graph-certified, source-grounded typed slots."""
+"""LEGACY: graph-certified, source-grounded typed slot realization."""
 
 from __future__ import annotations
 
@@ -7,7 +7,28 @@ import calendar
 from typing import Any
 
 from gov_mem.data.schema import AnswerResult, RetrievedEvidence
-from gov_mem.governance_runtime.claim_adjudicator import _slot_matches_attribute
+from gov_mem.legacy.claim_adjudicator import _slot_matches_attribute
+from gov_mem.governance_runtime.factual_claim_quality import factual_value_is_eligible
+
+
+def _expand_source_local_partial_date(value: str, source_text: str) -> str:
+    """Attach the sole explicit source-local year to a partial date.
+
+    This is surface normalization, not date selection: the month/day must
+    already be the certified source value and the year must occur verbatim in
+    the same source record.
+    """
+    raw = str(value or "").strip()
+    if not raw or re.search(r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b|,\s*\d{4}\b", raw):
+        return raw
+    if not re.fullmatch(
+        r"(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}",
+        raw,
+        re.IGNORECASE,
+    ) or raw.lower() not in source_text.lower():
+        return raw
+    years = list(dict.fromkeys(re.findall(r"\b(20\d{2})\b", source_text)))
+    return f"{raw}, {years[0]}" if len(years) == 1 else raw
 
 
 def build_graph_authorized_projection(
@@ -32,6 +53,11 @@ def build_graph_authorized_projection(
     slots: dict[str, str | list[str]] = {}
     typed_candidates: list[dict[str, str]] = []
     source_ids: list[str] = []
+    certified_year_context = " ".join(
+        str(realization.get("source_text") or "")
+        for realization in list(certificate.get("realizations") or [])
+        if isinstance(realization, dict)
+    )
     for slot in requested:
         item = dict(certified[slot] or {})
         realizations = [
@@ -46,12 +72,17 @@ def build_graph_authorized_projection(
             source_id = str(realization.get("source_memory_id") or realization.get("source_atom_id") or "")
             if not value or value.lower() not in source_text.lower():
                 return None
-            if value not in values:
-                values.append(value)
+            display_value = _expand_source_local_partial_date(
+                value,
+                source_text + " " + certified_year_context,
+            )
+            if display_value not in values:
+                values.append(display_value)
                 typed_candidates.append({
                     "attribute": slot,
                     "slot_name": str(realization.get("slot_name") or slot),
                     "value": value,
+                    "display_value": display_value,
                     "source_text": source_text,
                     "source_memory_id": source_id,
                 })
@@ -112,11 +143,12 @@ def graph_certificate_typed_compatibility(
         if str(aligned.get("slot_name") or "").strip():
             slot_names.append(str(aligned.get("slot_name") or "").strip())
         contract_binding = dict(by_attribute.get(attribute) or {"attribute": attribute})
-        # The graph alignment is the source-local typed evidence link. Make
-        # its concrete slot visible to the common validator without changing
-        # the user's semantic contract or adding a domain vocabulary.
-        if slot_names:
-            contract_binding["evidence_slot_hint"] = slot_names[0]
+        # Do not copy the model-selected concrete slot into the semantic
+        # contract. Doing so would make the selected slot validate itself:
+        # the alignment proposal would become an expected slot before the
+        # typed-role check runs. The original planner contract remains the
+        # independent semantic reference; concrete alignment is validated
+        # against it below.
         by_attribute[attribute] = contract_binding
     if by_attribute:
         spec["attribute_bindings"] = list(by_attribute.values())
@@ -132,6 +164,15 @@ def graph_certificate_typed_compatibility(
         and str(item.get("need_kind") or item.get("binding_kind") or "").strip().lower()
         in {"record_collection", "collection", "list"}
     }
+    realizations_by_source: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for item in realizations:
+        if not isinstance(item, dict):
+            continue
+        source_key = (
+            str(item.get("source_memory_id") or ""),
+            str(item.get("source_atom_id") or ""),
+        )
+        realizations_by_source.setdefault(source_key, []).append(dict(item))
     for attribute, payload in certified.items():
         attribute = str(attribute).strip()
         if not attribute:
@@ -149,25 +190,89 @@ def graph_certificate_typed_compatibility(
             source_text = str(row.get("source_text") or "")
             if not slot_name or not value or value.lower() not in source_text.lower():
                 return False
+            # The final per-attribute base-LLM adjudicator already selected
+            # this exact closed SlotNode. Keep deterministic checks for source
+            # grounding and governance, but do not run a second hand-written
+            # semantic veto that can turn a valid referential or explanatory
+            # choice into a different field.
+            if not bool(row.get("semantic_llm_adjudicated")) and not factual_value_is_eligible(
+                attribute=attribute,
+                slot_name=slot_name,
+                value=value,
+                semantic_spec=spec,
+                source_text=source_text,
+            ):
+                return False
+            source_key = (
+                str(row.get("source_memory_id") or ""),
+                str(row.get("source_atom_id") or ""),
+            )
+            source_rows = realizations_by_source.get(source_key) or [row]
             record = {
                 "source_text": source_text,
-                "slots": {slot_name: value},
+                "slots": {
+                    str(candidate.get("slot_name") or "").strip(): str(
+                        candidate.get("typed_slot_value") or candidate.get("value") or ""
+                    ).strip()
+                    for candidate in source_rows
+                    if str(candidate.get("slot_name") or "").strip()
+                },
                 "stage2_served_attributes": [attribute],
-                "stage2_typed_fields": [{
-                    "attribute": attribute,
-                    "slot_name": slot_name,
-                    "value": value,
-                }],
+                "stage2_typed_fields": [
+                    {
+                        "attribute": str(candidate.get("attribute") or attribute).strip(),
+                        "slot_name": str(candidate.get("slot_name") or "").strip(),
+                        "value": str(candidate.get("typed_slot_value") or candidate.get("value") or "").strip(),
+                    }
+                    for candidate in source_rows
+                    if str(candidate.get("slot_name") or "").strip()
+                ],
             }
             # A record collection intentionally contains heterogeneous typed
             # fields. Its concrete members are already checked as individual
             # certified scalar slots; applying the outer label to every
             # member would reject valid time/access/context roles.
-            if attribute not in collection_attributes and not _slot_matches_attribute(
+            llm_semantic_choice = bool(row.get("semantic_llm_adjudicated"))
+            if attribute not in collection_attributes and not llm_semantic_choice and not _slot_matches_attribute(
                 attribute, slot_name, spec, record
+            ) and not _composite_record_component(
+                attribute=attribute,
+                source_rows=source_rows,
+                source_text=source_text,
+                semantic_spec=spec,
             ):
                 return False
     return True
+
+
+def _composite_record_component(
+    *,
+    attribute: str,
+    source_rows: list[dict[str, Any]],
+    source_text: str,
+    semantic_spec: dict[str, Any],
+) -> bool:
+    """Allow a complete source-record projection for a composite request."""
+    binding = next(
+        (
+            item for key in ("attribute_bindings", "certifiable_needs")
+            for item in list(semantic_spec.get(key) or [])
+            if isinstance(item, dict)
+            and str(item.get("attribute") or item.get("need_id") or "").strip() == attribute
+        ),
+        {},
+    )
+    role_tokens = set(re.findall(r"[a-z0-9]+", str(attribute).lower()))
+    role_tokens.update(re.findall(r"[a-z0-9]+", str(binding.get("support_span") or "").lower()))
+    role_tokens -= {
+        "a", "an", "the", "and", "as", "at", "current", "for", "in",
+        "of", "now", "right", "should", "the", "what", "which",
+    }
+    composite_tokens = {"plan", "schedule", "workflow", "protocol", "procedure"}
+    if not role_tokens & composite_tokens or len(source_rows) < 2:
+        return False
+    source_tokens = set(re.findall(r"[a-z0-9]+", str(source_text).lower()))
+    return len(role_tokens & source_tokens) >= 2
 
 
 def render_graph_authorized_slots(
@@ -199,6 +304,15 @@ def render_graph_authorized_slots(
         and str(binding.get("binding_kind") or "").strip().lower()
         in {"record_collection", "collection", "list"}
     )
+    # A list-shaped request can still contain scalar fields plus one outer
+    # collection.  Only use the legacy all-fields collection fallback when
+    # the semantic contract did not identify any collection explicitly.
+    if (
+        not collection_attributes
+        and str((semantic_spec or {}).get("request_shape") or "").strip().lower()
+        in {"list", "plan"}
+    ):
+        collection_attributes.update(_requested_slots(semantic_spec or {}))
     # Preserve the generic compatibility contract used by legacy synthetic
     # certificates when no semantic spec is attached.
     collection_attributes.update(
@@ -228,6 +342,22 @@ def render_graph_authorized_slots(
             attribute for attribute, _source in slots_by_attribute_source
             if len(slots_by_attribute_source[(attribute, _source)]) > 1
         )
+        # A graph alignment can explicitly attest several source records for a
+        # list while omitting the optional semantic contract at render time.
+        # Distinct source identities are enough to preserve those certified
+        # values; scalar conflicts are already collapsed by certification.
+        source_keys_by_attribute: dict[str, set[str]] = {}
+        for item in realizations:
+            attribute = str(item.get("attribute") or "").strip()
+            source_key = str(
+                item.get("source_memory_id") or item.get("source_atom_id") or ""
+            ).strip()
+            if attribute and source_key:
+                source_keys_by_attribute.setdefault(attribute, set()).add(source_key)
+        collection_attributes.update(
+            attribute for attribute, source_keys in source_keys_by_attribute.items()
+            if len(source_keys) > 1
+        )
     clauses = []
     source_ids = []
     typed_slots: dict[str, str | list[str]] = {}
@@ -236,11 +366,26 @@ def render_graph_authorized_slots(
         item = dict(payload or {})
         grouped.setdefault((str(item.get("attribute") or ""), str(item.get("source_atom_id") or "")), []).append(item)
     scalar_winners: dict[str, dict[str, Any]] = {}
+    multi_slot_scalars: set[str] = set()
+    for key in ("attribute_bindings", "certifiable_needs"):
+        for binding in list((semantic_spec or {}).get(key) or []):
+            if not isinstance(binding, dict):
+                continue
+            attribute = str(binding.get("attribute") or binding.get("need_id") or "").strip()
+            slot_names = [str(value).strip() for value in list(binding.get("slot_names") or []) if str(value).strip()]
+            if attribute and len(slot_names) > 1:
+                multi_slot_scalars.add(attribute)
+    multi_slot_scalars.update(
+        str(attribute).strip()
+        for attribute, binding in alignment.items()
+        if isinstance(binding, dict)
+        and len([str(value).strip() for value in list(binding.get("slot_names") or []) if str(value).strip()]) > 1
+    )
     for group in grouped.values():
         if not group:
             continue
         attribute = str(group[0].get("attribute") or "").strip()
-        if not attribute or attribute in collection_attributes:
+        if not attribute or attribute in collection_attributes or attribute in multi_slot_scalars:
             continue
         for item in group:
             slot_name = str(item.get("slot_name") or "").strip().lower()
@@ -318,15 +463,12 @@ def render_graph_authorized_slots(
             # the graph slot still carries the exact typed component. Keep
             # the component for field-level rendering; the claim remains
             # available as provenance and context.
-            if (
-                attribute in collection_attributes
-                and slot_role == "claim_value"
-                and claim_span
-                and claim_span in source_text
-                and value in claim_span
-            ):
-                value = claim_span
-            elif typed_slot_value and typed_slot_value.lower() in source_text.lower():
+            # ``typed_slot_value`` is the field-level value selected by the
+            # graph certificate. A claim span is provenance/context, not a
+            # replacement for that value, especially for mixed collections
+            # where one sentence contains several independently requested
+            # fields.
+            if typed_slot_value and typed_slot_value.lower() in source_text.lower():
                 value = typed_slot_value
             if (
                 not typed_slot_value
@@ -360,6 +502,17 @@ def render_graph_authorized_slots(
                 )
             ):
                 value = claim_span
+            display_value = str(item.get("display_value") or "").strip()
+            if not bool(item.get("semantic_llm_adjudicated")) and not factual_value_is_eligible(
+                attribute=slot,
+                slot_name=field_name,
+                value=value,
+                semantic_spec=semantic_spec or {},
+                source_text=source_text,
+            ):
+                continue
+            if display_value:
+                value = display_value
             existing = typed_slots.get(slot)
             if existing is None:
                 typed_slots[slot] = value

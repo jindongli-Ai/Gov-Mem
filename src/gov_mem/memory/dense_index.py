@@ -51,12 +51,21 @@ class DenseMemoryIndex:
         texts = [_memory_item_to_embedding_text(item) for item in items]
         try:
             embeddings = llm_client.embed_texts(model=embedding_model, texts=texts)
+            # A provider can return a successful HTTP response with a partial
+            # or empty data array.  ``zip`` would silently truncate the index,
+            # turning an embedding transport defect into a false retrieval
+            # miss.  Fall back to the deterministic in-process index unless
+            # every authorized item has a non-empty vector.
+            if len(embeddings) != len(items) or any(not vector for vector in embeddings):
+                raise ValueError(
+                    f"Embedding response count/vector mismatch: requested={len(items)} received={len(embeddings)}"
+                )
             rows = [
                 DenseIndexRow(memory_id=item.memory_id, text=text, embedding=embedding)
                 for item, text, embedding in zip(items, texts, embeddings)
             ]
             return cls(rows=rows, backend="openai_embedding")
-        except (LLMClientUnavailableError, requests.RequestException):
+        except (LLMClientUnavailableError, requests.RequestException, ValueError):
             return cls(rows=_sparse_rows(items=items, texts=texts), backend="sparse_heuristic")
 
     def query(
@@ -73,9 +82,9 @@ class DenseMemoryIndex:
         if self.backend == "openai_embedding":
             try:
                 query_embeddings = llm_client.embed_texts(model=embedding_model, texts=query_texts)
-            except (LLMClientUnavailableError, requests.RequestException):
+            except (LLMClientUnavailableError, requests.RequestException, ValueError):
                 query_embeddings = []
-            if query_embeddings:
+            if len(query_embeddings) == len(query_texts) and all(query_embeddings):
                 scores: dict[str, float] = {}
                 for query_embedding in query_embeddings:
                     for row in self.rows:

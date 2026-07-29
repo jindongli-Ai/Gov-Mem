@@ -852,7 +852,13 @@ def _ground_semantic_tags(raw: Any, *, source_text: str) -> dict[str, Any]:
         }
     surface_values = dict(tags.get("surface_values") or {})
     raw_attributes = dict(tags.get("attributes") or {})
-    raw_changed_fields = dict((tags.get("state_delta") or {}).get("changed_fields") or {})
+    state_delta = tags.get("state_delta")
+    state_delta = state_delta if isinstance(state_delta, dict) else {}
+    changed_fields = state_delta.get("changed_fields")
+    # Models occasionally emit a list or scalar for this open-schema field.
+    # Treat that malformed subfield as absent so one bad annotation cannot
+    # discard the whole checkpoint.
+    raw_changed_fields = changed_fields if isinstance(changed_fields, dict) else {}
     grounded_claims = [
         claim
         for claim in list(tags.get("claims") or [])
@@ -885,14 +891,15 @@ def _ground_semantic_tags(raw: Any, *, source_text: str) -> dict[str, Any]:
     # omitted by the annotating model.
     for claim in grounded_claims:
         attributes.setdefault(claim["property_label"], claim["value_span"])
-    state_delta = dict(tags.get("state_delta") or {})
+    state_delta = dict(state_delta)
     changed_fields = state_delta.get("changed_fields")
+    grounded_changed_fields = {}
     if isinstance(changed_fields, dict):
-        state_delta["changed_fields"] = {
-            key: value
-            for key in changed_fields
-            if (value := grounded_value(str(key))) is not None
-        }
+        for key in changed_fields:
+            grounded_value_text = grounded_value(str(key))
+            if grounded_value_text is not None:
+                grounded_changed_fields[key] = grounded_value_text
+    state_delta["changed_fields"] = grounded_changed_fields
     event_identity = dict(tags.get("event_identity") or {})
     entity_key = re.sub(r"[^a-z0-9]+", "_", str(event_identity.get("entity_key") or "").lower()).strip("_")
     entity_span = str(event_identity.get("entity_surface_span") or "").strip()

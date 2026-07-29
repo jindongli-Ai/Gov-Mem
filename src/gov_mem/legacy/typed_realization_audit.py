@@ -1,4 +1,4 @@
-"""Closed-set semantic realization for typed memory answers.
+"""LEGACY: closed-set semantic realization for typed memory answers.
 
 The base model chooses among observed record-local fields.  Deterministic
 validation then enforces source grounding and lifecycle constraints; no
@@ -12,11 +12,13 @@ import calendar
 from typing import Any
 
 from gov_mem.data.schema import AnswerResult, RetrievedEvidence
-from gov_mem.governance_runtime.claim_adjudicator import (
+from gov_mem.legacy.claim_adjudicator import (
     _meaningful_field_tokens,
     _normalize_observed_value,
     _slot_matches_attribute,
 )
+from gov_mem.governance_runtime.factual_claim_quality import factual_value_is_eligible
+from gov_mem.governance_runtime.source_grounding import row_grounded_source_text
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
 
 
@@ -109,6 +111,13 @@ def realize_typed_request(
             )
             or _is_outer_collection_slot(attribute, slot_name, semantic_spec)
             or _contains_non_access_artifact(attribute, slot_name, value)
+            or not factual_value_is_eligible(
+                attribute=attribute,
+                slot_name=slot_name,
+                value=value,
+                semantic_spec=semantic_spec,
+                source_text=str(record.get("source_text") or ""),
+            )
             or not _valid_slot(record, slot_name, value)
             or value not in str(record.get("source_text") or "")
             or evidence_span not in str(record.get("source_text") or "")
@@ -283,26 +292,32 @@ def realize_typed_request(
     typed_slots: dict[str, str | list[str]] = {}
     clauses: list[str] = []
     used_memory_ids: list[str] = []
+    date_context = " ".join(
+        str(record.get("source_text") or "")
+        for record in records
+        if isinstance(record, dict)
+    )
     for item in chosen:
         attribute = item["attribute"]
         value = item["value"]
+        display_value = _expand_partial_date(value, date_context) if "date" in attribute.lower() else value
         existing = typed_slots.get(attribute)
         is_new_value = (
             existing is None
-            or (isinstance(existing, list) and value not in existing)
-            or (not isinstance(existing, list) and existing != value)
+            or (isinstance(existing, list) and display_value not in existing)
+            or (not isinstance(existing, list) and existing != display_value)
         )
         if existing is None:
-            typed_slots[attribute] = value
+            typed_slots[attribute] = display_value
         elif isinstance(existing, list):
-            if value not in existing:
-                existing.append(value)
-        elif existing != value:
-            typed_slots[attribute] = [existing, value]
+            if display_value not in existing:
+                existing.append(display_value)
+        elif existing != display_value:
+            typed_slots[attribute] = [existing, display_value]
         if item["memory_id"] not in used_memory_ids:
             used_memory_ids.append(item["memory_id"])
         if is_new_value:
-            clauses.append(f"{attribute.replace('_', ' ')}: {value}")
+            clauses.append(f"{attribute.replace('_', ' ')}: {display_value}")
     if not clauses:
         return None
     return AnswerResult(
@@ -318,6 +333,21 @@ def realize_typed_request(
             "realizations": chosen,
         },
     )
+
+
+def _expand_partial_date(value: str, source_context: str) -> str:
+    """Normalize a certified month/day using a unique year in the source set."""
+    raw = str(value or "").strip()
+    if not raw or re.search(r",\s*\d{4}\b", raw):
+        return raw
+    if not re.fullmatch(
+        r"(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}",
+        raw,
+        re.IGNORECASE,
+    ) or raw.lower() not in source_context.lower():
+        return raw
+    years = list(dict.fromkeys(re.findall(r"\b(20\d{2})\b", source_context)))
+    return f"{raw}, {years[0]}" if len(years) == 1 else raw
 
 
 def restrict_semantic_spec(
@@ -494,7 +524,7 @@ def _record_payload(
                 slot_name=slot_name,
                 proposed_value=str(field.get("value") or "").strip(),
                 claim_slots=claim_slots,
-                source_text=str(row.content or ""),
+                source_text=row_grounded_source_text(row),
             )
             if slot_name and value:
                 slots.setdefault(slot_name, value)
@@ -507,7 +537,7 @@ def _record_payload(
             value = str(candidate.get("value") or "").strip()
             if slot_name and value:
                 slots.setdefault(slot_name, value)
-        source_text = str(row.content or "")
+        source_text = row_grounded_source_text(row)
         candidate_sources = [
             str(candidate.get("source_text") or "").strip()
             for candidate in list(metadata.get("typed_candidates") or [])
@@ -767,6 +797,13 @@ def _attribute_bound_fallbacks(
                 or not _slot_compatible(attribute, slot_name, semantic_spec)
                 or _is_outer_collection_slot(attribute, slot_name, semantic_spec)
                 or _contains_non_access_artifact(attribute, slot_name, value)
+                or not factual_value_is_eligible(
+                    attribute=attribute,
+                    slot_name=slot_name,
+                    value=value,
+                    semantic_spec=semantic_spec,
+                    source_text=source_text,
+                )
                 or not _valid_slot(record, slot_name, value)
                 or value not in source_text
                 or not evidence_span
@@ -830,16 +867,46 @@ def _collection_context_items(
         if str(record.get("lifecycle_status") or "active").lower() in _LIFECYCLE_BLOCKLIST:
             continue
         source_text = str(record.get("source_text") or "")
-        for candidate in list(record.get("typed_attributes") or []):
+        candidates = [
+            candidate
+            for candidate in list(record.get("typed_attributes") or [])
+            if isinstance(candidate, dict)
+        ]
+        # A source-local record can expose its calendar anchor through the
+        # generic slot map even when Stage 2 only typed the requested scalar
+        # fields. Keep that anchor available for a mixed collection answer;
+        # the collection itself still has to be present on the same record.
+        has_collection_candidate = any(
+            str(candidate.get("attribute") or "").strip() in collection_attributes
+            for candidate in candidates
+        )
+        if has_collection_candidate:
+            observed_slots = dict(record.get("slots") or {})
+            for slot_name, observed_value in observed_slots.items():
+                slot_name = str(slot_name or "").strip()
+                if not slot_name or not _is_temporal_anchor_slot(slot_name):
+                    continue
+                values = observed_value if isinstance(observed_value, list) else [observed_value]
+                for value in values:
+                    value = str(value or "").strip()
+                    if value:
+                        candidates.append({
+                            "attribute": next(iter(collection_attributes)),
+                            "slot_name": slot_name,
+                            "value": value,
+                            "evidence_span": source_text,
+                            "source_memory_id": record.get("memory_id"),
+                        })
+        for candidate in candidates:
             if not isinstance(candidate, dict):
                 continue
-            if str(candidate.get("attribute") or "").strip() not in collection_attributes:
+            candidate_attribute = str(candidate.get("attribute") or "").strip()
+            if candidate_attribute not in collection_attributes:
                 continue
             slot_name = str(candidate.get("slot_name") or "").strip()
-            slot_tokens = set(re.findall(r"[a-z0-9]+", slot_name.lower()))
-            value = str(candidate.get("value") or "").strip()
-            if not slot_name or not slot_tokens & anchor_slots:
+            if not _is_temporal_anchor_slot(slot_name):
                 continue
+            value = str(candidate.get("value") or "").strip()
             if not _temporal_anchor_matches_scalar_context(value, scalar_source_texts):
                 continue
             if slot_name in requested_attributes:
@@ -885,6 +952,14 @@ def _collection_context_items(
     for item in selected.values():
         item.pop("_context_rank", None)
     return list(selected.values())
+
+
+def _is_temporal_anchor_slot(slot_name: str) -> bool:
+    """Recognize schema-level calendar anchors without domain vocabulary."""
+    normalized = str(slot_name or "").strip().lower().replace("-", "_")
+    return normalized in {
+        "date", "calendar_date", "event_date", "scheduled_date", "target_date",
+    } or "date" in set(normalized.split("_"))
 
 
 def _temporal_anchor_matches_scalar_context(value: str, source_texts: list[str]) -> bool:

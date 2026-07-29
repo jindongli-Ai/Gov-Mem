@@ -44,24 +44,27 @@ from gov_mem.governance_runtime.utility_source_locator import (
 )
 from gov_mem.governance_runtime.source_role_ledger import classify_source_roles
 from gov_mem.governance_runtime.action_predictor import GovernedActionPredictor
-from gov_mem.governance_runtime.claim_adjudicator import adjudicate_claims, build_adjudicated_projection
+from gov_mem.legacy.claim_adjudicator import (
+    adjudicate_claims,
+    build_adjudicated_projection,
+    build_canonical_field_map,
+)
 from gov_mem.governance_runtime.current_state import resolve_current_state
 from gov_mem.governance_runtime.evidence_frames import compile_evidence_frame
 from gov_mem.governance_runtime.provenance_authorization import (
     build_slot_governance_certificate,
     certify_graph_slot_paths,
 )
-from gov_mem.governance_runtime.graph_slot_renderer import (
+from gov_mem.legacy.graph_slot_renderer import (
     build_graph_authorized_projection,
     graph_certificate_typed_compatibility,
     render_graph_authorized_slots,
 )
-from gov_mem.governance_runtime.semantic_alignment import align_requested_attributes
-from gov_mem.governance_runtime.semantic_reranker import (
-    map_utility_source_attributes,
+from gov_mem.legacy.semantic_alignment import align_requested_attributes
+from gov_mem.legacy.semantic_reranker import (
     semantic_rerank_evidence,
 )
-from gov_mem.governance_runtime.typed_realization_audit import realize_typed_request, restrict_semantic_spec
+from gov_mem.legacy.typed_realization_audit import realize_typed_request, restrict_semantic_spec
 from gov_mem.governance_runtime.policy_frames import compile_policy_frames
 from gov_mem.governance_runtime.query_policy_authorization import (
     attach_query_scoped_policy_authorizations,
@@ -258,6 +261,16 @@ def _should_prefer_graph_utility_projection(
         return False
     if not certificate.get("stage2_operational_capability_authorized"):
         return False
+    # A final answer-value adjudication is a semantic decision, not merely a
+    # better retrieval score. Once it selected a closed, source-grounded slot,
+    # do not reopen the raw Stage-2 projection and let deterministic rendering
+    # resurrect the incumbent value.
+    if any(
+        bool(item.get("semantic_llm_adjudicated"))
+        for item in list(certificate.get("realizations") or [])
+        if isinstance(item, dict)
+    ):
+        return True
     # A graph projection is a complete, source-grounded typed answer when it
     # exposes every requested attribute. Prefer it even for collection-only
     # requests: reopening the same closed evidence through the free-form
@@ -268,13 +281,22 @@ def _should_prefer_graph_utility_projection(
         for attribute, _slot_name, _value in _projection_typed_field_keys(graph_projection)
         if attribute
     }
+    utility_attributes = {
+        attribute
+        for attribute, _slot_name, _value in _projection_typed_field_keys(utility_projection)
+        if attribute
+    }
     if requested and requested <= projected_attributes:
-        # A collection-only projection can be structurally complete while
-        # still representing the wrong recap/version of an open-ended list.
-        # Keep that case on the source-local utility path; graph remains the
-        # canonical projection for scalar-only requests and for mixed requests
-        # whose temporal anchor has passed the coherence check below.
+        # Once semantic alignment has produced a complete graph certificate,
+        # it is the canonical answer projection. Re-opening the raw Stage-2
+        # records would create a second answer authority and can resurrect a
+        # neighboring fallback slot.
         if not collection:
+            return True
+        if requested <= utility_attributes and not _has_composite_utility_attribute(
+            semantic_spec=semantic_spec or {},
+            projection=graph_projection,
+        ):
             return True
         if requested - collection and _graph_collection_has_coherent_temporal_anchor(
             projection=graph_projection,
@@ -306,6 +328,32 @@ def _should_prefer_graph_utility_projection(
     # checks make it the canonical utility projection even when the noisier
     # utility row contains more typed keys.
     return bool(graph_fields) and bool(utility_fields or graph_fields)
+
+
+def _has_composite_utility_attribute(
+    *, semantic_spec: dict[str, Any], projection: RetrievedEvidence
+) -> bool:
+    """Detect a source-record projection for a composite operational need."""
+    composite_attributes = {
+        str(item.get("attribute") or item.get("need_id") or "").strip()
+        for key in ("attribute_bindings", "certifiable_needs")
+        for item in list(semantic_spec.get(key) or [])
+        if isinstance(item, dict)
+        and str(item.get("attribute") or item.get("need_id") or "").strip()
+        and set(re.findall(r"[a-z0-9]+", str(item.get("attribute") or item.get("need_id") or "").lower()))
+        & {"plan", "schedule", "workflow", "protocol", "procedure"}
+    }
+    candidates = [
+        item for item in list((projection.metadata or {}).get("typed_candidates") or [])
+        if isinstance(item, dict)
+    ]
+    by_attribute: dict[str, set[str]] = {}
+    for item in candidates:
+        attribute = str(item.get("attribute") or "").strip()
+        slot_name = str(item.get("slot_name") or "").strip()
+        if attribute and slot_name:
+            by_attribute.setdefault(attribute, set()).add(slot_name)
+    return any(attribute in composite_attributes and len(slots) > 1 for attribute, slots in by_attribute.items())
 
 
 def _graph_collection_has_coherent_temporal_anchor(
@@ -634,59 +682,14 @@ class RAGPolicyAMemBackbone:
             llm_client=self.llm_client,
             model_name=resolve_llm_model(self.config, "reasoning"),
         )
-        bridge_debug: dict[str, Any] = {"enabled": False, "reason": "not_utility"}
-        if evaluation_query_type == "utility":
-            selected_fact_ids = {
-                str(message_id)
-                for message_id in list(utility_source_locator.get("selected_fact_message_ids") or [])
-                if str(message_id)
-            }
-            selected_source_ids = selected_fact_ids | {
-                str(message_id)
-                for message_id in list(utility_source_locator.get("source_message_ids") or [])
-                if str(message_id)
-            }
-            initial_stage2_ids = {str(row.memory_id) for row in stage2_allowed}
-            # Utility needs recall across complementary current records.  The
-            # dense retriever may already contain a safe projection record
-            # whose message was not selected by the source locator because a
-            # mixed record also contained a protected sibling.  Keep this
-            # bridge closed to Stage-1 atomic candidates, but let one grouped
-            # typed mapper inspect every active candidate.  It can only admit
-            # exact source-local fields; final lifecycle, role, and graph
-            # validation still decide what is renderable.
-            bridge_candidates = [
-                row for row in stage2_candidates
-                if str((row.metadata or {}).get("lifecycle_status") or "active").lower()
-                not in {"deleted", "superseded", "canceled", "historical", "retired"}
-                and (
-                    str(row.memory_id or "") not in initial_stage2_ids
-                    or not list(
-                        ((row.metadata or {}).get("stage2_semantic_rerank") or {}).get("served_attributes")
-                        or []
-                    )
-                )
-            ]
-            bridge_allowed, bridge_decisions, bridge_filtered, bridge_debug = map_utility_source_attributes(
-                question=instance.question,
-                semantic_spec=plan.semantic_spec,
-                evidence=bridge_candidates,
-                llm_client=self.llm_client,
-                model_name=resolve_llm_model(self.config, "reasoning"),
-            )
-            if bridge_allowed:
-                bridge_ids = {str(row.memory_id) for row in bridge_allowed}
-                decisions = [
-                    decision for decision in decisions
-                    if str(decision.get("chunk_id") or "") not in bridge_ids
-                ] + bridge_decisions
-                stage2_filtered = [
-                    item for item in stage2_filtered
-                    if str(item.get("memory_id") or "") not in bridge_ids
-                ] + bridge_filtered
-                stage2_by_id = {str(row.memory_id): row for row in stage2_allowed}
-                stage2_by_id.update({str(row.memory_id): row for row in bridge_allowed})
-                stage2_allowed = list(stage2_by_id.values())
+        # Stage 2 is the single semantic binding boundary. The input already
+        # contains the union of locator and dense-retrieval candidates, so a
+        # second utility bridge would rerun the same binding over a changing
+        # subset and could overwrite a valid decision with a different one.
+        bridge_debug: dict[str, Any] = {
+            "enabled": False,
+            "reason": "single_stage2_binding_boundary",
+        }
         if (
             evaluation_query_type == "utility"
             and not stage2_allowed
@@ -811,7 +814,7 @@ class RAGPolicyAMemBackbone:
                 for message_id in list(utility_source_locator.get("source_message_ids") or [])
                 if str(message_id)
             }
-            for row in bridge_candidates:
+            for row in stage2_candidates:
                 memory_id = str(row.memory_id or "")
                 if (
                     memory_id
@@ -839,6 +842,10 @@ class RAGPolicyAMemBackbone:
                 target_entities=list(plan.target_entities or []),
                 requester_id=instance.asking_user_id,
             )
+            canonical_field_map = build_canonical_field_map(
+                list(claim_adjudication_debug.get("accepted_decisions") or claim_adjudication)
+            )
+            claim_adjudication_debug["canonical_field_map"] = canonical_field_map
             adjudicated_by_attribute: dict[str, set[str]] = {}
             memory_to_atoms = {
                 str(row.memory_id): atoms_by_source_memory.get(str(row.memory_id), set())
@@ -988,13 +995,12 @@ class RAGPolicyAMemBackbone:
             stage2_authorized_atom_ids=stage2_operational_capability_atom_ids,
             stage2_authorized_atom_ids_by_attribute=stage2_operational_capability_by_attribute,
             adjudicated_fields={
-                str(item.get("attribute") or ""): {
+                attribute: {
                     "memory_id": str(item.get("memory_id") or ""),
                     "slot_name": str(item.get("slot_name") or ""),
                     "value": str(item.get("value") or ""),
                 }
-                for item in claim_adjudication
-                if str(item.get("attribute") or "")
+                for attribute, item in build_canonical_field_map(claim_adjudication).items()
             },
             allow_record_local_completion=evaluation_query_type == "utility",
             llm_client=self.llm_client,
