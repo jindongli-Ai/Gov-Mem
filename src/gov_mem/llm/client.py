@@ -33,13 +33,30 @@ class LLMConfig:
 
 
 YUNWU_PROVIDER_NAMES = {"yunwu", "openai-compatible-yunwu"}
+JELLYFISHP_PROVIDER_NAMES = {"jellyfishp", "openai-compatible-jellyfishp"}
+OPENLUX_PROVIDER_NAMES = {"openlux", "openai-compatible-openlux"}
+OPENAI_COMPATIBLE_PROVIDER_NAMES = YUNWU_PROVIDER_NAMES | JELLYFISHP_PROVIDER_NAMES | OPENLUX_PROVIDER_NAMES
 EMBEDDING_BATCH_SIZE = 16
 LOGGER = logging.getLogger("govmem")
 
 
+def _default_api_key_env(provider: str) -> str:
+    if provider in YUNWU_PROVIDER_NAMES:
+        return "YUNWU_API_KEY"
+    if provider in JELLYFISHP_PROVIDER_NAMES:
+        return "JELLYFISHP_API_KEY"
+    if provider in OPENLUX_PROVIDER_NAMES:
+        return "OPENLUX_API_KEY"
+    return "OPENAI_API_KEY"
+
+
+def _api_key_pool_env(api_key_env: str) -> str:
+    return f"{api_key_env[:-3]}KEYS" if api_key_env.endswith("KEY") else f"{api_key_env}_POOL"
+
+
 def is_real_llm_enabled(config: LLMConfig) -> bool:
     provider = config.provider.lower().strip()
-    api_key_env = config.api_key_env or ("YUNWU_API_KEY" if provider in YUNWU_PROVIDER_NAMES else "OPENAI_API_KEY")
+    api_key_env = config.api_key_env or _default_api_key_env(provider)
     return bool(os.environ.get(api_key_env))
 
 
@@ -61,15 +78,16 @@ class LLMClient:
 
     def _api_key(self) -> str | None:
         provider = self.config.provider.lower().strip()
-        default_env = "YUNWU_API_KEY" if provider in YUNWU_PROVIDER_NAMES else "OPENAI_API_KEY"
+        default_env = _default_api_key_env(provider)
         env_name = self.config.api_key_env or default_env
         return os.environ.get(env_name)
 
     def _api_key_pool(self) -> list[str]:
         """Return the configured compatible-provider key pool without logging keys."""
-        if self.provider_name() not in YUNWU_PROVIDER_NAMES:
+        if self.provider_name() not in OPENAI_COMPATIBLE_PROVIDER_NAMES:
             return []
-        values = [value.strip() for value in os.environ.get("YUNWU_API_KEYS", "").split(",")]
+        api_key_env = self.config.api_key_env or _default_api_key_env(self.provider_name())
+        values = [value.strip() for value in os.environ.get(_api_key_pool_env(api_key_env), "").split(",")]
         return list(dict.fromkeys(value for value in values if value))
 
     def _retry_api_key(self, current_key: str | None) -> str | None:
@@ -97,14 +115,19 @@ class LLMClient:
             return
         if not self.config.allow_fallback:
             provider = self.provider_name()
-            env_name = self.config.api_key_env or ("YUNWU_API_KEY" if provider in YUNWU_PROVIDER_NAMES else "OPENAI_API_KEY")
+            env_name = self.config.api_key_env or _default_api_key_env(provider)
             raise LLMClientUnavailableError(
                 f"LLM API is required but not available. Missing env var {env_name} for provider={provider}."
             )
 
     def _resolve_api_base(self) -> str:
         provider = self.provider_name()
-        default_base = "https://yunwu.ai/v1" if provider in YUNWU_PROVIDER_NAMES else "https://api.openai.com/v1"
+        if provider in YUNWU_PROVIDER_NAMES:
+            default_base = "https://yunwu.ai/v1"
+        elif provider in OPENLUX_PROVIDER_NAMES:
+            default_base = "https://api.openlux.ai/v1"
+        else:
+            default_base = "https://api.openai.com/v1"
         return (
             self.config.api_base
             or os.environ.get("YUNWU_BASE_URL")
@@ -267,7 +290,7 @@ class LLMClient:
             raise LLMClientUnavailableError("LLM API key is not available.")
 
         provider = self.provider_name()
-        if provider not in {"openai", *YUNWU_PROVIDER_NAMES}:
+        if provider not in {"openai", *OPENAI_COMPATIBLE_PROVIDER_NAMES}:
             raise LLMClientUnavailableError(f"Provider {provider!r} is not implemented.")
 
         payload = {
@@ -296,7 +319,7 @@ class LLMClient:
             raise LLMClientUnavailableError("Embedding API key is not available.")
 
         provider = self.provider_name()
-        if provider not in {"openai", *YUNWU_PROVIDER_NAMES}:
+        if provider not in {"openai", *OPENAI_COMPATIBLE_PROVIDER_NAMES}:
             raise LLMClientUnavailableError(f"Embedding provider {provider!r} is not implemented.")
 
         unique_texts: list[str] = []
@@ -306,7 +329,9 @@ class LLMClient:
             cached = self._load_cached_embedding(model=model, text=text)
             if cached is not None:
                 ordered_embeddings[idx] = cached
+                self._record_telemetry(operation="embedding_cache_hit", elapsed_s=0.0)
                 continue
+            self._record_telemetry(operation="embedding_cache_miss", elapsed_s=0.0)
             if text not in unique_lookup:
                 unique_lookup[text] = len(unique_texts)
                 unique_texts.append(text)

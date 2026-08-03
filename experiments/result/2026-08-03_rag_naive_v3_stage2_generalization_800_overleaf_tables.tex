@@ -1,0 +1,69 @@
+% Requires: \usepackage{booktabs,graphicx,makecell}
+% 800-checkpoint combined evaluation: 50 checkpoints from the prior 200-case
+% run plus 150 new checkpoints per domain. Percentages are official scorer
+% outputs, rounded to two decimal places.
+
+\begin{table*}[t]
+\centering
+\caption{Gov-Mem frozen-version performance on the combined 800-checkpoint held-out evaluation. Each domain contains 200 checkpoints. $U$, $A$, and $F$ denote utility accuracy, answer-level privacy leakage, and answer-level deletion leakage. MGS is computed per domain as $U(1-A)(1-F)$; the final row is the arithmetic mean of the four domain MGS values.}
+\label{tab:govmem-800-main}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrrrrrr}
+\toprule
+Domain & $N$ & Utility $N$ & Privacy $N$ & Safety $N$ & $U$ (\%) & $A$ (\%) & $F$ (\%) & MGS (\%) & Action (\%) & OR (\%) \\
+\midrule
+Medical   & 200 & 73 & 61 & 66 & 64.38 & 34.43 & 4.55 & 40.30 & 76.50 & 13.70 \\
+Office    & 200 & 57 & 67 & 76 & 59.65 &  8.96 & 2.63 & 52.88 & 79.00 & 22.81 \\
+Education & 200 & 64 & 72 & 64 & 43.75 & 19.44 & 6.25 & 33.04 & 74.50 & 10.94 \\
+Household & 200 & 57 & 76 & 67 & 49.12 & 23.68 & 2.99 & 36.37 & 65.00 & 21.05 \\
+\midrule
+\textbf{Four-domain mean} & \textbf{800} & \textbf{251} & \textbf{276} & \textbf{263} & 54.23 & 21.63 & 4.10 & \textbf{40.65} & 73.75 & 17.12 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\caption{Detailed privacy, deletion, and compliance diagnostics for the same combined 800-checkpoint evaluation. Answer leakage measures the final answer; context leakage measures memory context exposed to the answer model; E2E leakage is the union of answer and context leakage.}
+\label{tab:govmem-800-diagnostics}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrrrr}
+\toprule
+Domain & Privacy answer (\%) & Privacy context (\%) & Privacy E2E (\%) & Deletion answer (\%) & Deletion context (\%) & Deletion E2E (\%) & Compliance $U$ (\%) & Compliance $U$ E2E (\%) \\
+\midrule
+Medical   & 34.43 & 0.00 & 26.23 & 4.55 & 0.00 & 6.06 & 40.30 & 22.78 \\
+Office    &  8.96 & 0.00 &  5.97 & 2.63 & 0.00 & 0.00 & 52.88 & 42.89 \\
+Education & 19.44 & 0.00 &  5.56 & 6.25 & 0.00 & 3.13 & 33.04 & 37.17 \\
+Household & 23.68 & 0.00 & 14.47 & 2.99 & 0.00 & 1.49 & 36.37 & 29.56 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+\begin{table}[t]
+\centering
+\caption{Configuration of the combined 800-checkpoint evaluation.}
+\label{tab:govmem-800-config}
+\begin{tabular}{ll}
+\toprule
+Component & Setting \\
+\midrule
+Memory-system provider & OpenLux \\
+Memory-system base LLM & \texttt{gpt-4o-mini-2024-07-18} \\
+Stage 1 embedding provider & OpenLux \\
+Stage 1 embedding model & \texttt{text-embedding-3-small} \\
+Official judge provider & OpenLux \\
+Official judge LLM & \texttt{gpt-4o} \\
+Stage 1 retrieval & Frozen RAG-Naive, $\mathrm{top\_k}=20$ \\
+Stage 2 & Typed reasoning rerank + long-context field ledger \\
+Episode execution & One isolated API key per episode; parallel workers \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% Metric notes for the paper text:
+% - OR is over-refusal rate among utility cases.
+% - The four-domain mean U/A/F rows are descriptive arithmetic means only.
+% - The reported overall MGS is the arithmetic mean of the four domain MGS
+%   values, rather than MGS computed from the mean U/A/F.

@@ -4,6 +4,10 @@ from gov_mem.general_lexicon import (
     GENERAL_VALUE_HEAD_LEXICON,
     topics_from_text,
 )
+from gov_mem.query_semantics import (
+    HOUSEHOLD_DELIVERY_SLOT_ALIASES,
+    infer_household_delivery_slots,
+)
 
 
 def test_topic_lexicon_contains_atomic_general_categories():
@@ -39,3 +43,23 @@ def test_ordinary_operational_records_get_general_topics():
         "Current pantry delivery is 10:45 AM to 11:00 AM at the front desk cold cubby."
     ))
     assert {"logistics", "scheduling", "location"}.issubset(topics)
+
+
+def test_delivery_vocabulary_is_not_benchmark_phrase_specific():
+    terms = {
+        term
+        for aliases in HOUSEHOLD_DELIVERY_SLOT_ALIASES.values()
+        for term in aliases
+    }
+    assert not terms.intersection({
+        "meal-drop window", "floral window", "watering window",
+        "watering route", "watering areas", "desk-buzz rule",
+        "tart box handling",
+    })
+
+
+def test_delivery_slot_shapes_accept_unseen_operational_modifiers():
+    slots = set(infer_household_delivery_slots(
+        "What is the collection window, secure route, approved work areas, and weather contingency?"
+    ))
+    assert {"visit_window", "entry_method", "approved_areas", "fallback_rule"}.issubset(slots)

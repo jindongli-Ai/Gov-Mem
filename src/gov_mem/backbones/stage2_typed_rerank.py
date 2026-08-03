@@ -109,10 +109,11 @@ _STALE_MARKERS = {
 _EXPLICIT_SCOPE_CUES = (
     "allowed to use", "allowed summary", "actual task", "can use",
     "allowed helper summary", "helper summary", "helper-only",
-    "logistics summary", "concise logistics summary", "logistics-only",
-    "signoff-safe", "sponsor-safe",
-    "customer-safe", "safe case wording", "safe label", "safe wording",
-    "household-safe state", "safe state", "without leaking restricted material",
+    "task summary", "operational summary", "logistics summary",
+    "concise operational summary", "logistics-only", "signoff-safe",
+    "sponsor-safe", "customer-safe", "safe case wording", "safe label",
+    "safe wording", "household-safe state", "safe summary", "safe state",
+    "without leaking restricted material",
 )
 _EXPLICIT_REDACTED_SUMMARY_CUES = (
     "customer-safe", "sponsor-safe", "summary-only", "keep it high level",
@@ -146,7 +147,8 @@ _EXPLICIT_SENSITIVE_FIELD_PATTERNS = (
     ("clinical", re.compile(
         r"\b(?:diagnosis|clinical diagnosis|medical condition|disease|pregnan(?:cy|t)|"
         r"viability|lab(?:oratory)? result|lab(?:oratory)? value|test result|scan result|"
-        r"blood pressure reading|hormone level|beta[- ]?hcg|hcv rna|fibroscan|"
+        r"blood pressure reading|hormone level|biomarker|analyte|viral load|"
+        r"antibody|antibodies|beta[- ]?hcg|hcv rna|fibroscan|"
         r"confirmatory test|"
         r"\b(?:tee|mri|ct|pet)\s+(?:scan\s+)?(?:result|finding|findings?|number|value)|"
         r"\b(?:scan|mri|tee|clot|thrombus|lesion|pathology)\b)"
@@ -167,7 +169,7 @@ _EXPLICIT_SENSITIVE_FIELD_PATTERNS = (
     ("restricted_existence", re.compile(
         r"\b(?:private|restricted|hidden|secret|deleted|exact)"
         r"(?:\s+[a-z0-9'-]+){0,5}\s+"
-        r"(?:note|details?|version|layer|minute|kiosk|phrase|wording)\b"
+        r"(?:note|details?|version|layer|phrase|wording)\b"
     )),
 )
 _AUTHORIZATION_POSITIVE_PATTERNS = (
@@ -250,7 +252,9 @@ class Stage2Decision:
         return asdict(self)
 
 
-def route_query(question: str) -> tuple[str, list[str]]:
+def route_query(
+    question: str,
+) -> tuple[str, list[str]]:
     """Classify a query without asking an LLM to make a security decision."""
 
     text = str(question or "").lower()
@@ -1417,7 +1421,24 @@ def resolve_long_context_field_ledger(
     ):
         base["reason"] = "explicit privacy/confidentiality cue is excluded"
         return list(evidence), base
-    if any(pattern.search(question.casefold()) for _, pattern in _EXPLICIT_SENSITIVE_FIELD_PATTERNS):
+    sensitive_query = any(
+        pattern.search(question.casefold())
+        for _, pattern in _EXPLICIT_SENSITIVE_FIELD_PATTERNS
+    )
+    requester_bound_sensitive_utility = bool(
+        sensitive_query
+        and _requester_bound_current_sensitive_evidence(
+            instance=instance,
+            evidence=evidence,
+        )
+        and not re.search(r"\bexact(?:ly)?\b|\bprecise\b|\bspecific\b", question.casefold())
+        and not re.search(
+            r"\b(?:not on .* chain|public .* login|private file|before my access closes|"
+            r"someone else|another (?:person|resident|user))\b",
+            question.casefold(),
+        )
+    )
+    if sensitive_query and not requester_bound_sensitive_utility:
         base["reason"] = "explicit sensitive field query is excluded"
         return list(evidence), base
     if llm_client is None or not llm_client.is_available():
@@ -1493,13 +1514,14 @@ def _contract_slots(fields: list[str]) -> list[str]:
         **HOUSEHOLD_SLOT_ALIASES,
         "visit_window": [
             "arrival window", "setup window", "delivery window",
-            "floral window", "dropoff window",
+            "service window", "support window", "time window",
         ],
         "entry_method": ["entry path", "access path", "door", "entrance"],
         "approved_areas": [
-            "approved setup zones", "setup zones", "approved zones", "handling areas",
+            "approved setup zones", "setup zones", "approved zones", "permitted areas",
+            "handling areas", "work areas",
         ],
-        "package_rule": ["package handling", "tart box handling", "tart-box handling"],
+        "package_rule": ["package handling", "item handling", "handling rule"],
         "family_release_scope": ["family release scope", "family-release scope"],
     }
     matched: list[str] = []
@@ -1508,6 +1530,30 @@ def _contract_slots(fields: list[str]) -> list[str]:
         for slot, slot_aliases in aliases.items():
             if any(_lexicon_term_hit(lowered, alias) for alias in slot_aliases):
                 matched.append(slot)
+        if re.search(
+            r"\b(?:safe|public|broad|shareable)(?:\s+[a-z0-9-]+){0,2}\s+"
+            r"(?:wording|label|summary)\b",
+            lowered,
+        ):
+            matched.append("safe_wording")
+        if re.search(
+            r"\b(?!(?:current|active|exact|the|this|that|my|your)\s)"
+            r"[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?\s+window\b",
+            lowered,
+        ):
+            matched.append("visit_window")
+        if re.search(
+            r"\b(?!(?:current|active|exact|the|this|that|my|your)\s)"
+            r"[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?\s+(?:route|path)\b",
+            lowered,
+        ):
+            matched.append("entry_method")
+        if re.search(
+            r"\b(?:approved|permitted|authorized|allowed)(?:\s+[a-z0-9-]+){0,2}\s+"
+            r"(?:areas?|zones?|spaces?)\b",
+            lowered,
+        ):
+            matched.append("approved_areas")
     return list(dict.fromkeys(matched))
 
 
@@ -1517,6 +1563,8 @@ def mixed_answer_boundary_reason(
     decision: Stage2Decision,
     action: str,
     answer: str,
+    instance: MemoryInstance | None = None,
+    evidence: list[RetrievedEvidence] | None = None,
 ) -> str | None:
     """Return a narrow reason to undo an over-redacted mixed answer.
 
@@ -1540,18 +1588,24 @@ def mixed_answer_boundary_reason(
     )
     if deletion_gate_reason(text) or any(phrase in text for phrase in _POLICY_PHRASES):
         return None
+    requester_bound = _requester_bound_current_sensitive_evidence(
+        instance=instance,
+        evidence=evidence or [],
+    )
     if any(cue in text for cue in _EXPLICIT_REDACTED_SUMMARY_CUES):
         return None
     strong_exact_cues = {
         cue for cue in _EXACT_SENSITIVE_CUES
         if cue.startswith("exact") or cue in {"private file", "private note", "resident-only exact"}
     }
-    if _contains_any_phrase(text, strong_exact_cues):
+    if _contains_any_phrase(text, strong_exact_cues) and not requester_bound:
         return None
-    explicitly_scoped = any(cue in text for cue in _EXPLICIT_SCOPE_CUES)
+    explicitly_scoped = _contains_safe_qualifier(text) or any(cue in text for cue in _EXPLICIT_SCOPE_CUES)
     answer_text = str(answer or "").strip()
     if not answer_text or any(pattern.search(answer_text) for pattern in _NON_SUBSTANTIVE_ANSWER_PATTERNS):
         return None
+    if requester_bound:
+        return "requester-bound current sensitive evidence was unnecessarily marked answer_redacted"
     if not explicitly_scoped:
         # The ordinary path is deliberately narrower than the existing
         # explicitly-scoped summary path.  A substantive answer is enough to
@@ -1593,6 +1647,48 @@ def mixed_answer_boundary_reason(
     return "complete explicitly scoped safe summary was unnecessarily marked answer_redacted"
 
 
+def _requester_bound_current_sensitive_evidence(
+    *,
+    instance: MemoryInstance | None,
+    evidence: list[RetrievedEvidence],
+) -> bool:
+    """Recognize current sensitive evidence authored by the authenticated requester.
+
+    This is a delivery hint, not a general role authorization rule.  It only
+    fires when a retrieved source row is authored by the fixed requester and
+    explicitly carries a current concrete credential or location value.
+    """
+
+    if instance is None or not str(instance.asking_user_id or "").strip():
+        return False
+    requester = str(instance.asking_user_id).strip()
+    for row in evidence:
+        metadata = dict(row.metadata or {})
+        source_owner = str(metadata.get("speaker_id") or row.user_id or "").strip()
+        if source_owner != requester:
+            continue
+        text = str(row.content or "")
+        lowered = text.casefold()
+        if any(_contains_marker(lowered, marker) for marker in _STALE_MARKERS):
+            continue
+        if not any(_contains_marker(lowered, marker) for marker in _CURRENT_TERMS):
+            continue
+        has_credential = bool(
+            re.search(r"\b(?:credential|password|passcode|pin|token|badge|access code|portal override)\b", lowered)
+            and (
+                re.search(r"\b[a-z]{2,}[a-z0-9_-]*[-_][a-z0-9-]+\b", lowered)
+                or _NUMBER_RE.search(lowered)
+            )
+        )
+        has_location = bool(
+            re.search(r"\b(?:room|suite|bay|site|address|location)\b", lowered)
+            and re.search(r"\b(?:room|suite|bay)\s+[a-z0-9-]+", lowered)
+        )
+        if has_credential or has_location:
+            return True
+    return False
+
+
 def explicit_sensitive_boundary_reason(
     *,
     instance: MemoryInstance,
@@ -1608,12 +1704,24 @@ def explicit_sensitive_boundary_reason(
     current-state summaries and does not affect retrieval.
     """
 
-    question = str(instance.question or "").casefold()
+    raw_question = str(instance.question or "")
+    question = raw_question.casefold()
     matched_fields = [
         field_name for field_name, pattern in _EXPLICIT_SENSITIVE_FIELD_PATTERNS
         if pattern.search(question)
     ]
-    if not matched_fields:
+    clinical_identity_confirmation = bool(
+        str(instance.domain or "").casefold() == "medical"
+        and
+        re.search(
+            r"\b(?:is|was|are|were)\b[^?]{0,120}\b"
+            r"(?:patient|taking|prescribed|medication|medicine|seizure|diagnosis|condition)\b",
+            raw_question,
+            re.IGNORECASE,
+        )
+        and re.search(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b", raw_question)
+    )
+    if not matched_fields and not clinical_identity_confirmation:
         return None
     if deletion_gate_reason(question):
         return None
@@ -1655,9 +1763,12 @@ def explicit_sensitive_boundary_reason(
     ))
     clinical_measurement = any(
         field == "clinical" and re.search(
-            r"\b(?:beta[- ]?hcg|hcv rna|fibroscan|lab(?:oratory)? value|"
-            r"test result|scan result|scan number|mri|tee|clot|thrombus|lesion|"
-            r"pathology|finding|found)\b", question
+            r"\b(?:biomarker|analyte|viral load|antibod(?:y|ies)|rna|dna|"
+            r"(?:lab(?:oratory)?|test|scan|imaging|blood|hormone)\s+"
+            r"(?:result|value|level|finding|number)|"
+            r"[a-z][a-z0-9-]{1,}(?:\s+[a-z][a-z0-9-]{1,})?\s+"
+            r"(?:result|value|level|finding|number)|"
+            r"mri|tee|clot|thrombus|lesion|pathology|finding|found)\b", question
         )
         for field in matched_fields
     )
@@ -1668,6 +1779,10 @@ def explicit_sensitive_boundary_reason(
         )
         for field in matched_fields
     )
+    # A named-person confirmation can disclose a protected medical
+    # association even when the question never says "diagnosis" or "result".
+    # Keep this to confirmation-shaped questions with an explicit clinical
+    # anchor so ordinary treatment-plan requests remain answerable.
     high_risk_credential = bool(
         "credential" in matched_fields
         and re.search(r"\b(?:keypad|password|passcode|pin)\s+code?\b|\b(?:password|passcode|pin)\b", question)
@@ -1701,6 +1816,16 @@ def explicit_sensitive_boundary_reason(
         return None
     if composite_operational_request:
         return None
+    if (
+        _requester_bound_current_sensitive_evidence(
+            instance=instance,
+            evidence=evidence,
+        )
+        and not exact_request
+        and not possessive_sensitive
+        and not explicit_overreach
+    ):
+        return None
     if not (
         explicit_overreach
         or exact_request
@@ -1711,6 +1836,7 @@ def explicit_sensitive_boundary_reason(
         or possessive_sensitive
         or clinical_measurement
         or pregnancy_yes_no
+        or clinical_identity_confirmation
     ):
         # A single unqualified current credential/diagnosis mention is not
         # enough evidence to override the official answer path.  The direct
@@ -1737,7 +1863,10 @@ def explicit_sensitive_boundary_reason(
             or field_name == "clinical" and re.search(
                 r"\b(?:diagnosis|clinical|medical condition|disease|pregnan|viability|"
                 r"lab(?:oratory)? result|lab(?:oratory)? value|test result|scan result|"
-                r"blood pressure reading|hormone level|beta[- ]?hcg|hcv rna|fibroscan|"
+                r"blood pressure reading|hormone level|biomarker|analyte|viral load|"
+                r"antibod(?:y|ies)|rna|dna|"
+                r"[a-z][a-z0-9-]{1,}(?:\s+[a-z][a-z0-9-]{1,})?\s+"
+                r"(?:result|value|level|finding|number)|"
                 r"mri|tee|clot|thrombus|lesion|pathology|finding|found|scan number)\b", lower
             )
             or field_name == "private_location" and re.search(
@@ -1771,7 +1900,7 @@ def summary_only_boundary_reason(*, instance: MemoryInstance) -> str | None:
     role = str((instance.metadata.get("requester") or {}).get("role") or "").casefold()
     allowed_roles = {
         "education": {"dean_assistant"},
-        "household": {"guest", "partner_spouse", "household_manager"},
+        "household": {"guest", "partner_spouse", "household_manager", "building_staff"},
     }
     if role not in allowed_roles.get(domain, set()):
         return None
@@ -1781,6 +1910,7 @@ def summary_only_boundary_reason(*, instance: MemoryInstance) -> str | None:
         "calendar", "coordinate", "scheduling", "schedule", "mixing",
         "household log", "staffing note", "contingency", "badge line",
         "broad wording", "broad summary",
+        "intercom", "call-on-arrival", "keep buzzing", "lobby call", "entry route",
     )
     if not any(cue in question for cue in collaboration_cues):
         return None
@@ -1795,7 +1925,8 @@ def build_summary_only_evidence(
 
     safe_markers = (
         "broad", "safe wording", "safe summary", "calendar", "scheduling",
-        "logistics note", "public", "only a broader", "high-level",
+        "logistics note", "public", "only a broader", "high-level", "intercom",
+        "call-on-arrival", "lobby", "building staff", "entry route", "ring and wait",
     )
     blocked_markers = (
         "exact ", "exactly", "amount ", "badge ", "credential", "token ",
@@ -1809,10 +1940,26 @@ def build_summary_only_evidence(
         safe_sentences = []
         for sentence in sentences:
             lowered = sentence.casefold()
-            if any(marker in lowered for marker in safe_markers) and not any(
-                marker in lowered for marker in blocked_markers
-            ) and not _MONEY_RE.search(sentence) and not _NUMBER_RE.search(sentence):
-                safe_sentences.append(sentence.strip())
+            if not any(marker in lowered for marker in safe_markers):
+                continue
+            # Preserve the safe operational clause before a sentence's
+            # prohibition tail. This keeps "use the intercom" while removing
+            # an adjacent PIN/occupancy restriction from the answer context.
+            safe_sentence = sentence
+            if any(marker in lowered for marker in blocked_markers):
+                safe_sentence = re.split(
+                    r"\b(?:no|never|do not|don't|should not|must not)\b",
+                    sentence,
+                    maxsplit=1,
+                    flags=re.IGNORECASE,
+                )[0]
+            if (
+                safe_sentence.strip()
+                and not any(marker in safe_sentence.casefold() for marker in blocked_markers)
+                and not _MONEY_RE.search(safe_sentence)
+                and not _NUMBER_RE.search(safe_sentence)
+            ):
+                safe_sentences.append(safe_sentence.strip())
         if safe_sentences:
             carriers.append(replace(
                 row,
@@ -1845,12 +1992,12 @@ def deletion_gate_reason(question: str) -> str | None:
     text = str(question or "").lower()
     scalar_terms = (
         "address", "badge", "callback number", "code", "customer", "date",
-        "digit", "digits", "keypad",
+        "contact", "digit", "digits", "keypad",
         "discount", "label", "location", "minute", "number", "place", "point",
         "phrase", "pin", "site", "name", "time", "token", "value", "window", "wording",
     )
     historical_field_terms = (
-        "amount", "budget", "company", "credential", "details", "hiding place",
+        "amount", "budget", "company", "contact", "credential", "details", "hiding place",
         "location", "mapping", "note", "relationship", "room", "scope",
         "sponsor", "stipend", "support", "text", "value", "discount cap",
     )
@@ -1920,27 +2067,43 @@ def _candidate_matches_request_slot(text: str, slot: str) -> bool:
             "outward-safe", "outward safe",
         ],
         "household_plan.setup_window": ["setup window", "setup"],
-        "household_plan.helper_window": ["helper window", "helper"],
-        "household_plan.desk_buzz_rule": [
-            "desk buzz", "desk-buzz", "buzz after", "buzz rule",
-        ],
+        "household_plan.helper_window": ["support window", "support"],
+        "household_plan.desk_buzz_rule": ["handoff rule", "contact rule", "buzz rule"],
         "household_plan.delivery_window": [
-            "delivery window", "staging window", "dropoff window", "supply window",
+            "delivery window", "staging window", "service window", "support window",
         ],
         "household_plan.release_rule": ["release rule", "release after"],
         "household_plan.signoff_window": ["signoff window", "sign-off window", "signoff"],
         "approved_areas": [
-            "approved areas", "approved zones", "safe zones", "zones", "areas",
-            "planters", "planter", "trough", "herb rack", "watering areas",
+            "approved areas", "approved zones", "permitted areas", "safe zones",
+            "zones", "areas", "spaces", "sections",
         ],
         "household_plan.approved_areas": [
-            "approved areas", "approved zones", "safe zones", "zones", "areas",
-            "planters", "planter", "trough", "herb rack", "watering areas",
+            "approved areas", "approved zones", "permitted areas", "safe zones",
+            "zones", "areas", "spaces", "sections",
         ],
     }.get(slot, []))
     if not aliases:
         aliases = [slot.replace("_", " ")]
     if any(_lexicon_term_hit(text, alias) for alias in aliases):
+        return True
+    if slot in {"safe_wording", "household_plan.safe_wording"} and re.search(
+        r"\b(?:safe|public|broad|shareable)(?:\s+[a-z0-9-]+){0,2}\s+"
+        r"(?:wording|label|summary)\b",
+        text,
+        re.IGNORECASE,
+    ):
+        return True
+    if slot in {
+        "visit_window", "household_plan.visit_window", "household_plan.delivery_window",
+        "household_plan.setup_window", "household_plan.helper_window",
+    } and re.search(r"\b[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?\s+window\b", text, re.IGNORECASE):
+        return True
+    if slot in {"entry_method", "household_plan.location"} and re.search(
+        r"\b[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?\s+(?:route|path)\b",
+        text,
+        re.IGNORECASE,
+    ):
         return True
     # Records often put a qualifier between ``approved`` and ``budget``.
     # Match only these two scalar contracts instead of broadening every
@@ -1997,18 +2160,11 @@ def _slot_has_concrete_value(text: str, slot: str) -> bool:
     if slot in {"household_plan.desk_buzz_rule", "household_plan.release_rule"}:
         return bool(_TIME_RE.search(text))
     if slot in {"approved_areas", "household_plan.approved_areas"}:
-        if re.search(r"\b(?:zones?|areas?|spaces?)\b\s*(?:are|include|:)?\s*"
-                     r"(?!only\b)[a-z0-9][^.!?]{2,}", text, re.IGNORECASE):
-            return True
-        if re.search(r"\b(?:same|current|those|these)\s+planters?\b", text, re.IGNORECASE):
-            return bool(re.search(
-                r"\b(?:trough|rack|boxes|balcony|counter|cart|cooling rack|shelf|tray|bin)\b",
-                text,
-                re.IGNORECASE,
-            ))
+        # A field noun alone is not a value. Require an assignment/list cue so
+        # generic prose such as "approved areas" cannot satisfy the ledger.
         return bool(re.search(
-            r"\b(?:planters?|trough|rack|boxes|balcony|counter|cart|cooling rack|"
-            r"shelf|tray|bin)\b",
+            r"\b(?:zones?|areas?|spaces?|sections?|locations?)\b\s*"
+            r"(?:are|include|:|=)\s*(?!only\b)[a-z0-9][^.!?]{2,}",
             text,
             re.IGNORECASE,
         ))
@@ -2017,8 +2173,9 @@ def _slot_has_concrete_value(text: str, slot: str) -> bool:
     if slot == "access_room":
         return bool(re.search(
             r"\b(?:room|bay|suite|booth)\b\s*(?:is|was|now|remains|at|:)\s*[a-z0-9]"
+            r"|\b(?:current|active|private)\s+(?:private\s+)?(?:room|suite|bay|booth)\s+[a-z0-9]"
             r"|\b(?:in|at)\s+[a-z]{1,8}[- ]\d{1,5}\b"
-            r"|\b(?:bh|lab annex|harbor annex|residence suite)[- ]?[a-z0-9]",
+            r"|\b(?:room|suite|bay|booth)\s+[a-z0-9][a-z0-9-]*",
             text,
             re.IGNORECASE,
         ))
@@ -2160,6 +2317,12 @@ def _contains_any_phrase(text: str, phrases: set[str]) -> bool:
     # Single-word cues must be token bounded. A substring check treats the
     # ``pin`` in an entity such as ``Pinecrest`` as a credential cue.
     return any(_contains_marker(lower, phrase) for phrase in phrases)
+
+
+def _contains_safe_qualifier(text: str) -> bool:
+    """Recognize an arbitrary audience qualifier without naming an audience."""
+
+    return bool(re.search(r"\b[a-z][a-z0-9]*(?:-[a-z0-9]+)*-safe\b", str(text or "").casefold()))
 
 
 def _contains_marker(text: str, marker: str) -> bool:

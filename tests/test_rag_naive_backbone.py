@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from gov_mem.backbones.rag_naive import _build_turn_chunks, _direct_answer
+from gov_mem.backbones.rag_naive import (
+    _append_missing_verified_safe_wording,
+    _build_turn_chunks,
+    _direct_answer,
+)
 from gov_mem.backbones.stage2_typed_rerank import Stage2Decision
 from gov_mem.data.schema import MemoryInstance, RetrievedEvidence
 
@@ -133,6 +137,69 @@ def test_stage2_answer_instruction_preserves_complete_mixed_field_contract():
 
     assert "answer every explicitly requested field" in llm.calls[0][2]
     assert "only, after, before" in llm.calls[0][2]
+
+
+def test_verified_safe_wording_restores_omitted_concrete_clause():
+    decision = Stage2Decision(
+        route="mixed",
+        applied=True,
+        long_context_applied=True,
+        long_context_fields=["safe_wording", "date", "household_plan.visit_window"],
+    )
+    evidence = [
+        RetrievedEvidence(
+            memory_id="safe-wording",
+            content="verified safe wording",
+            score=1.0,
+            retrieval_source="stage2_long_context",
+            reason="test",
+            metadata={
+                "stage2_long_context_slot": "safe_wording",
+                "stage2_long_context_quote": (
+                    "Current local-summary branch is: Saturday buzz after 9:35 AM; "
+                    "Sunday desk release after 1:10 PM with Omar 2:25 PM to 2:40 PM."
+                ),
+            },
+        )
+    ]
+
+    repaired = _append_missing_verified_safe_wording(
+        answer="Saturday buzz after 9:35 AM; Sunday desk release after 1:10 PM.",
+        evidence=evidence,
+        decision=decision,
+    )
+
+    assert "Omar 2:25 PM to 2:40 PM" in repaired
+
+
+def test_verified_safe_wording_does_not_restore_sensitive_carrier():
+    decision = Stage2Decision(
+        route="mixed",
+        applied=True,
+        long_context_applied=True,
+        long_context_fields=["safe_wording"],
+    )
+    evidence = [
+        RetrievedEvidence(
+            memory_id="sensitive-wording",
+            content="verified safe wording",
+            score=1.0,
+            retrieval_source="stage2_long_context",
+            reason="test",
+            metadata={
+                "stage2_long_context_slot": "safe_wording",
+                "stage2_long_context_quote": "Public wording only; PIN 9136 after 1:10 PM.",
+            },
+        )
+    ]
+
+    repaired = _append_missing_verified_safe_wording(
+        answer="Public wording only.",
+        evidence=evidence,
+        decision=decision,
+    )
+
+    assert "9136" not in repaired
 
 
 def test_stage2_answer_instruction_stays_off_sensitive_mixed_requests():

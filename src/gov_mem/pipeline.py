@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from hashlib import sha256
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +18,15 @@ from gov_mem.experience.experience_bank import ExperienceBank
 from gov_mem.governance_runtime.action_predictor import GovernedActionPredictor
 from gov_mem.governance_runtime.leakage_guard import contains_hidden_eval_fields
 from gov_mem.governance_runtime.leakage_guard import runtime_instance_view
-from gov_mem.llm.client import LLMClient, LLMConfig, YUNWU_PROVIDER_NAMES, is_real_llm_enabled
+from gov_mem.llm.client import (
+    JELLYFISHP_PROVIDER_NAMES,
+    LLMClient,
+    LLMConfig,
+    OPENLUX_PROVIDER_NAMES,
+    OPENAI_COMPATIBLE_PROVIDER_NAMES,
+    YUNWU_PROVIDER_NAMES,
+    is_real_llm_enabled,
+)
 from gov_mem.llm.model_registry import build_resolved_llm_settings, resolve_llm_model
 from gov_mem.memory.dense_index import DenseMemoryIndex
 from gov_mem.memory.ingestion import MemoryIngestionAgent
@@ -117,42 +126,58 @@ class GovMemRunner:
 
     def _configure_provider_env(self) -> None:
         provider = str(self.config["llm"]["provider"]).strip().lower()
-        if provider not in YUNWU_PROVIDER_NAMES:
+        if provider not in OPENAI_COMPATIBLE_PROVIDER_NAMES:
             return
         # An explicit pool is used for controlled parallel/resume runs. Only
         # fall back to the local README when the caller did not provide one.
         configured_pool = [
             value.strip()
-            for value in os.environ.get("YUNWU_API_KEYS", "").split(",")
+            for value in os.environ.get(
+                "JELLYFISHP_API_KEYS" if provider in JELLYFISHP_PROVIDER_NAMES
+                else "OPENLUX_API_KEYS" if provider in OPENLUX_PROVIDER_NAMES
+                else "YUNWU_API_KEYS", ""
+            ).split(",")
             if value.strip()
         ]
         if configured_pool:
             keys = list(dict.fromkeys(configured_pool))
         else:
-            readme = self.output_dir.parents[0] / "README_API_Yunwu.md"
+            readme_name = (
+                "README_API_jellyfishp.md" if provider in JELLYFISHP_PROVIDER_NAMES
+                else "README_API_OpenLux" if provider in OPENLUX_PROVIDER_NAMES
+                else "README_API_Yunwu.md"
+            )
+            readme = (
+                Path("README_API_OpenLux")
+                if provider in OPENLUX_PROVIDER_NAMES
+                else self.output_dir.parents[0] / readme_name
+            )
+            if provider in OPENLUX_PROVIDER_NAMES and not readme.exists():
+                readme = Path("/data_nvme/user/jli/codes/2027_ICLR_MARC/README_API_OpenLux.md")
             if not readme.exists():
-                readme = Path("README_API_Yunwu.md")
+                readme = Path(readme_name)
             if not readme.exists():
                 return
             content = readme.read_text(encoding="utf-8")
             keys = []
-            for line in content.splitlines():
-                line = line.strip()
-                if "sk-" in line:
-                    key = line.split("`")[1] if "`" in line else line
-                    if key.startswith("sk-"):
-                        keys.append(key)
+            keys.extend(re.findall(r"sk-[A-Za-z0-9]+", content))
         if keys:
             # Expose the same pool to the client so transient failures can
             # rotate keys. Keep an explicitly supplied key authoritative;
             # direct domain runs otherwise receive a stable per-output-dir
             # starting key to avoid concentrating parallel jobs on index 0.
-            os.environ["YUNWU_API_KEYS"] = ",".join(dict.fromkeys(keys))
+            key_env = str(self.config["llm"].get("api_key_env") or (
+                "JELLYFISHP_API_KEY" if provider in JELLYFISHP_PROVIDER_NAMES
+                else "OPENLUX_API_KEY" if provider in OPENLUX_PROVIDER_NAMES
+                else "YUNWU_API_KEY"
+            ))
+            pool_env = f"{key_env[:-3]}KEYS" if key_env.endswith("KEY") else f"{key_env}_POOL"
+            os.environ[pool_env] = ",".join(dict.fromkeys(keys))
             try:
                 requested_index = int(os.environ.get("YUNWU_API_KEY_INDEX", "0"))
             except ValueError:
                 requested_index = 0
-            current_key = os.environ.get("YUNWU_API_KEY")
+            current_key = os.environ.get(key_env)
             if current_key in keys:
                 index = keys.index(current_key)
             elif "YUNWU_API_KEY_INDEX" in os.environ:
@@ -162,9 +187,10 @@ class GovMemRunner:
                 index = int.from_bytes(digest[:4], "big") % len(keys)
             # Resolve the selected pool entry into the env var consumed by
             # LLMClient and by the official scorer subprocess.
-            os.environ["YUNWU_API_KEY"] = keys[index]
-            os.environ.setdefault("YUNWU_BASE_URL", str(self.config["llm"].get("api_base") or "https://yunwu.ai/v1"))
-            self.logger.info("[Gov-Mem] Yunwu key pool selected index=%d pool_size=%d", index, len(keys))
+            os.environ[key_env] = keys[index]
+            if provider in YUNWU_PROVIDER_NAMES:
+                os.environ.setdefault("YUNWU_BASE_URL", str(self.config["llm"].get("api_base") or "https://yunwu.ai/v1"))
+            self.logger.info("[Gov-Mem] %s key pool selected index=%d pool_size=%d", provider, index, len(keys))
 
     def _log_llm_mode(self) -> None:
         if is_real_llm_enabled(self.llm_client.config):

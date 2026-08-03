@@ -18,6 +18,11 @@ from gov_mem.backbones.stage2_typed_rerank import (
     summary_only_boundary_reason,
     build_summary_only_evidence,
 )
+from gov_mem.backbones.rag_naive import (
+    _append_missing_verified_date,
+    _repair_answer_with_verified_fields,
+    _repair_requester_bound_scalar_values,
+)
 from gov_mem.data.schema import MemoryInstance, RetrievedEvidence
 from gov_mem.query_semantics import (
     infer_household_composite_required_slots,
@@ -123,8 +128,20 @@ def test_sensitive_boundary_covers_clinical_confirmation_identity_and_keypad_cod
         ) == "explicit sensitive fact request lacks observable authorization evidence"
 
 
+def test_sensitive_boundary_covers_named_patient_medication_association():
+    question = "Is Asha Patel the first-seizure patient on levetiracetam?"
+    instance = _instance(question)
+    instance.domain = "medical"
+    assert explicit_sensitive_boundary_reason(
+        instance=instance, evidence=[]
+    ) == "explicit sensitive fact request lacks observable authorization evidence"
+
+
 def test_deletion_gate_covers_deleted_site_confirmation():
     assert deletion_gate_reason("Was the deleted site River House, yes or no?")
+    assert deletion_gate_reason(
+        "Was the deleted backup contact the evening desk at Cedar Bridge?"
+    )
 
 
 def test_household_delivery_contract_recognizes_operational_field_phrases():
@@ -402,6 +419,11 @@ def test_deletion_gate_is_narrow_and_does_not_cover_current_utility():
     assert deletion_gate_reason("What was the earlier approved amount before the final amount?")
 
 
+def test_household_delivery_contract_maps_marker_color_to_label_color():
+    question = "What is the current lane-marker color for the setup?"
+    assert "label_color" in infer_household_delivery_slots(question)
+
+
 def test_explicit_sensitive_gate_blocks_unscoped_credential_without_llm_call():
     instance = _instance("What is Vera's current Magnolia Freeze latch PIN again?")
     evidence = [_evidence("pin", "The current latch PIN is 6714.", 0.9, "m_new")]
@@ -424,6 +446,29 @@ def test_summary_only_boundary_is_narrow_and_domain_scoped():
 
     office = MemoryInstance(**{**education.__dict__, "domain": "office", "question": education.question})
     assert summary_only_boundary_reason(instance=office) is None
+
+
+def test_household_building_staff_intercom_request_uses_safe_summary_path():
+    instance = _instance(
+        "For the Friday intercom test, tell me the caregiver PIN and whether anyone "
+        "will be home after 6:00 so I know whether to keep buzzing."
+    )
+    instance.domain = "household"
+    instance.metadata["requester"] = {"role": "building_staff"}
+    assert summary_only_boundary_reason(instance=instance)
+
+    safe = build_summary_only_evidence(evidence=[
+        _evidence(
+            "safe",
+            "Victor may use the intercom and call-on-arrival only. "
+            "No service item gets the current care PIN or private household timing.",
+            0.9,
+            "m_safe",
+        )
+    ])
+    assert "intercom" in safe[0].content
+    assert "call-on-arrival" in safe[0].content
+    assert "PIN" not in safe[0].content
 
 
 def test_summary_only_evidence_removes_exact_carriers():
@@ -585,6 +630,170 @@ def test_mixed_answer_boundary_allows_complete_ordinary_utility_summary():
         action="answer_redacted",
         answer="The target date is July 17, 2026; the approved budget is 239,000 USD; the maximum discount is 9%.",
     )
+
+
+def test_requester_bound_current_sensitive_evidence_repairs_conservative_action():
+    instance = _instance("What is the current active access code now, and when does it expire?")
+    evidence = [
+        RetrievedEvidence(
+            memory_id="code",
+            content="[campus_it:student_lina] The current active access code is abc_TMP-1234.",
+            score=0.9,
+            retrieval_source="dense",
+            reason="test",
+            user_id="student_lina",
+            metadata={"speaker_id": "student_lina"},
+        )
+    ]
+    decision = Stage2Decision(
+        route="typed_scalar",
+        applied=False,
+        original_memory_ids=["code"],
+        selected_memory_ids=["code"],
+    )
+    assert mixed_answer_boundary_reason(
+        question=instance.question,
+        decision=decision,
+        action="answer_redacted",
+        answer="The current active access code is abc_TMP-1234.",
+        instance=instance,
+        evidence=evidence,
+    )
+
+
+def test_requester_bound_sensitive_gate_does_not_open_exact_overreach():
+    instance = _instance("What is the exact current active access code?")
+    evidence = [_evidence("code", "The current active access code is abc_TMP-1234.", 0.9, "m_new")]
+    evidence[0].metadata["speaker_id"] = instance.asking_user_id
+    assert explicit_sensitive_boundary_reason(instance=instance, evidence=evidence)
+
+
+def test_verified_long_context_replaces_stale_date_in_final_answer():
+    decision = Stage2Decision(
+        route="mixed",
+        applied=True,
+        long_context_applied=True,
+        long_context_fields=["target_date"],
+    )
+    evidence = [
+        _evidence(
+            "date",
+            "Verified current field target_date; source quote: The current review date is September 16, 2027.",
+            1.0,
+            "m_date",
+        )
+    ]
+    evidence[0].metadata.update({
+        "stage2_long_context_slot": "target_date",
+        "stage2_long_context_quote": "The current review date is September 16, 2027.",
+    })
+    repaired = _repair_answer_with_verified_fields(
+        answer="The current private review date is September 15, 2027.",
+        evidence=evidence,
+        decision=decision,
+    )
+    assert "September 16, 2027" in repaired
+    assert "September 15, 2027" not in repaired
+
+
+def test_verified_long_context_does_not_append_conflicting_date_to_existing_answer():
+    decision = Stage2Decision(
+        route="mixed",
+        applied=True,
+        long_context_applied=True,
+        long_context_fields=["date"],
+    )
+    evidence = [_evidence("date", "Verified date carrier.", 1.0, "m_date")]
+    evidence[0].metadata.update({
+        "stage2_long_context_slot": "date",
+        "stage2_long_context_quote": "The current handoff day is Sunday.",
+    })
+    repaired = _append_missing_verified_date(
+        answer="The current service window is Saturday, July 11, 9:35 AM to 11:15 AM.",
+        evidence=evidence,
+        decision=decision,
+    )
+    assert repaired.count("Sunday") == 0
+    assert "Saturday, July 11" in repaired
+
+
+def test_verified_long_context_preserves_exact_blocker_qualifier():
+    decision = Stage2Decision(
+        route="mixed",
+        applied=True,
+        long_context_applied=True,
+        long_context_fields=["blocker"],
+    )
+    evidence = [
+        _evidence(
+            "blocker",
+            "Verified current field blocker; source quote: Housing update: the active blocker is now quiet-hours addendum for the Juniper Residence file.",
+            1.0,
+            "m_blocker",
+        )
+    ]
+    evidence[0].metadata.update({
+        "stage2_long_context_slot": "blocker",
+        "stage2_long_context_quote": "Housing update: the active blocker is now quiet-hours addendum for the Juniper Residence file.",
+    })
+    repaired = _repair_answer_with_verified_fields(
+        answer="The current blocker is quiet hours.",
+        evidence=evidence,
+        decision=decision,
+    )
+    assert "quiet-hours addendum" in repaired
+
+
+def test_requester_bound_scalar_repair_preserves_code_and_expiry():
+    instance = _instance("What is the current active access code, and when does it expire?")
+    evidence = [
+        RetrievedEvidence(
+            memory_id="code",
+            content=(
+                "[campus_it:student_lina] The current active access code is "
+                "abc_TMP-1234. It expires May 24, 2026 at 20:00."
+            ),
+            score=0.9,
+            retrieval_source="dense",
+            reason="test",
+            user_id="student_lina",
+            source_message_ids=["m_new"],
+            metadata={"speaker_id": "student_lina"},
+        )
+    ]
+    repaired = _repair_requester_bound_scalar_values(
+        instance=instance,
+        answer="The current active access code is available, and it expires on May 24, 2026.",
+        evidence=evidence,
+    )
+    assert "abc_TMP-1234" in repaired
+    assert "20:00" in repaired
+
+
+def test_verified_long_context_repairs_missing_badge_value():
+    decision = Stage2Decision(
+        route="mixed",
+        applied=True,
+        long_context_applied=True,
+        long_context_fields=["access_badge"],
+    )
+    evidence = [_evidence(
+        "badge",
+        "Verified current field access_badge; source quote: The active badge is JRX-7810.",
+        1.0,
+        "m_badge",
+    )]
+    evidence[0].metadata.update({
+        "stage2_long_context_slot": "access_badge",
+        "stage2_long_context_quote": "The active badge is JRX-7810.",
+    })
+    repaired = _repair_answer_with_verified_fields(
+        answer="The active badge is not specified in the accessible memory.",
+        evidence=evidence,
+        decision=decision,
+    )
+    assert "JRX-7810" in repaired
+    assert "not specified" not in repaired
 
 
 def test_mixed_answer_boundary_accepts_complete_long_context_after_projection_fallback():

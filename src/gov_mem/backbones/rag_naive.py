@@ -32,6 +32,7 @@ from gov_mem.reasoning.operators import build_required_slot_plan
 from gov_mem.memory.dense_index import DenseMemoryIndex
 from gov_mem.backbones.stage2_typed_rerank import (
     _DATE_RE,
+    _TIME_RE,
     _candidate_matches_request_slot,
     _EXPLICIT_SENSITIVE_FIELD_PATTERNS,
     _is_competing_sensitive_evidence,
@@ -47,6 +48,9 @@ from gov_mem.backbones.stage2_typed_rerank import (
     rerank_typed_scalar_evidence,
     build_summary_only_evidence,
     summary_only_boundary_reason,
+    _STALE_MARKERS,
+    _CURRENT_TERMS,
+    _contains_marker,
 )
 from bench.domains import format_relationship_fact, get_domain_label, get_query_policy_block
 
@@ -199,6 +203,12 @@ def _append_missing_verified_date(
     ):
         return answer
     answer_text = str(answer or "").strip()
+    # Do not append a second calendar value when the answer already contains
+    # a date or weekday.  A ledger quote can be stale or refer to another
+    # carrier; adding it beside an existing value creates a contradictory
+    # answer instead of repairing an omission.
+    if _WEEKDAY_RE.search(answer_text) or _DATE_RE.search(answer_text):
+        return answer_text
     lowered_answer = answer_text.casefold()
     for row in evidence:
         metadata = dict(row.metadata or {})
@@ -210,6 +220,209 @@ def _append_missing_verified_date(
         if match and match.group(0).casefold() not in lowered_answer:
             return f"{answer_text}\nDate/day: {match.group(0)}."
     return answer_text
+
+
+def _verified_field_value(*, slot: str, quote: str) -> str | None:
+    """Extract one closed-set field value from an already verified quote."""
+
+    text = str(quote or "").strip()
+    lowered_slot = str(slot or "").casefold()
+    if lowered_slot in {"target_date", "public_event_date", "date"}:
+        match = _DATE_RE.search(text)
+        return match.group(0) if match else None
+    if lowered_slot in {"monthly_stipend", "approved_budget", "approved_discount_cap"}:
+        match = re.search(r"(?:\$\s*\d[\d,]*(?:\.\d+)?|\b\d[\d,]*(?:\.\d+)?\s*(?:USD|dollars)\b)", text, re.IGNORECASE)
+        return match.group(0) if match else None
+    if lowered_slot == "access_badge":
+        match = re.search(
+            r"\b(?:badge|access\s+code|token)\b[^.!?]{0,50}?\b(?=[a-z0-9_-]*\d)[a-z][a-z0-9]*(?:[_-][a-z0-9]+){1,}\b",
+            text,
+            re.IGNORECASE,
+        )
+        return match.group(0).split()[-1] if match else None
+    if lowered_slot == "blocker":
+        match = re.search(
+            r"\b(?:active\s+)?blocker(?:\s+(?:is|are|now|still|remains?))?\s+"
+            r"(?P<value>[^.!?;,]+?)(?=\s+(?:inside|out\s+of|private|even\s+if|and\s+only|for\s+the|may\s+be)\b|[.!?;,]|$)",
+            text,
+            re.IGNORECASE,
+        )
+        if match:
+            return match.group("value").strip()
+    return None
+
+
+def _repair_requester_bound_scalar_values(
+    *,
+    instance: MemoryInstance,
+    answer: str,
+    evidence: list[RetrievedEvidence],
+) -> str:
+    """Preserve concrete current requester-owned code and expiry values."""
+
+    question = str(instance.question or "").casefold()
+    if not any(term in question for term in ("expire", "expiry", "expires")):
+        return str(answer or "").strip()
+    requester = str(instance.asking_user_id or "").strip()
+    if not requester:
+        return str(answer or "").strip()
+    message_order = {
+        str(message.get("message_id") or ""): index
+        for index, message in enumerate(instance.messages)
+        if isinstance(message, dict)
+    }
+    candidates: list[tuple[int, str, str, str | None]] = []
+    code_pattern = re.compile(r"\b(?=[a-z0-9_-]*\d)[a-z][a-z0-9]*(?:[_-][a-z0-9]+){2,}\b", re.IGNORECASE)
+    for row in evidence:
+        metadata = dict(row.metadata or {})
+        owner = str(metadata.get("speaker_id") or row.user_id or "").strip()
+        if owner != requester:
+            continue
+        text = str(row.content or "").strip()
+        lowered = text.casefold()
+        if not any(_contains_marker(lowered, marker) for marker in _CURRENT_TERMS):
+            continue
+        if not re.search(r"\b(?:access\s+code|credential|token|badge)\b", lowered):
+            continue
+        code_match = re.search(
+            r"\b(?:access\s+code|credential|token|badge)\b"
+            r"(?:\s+(?:is|was|remains|now|still|for)\b)?\s*"
+            r"(?P<value>[a-z][a-z0-9]*(?:[_-][a-z0-9]+){2,})",
+            text,
+            re.IGNORECASE,
+        )
+        code = code_match.group("value") if code_match else None
+        expiry = None
+        if re.search(r"\b(?:expir(?:y|es|ed)|active\s+through)\b", lowered):
+            date = _DATE_RE.search(text)
+            time = _TIME_RE.search(text) or re.search(r"\b\d{1,2}:\d{2}\b", text)
+            if date:
+                expiry = date.group(0) + (f" at {time.group(0)}" if time else "")
+        current_value = bool(
+            re.search(r"\b(?:current|active|new|rotat(?:ed|ion)|replac(?:es|ing))\b", lowered)
+        )
+        if code and expiry and current_value:
+            order = max((message_order.get(source_id, -1) for source_id in row.source_message_ids), default=-1)
+            candidates.append((order, code, expiry, text))
+    if not candidates:
+        return str(answer or "").strip()
+    _, code, expiry, _ = max(candidates, key=lambda item: item[0])
+    repaired = str(answer or "").strip()
+    available_match = re.search(
+        r"\baccess\s+code\b\s+is\s+(?:currently\s+)?available\b",
+        repaired,
+        re.IGNORECASE,
+    )
+    if available_match:
+        repaired = (
+            repaired[:available_match.start()]
+            + f"access code is {code}"
+            + repaired[available_match.end():]
+        )
+    answer_codes = list(re.finditer(
+        r"\baccess\s+code\b[^.!?]{0,30}?\b(?=[a-z0-9_-]*\d)[a-z][a-z0-9]*(?:[_-][a-z0-9]+){2,}\b",
+        repaired,
+        re.IGNORECASE,
+    ))
+    if answer_codes:
+        match = answer_codes[0]
+        value_match = re.search(
+            r"\b(?=[a-z0-9_-]*\d)[a-z][a-z0-9]*(?:[_-][a-z0-9]+){2,}\b",
+            match.group(0),
+            re.IGNORECASE,
+        )
+        if value_match:
+            value_start = match.start() + value_match.start()
+            value_end = match.start() + value_match.end()
+            repaired = repaired[:value_start] + code + repaired[value_end:]
+    elif code.casefold() not in repaired.casefold():
+        repaired = f"{repaired} The current active access code is {code}."
+    if expiry.casefold() not in repaired.casefold():
+        date_match = _DATE_RE.search(repaired)
+        if date_match:
+            repaired = repaired[:date_match.start()] + expiry + repaired[date_match.end():]
+        else:
+            repaired = f"{repaired} It expires {expiry}."
+    else:
+        repaired = re.sub(
+            r"(\b\d{1,2}:\d{2}\b)(?:\s*,?\s*at\s+\1)+",
+            r"\1",
+            repaired,
+            flags=re.IGNORECASE,
+        )
+    return repaired.strip()
+
+
+def _repair_answer_with_verified_fields(
+    *,
+    answer: str,
+    evidence: list[RetrievedEvidence],
+    decision: Stage2Decision,
+) -> str:
+    """Keep the final wording faithful to verified Stage 2 field carriers.
+
+    This is intentionally limited to the opt-in long-context ledger.  It does
+    not infer values from raw Stage 1 evidence or make an authorization choice.
+    """
+
+    if not decision.long_context_applied:
+        return str(answer or "").strip()
+    answer_text = str(answer or "").strip()
+    if not answer_text:
+        return answer_text
+    verified: list[tuple[str, str]] = []
+    for row in evidence:
+        metadata = dict(row.metadata or {})
+        slot = str(metadata.get("stage2_long_context_slot") or "").strip()
+        quote = str(metadata.get("stage2_long_context_quote") or "").strip()
+        if not slot or not quote:
+            continue
+        value = _verified_field_value(slot=slot, quote=quote)
+        if value:
+            verified.append((slot, value))
+
+    repaired = answer_text
+    requested_date_slots = {
+        slot for slot, _ in verified
+        if slot in {"target_date", "public_event_date", "date"}
+    }
+    if len(requested_date_slots) == 1:
+        value = next(value for slot, value in verified if slot in requested_date_slots)
+        if value.casefold() not in repaired.casefold():
+            answer_dates = list(_DATE_RE.finditer(repaired))
+            if len(answer_dates) == 1:
+                match = answer_dates[0]
+                repaired = repaired[:match.start()] + value + repaired[match.end():]
+
+    for slot, value in verified:
+        if slot == "access_badge":
+            missing_badge = re.search(
+                r"\b(?:badge|access\s+code)\b[^.!?]{0,60}\b(?:not\s+specified|unavailable|unknown)\b",
+                repaired,
+                re.IGNORECASE,
+            )
+            if missing_badge:
+                repaired = repaired[:missing_badge.start()] + f"active badge is {value}" + repaired[missing_badge.end():]
+                continue
+        if value.casefold() in repaired.casefold():
+            continue
+        if slot == "blocker":
+            blocker_match = re.search(
+                r"\bblockers?\b(?:\s+(?:is|are|for|of))?\s+[^.!?;,]+",
+                repaired,
+                re.IGNORECASE,
+            )
+            if blocker_match:
+                repaired = (
+                    repaired[:blocker_match.start()]
+                    + f"blocker: {value}"
+                    + repaired[blocker_match.end():]
+                )
+            else:
+                repaired = f"{repaired} Verified current blocker: {value}."
+        else:
+            repaired = f"{repaired} Verified current {slot.replace('_', ' ')}: {value}."
+    return repaired.strip()
 
 
 def _append_missing_verified_area_details(
@@ -290,6 +503,56 @@ def _append_missing_verified_area_details(
     return answer_text
 
 
+def _append_missing_verified_safe_wording(
+    *,
+    answer: str,
+    evidence: list[RetrievedEvidence],
+    decision: Stage2Decision,
+) -> str:
+    """Preserve omitted concrete clauses from a verified safe-wording carrier."""
+
+    if not decision.long_context_applied or "safe_wording" not in decision.long_context_fields:
+        return str(answer or "").strip()
+    answer_text = str(answer or "").strip()
+    if not answer_text:
+        return answer_text
+    missing_quotes: list[str] = []
+    for row in evidence:
+        metadata = dict(row.metadata or {})
+        if str(metadata.get("stage2_long_context_slot") or "").strip() != "safe_wording":
+            continue
+        quote = str(metadata.get("stage2_long_context_quote") or "").strip()
+        if not quote or re.search(
+            r"\b(?:pin|password|passcode|token|access\s+code|keypad|credential)\b",
+            quote,
+            re.IGNORECASE,
+        ) or _is_competing_sensitive_evidence(
+            text=quote,
+            requested_slots=["safe_wording"],
+        ):
+            continue
+        # A source-bound safe wording field is a composite carrier.  Repair only
+        # when the answer omitted a concrete time or an explicit association
+        # (person/place) from that carrier; this keeps ordinary paraphrases
+        # concise while preserving requested operations.
+        quote_times = {match.group(0).casefold() for match in _TIME_RE.finditer(quote)}
+        answer_times = {match.group(0).casefold() for match in _TIME_RE.finditer(answer_text)}
+        missing_details = []
+        for pattern in (
+            r"\bwith\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b",
+            r"\bnear\s+((?:the\s+)?[a-z]+(?:\s+[a-z]+){0,3})(?=[.;]|$)",
+        ):
+            for match in re.finditer(pattern, quote):
+                detail = re.sub(r"\s+", " ", match.group(1)).strip().casefold()
+                if detail and detail not in answer_text.casefold():
+                    missing_details.append(detail)
+        if (quote_times and not quote_times.issubset(answer_times)) or missing_details:
+            missing_quotes.append(quote)
+    if not missing_quotes:
+        return answer_text
+    return answer_text + "\nVerified current safe wording: " + " | ".join(dict.fromkeys(missing_quotes))
+
+
 def _direct_answer(
     *,
     instance: MemoryInstance,
@@ -355,6 +618,8 @@ def _direct_answer(
         decision=stage2_decision,
         action=action,
         answer=answer,
+        instance=instance,
+        evidence=evidence,
     )
     if boundary_reason:
         action = "answer"
@@ -362,6 +627,16 @@ def _direct_answer(
             "However, I can only provide a high-level summary.", ""
         ).strip()
     if action == "answer":
+        answer = _repair_requester_bound_scalar_values(
+            instance=instance,
+            answer=answer,
+            evidence=evidence,
+        )
+        answer = _repair_answer_with_verified_fields(
+            answer=answer,
+            evidence=evidence,
+            decision=stage2_decision,
+        )
         answer = _append_missing_verified_date(
             answer=answer,
             evidence=evidence,
@@ -369,6 +644,11 @@ def _direct_answer(
         )
         answer = _append_missing_verified_area_details(
             instance=instance,
+            answer=answer,
+            evidence=evidence,
+            decision=stage2_decision,
+        )
+        answer = _append_missing_verified_safe_wording(
             answer=answer,
             evidence=evidence,
             decision=stage2_decision,
@@ -488,7 +768,10 @@ class RAGNaiveBackbone:
             )
         else:
             sensitive_boundary_reason = (
-                explicit_sensitive_boundary_reason(instance=instance, evidence=evidence)
+                explicit_sensitive_boundary_reason(
+                    instance=instance,
+                    evidence=evidence,
+                )
                 if self._stage2_typed_rerank_enabled()
                 else None
             )
@@ -671,6 +954,10 @@ class RAGNaiveBackbone:
             "query_variants": [instance.question],
             "retrieval_candidates": debug_payload["retrieval_candidates"],
             "rag_chunks": [asdict(chunk) for chunk in chunks],
+            "retrieval_backend": index.last_query_backend,
+            "index_backend": index.backend,
+            "embedding_model": str(self.config["embedding"]["model"]),
+            "embedding_fallback_reason": index.fallback_reason,
         }
         return BackboneRunResult(
             query_plan=plan,

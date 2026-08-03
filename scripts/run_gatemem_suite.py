@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from queue import Queue
 import subprocess
 import sys
@@ -66,32 +67,89 @@ def _read_summary(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _discover_api_keys() -> list[str]:
+def _discover_api_keys(*, provider: str) -> list[str]:
     """Load the configured pool without exposing key values in manifests or logs."""
+    provider = provider.lower().strip()
+    if provider in {"jellyfishp", "openai-compatible-jellyfishp"}:
+        pool_env = "JELLYFISHP_API_KEYS"
+        single_env = "JELLYFISHP_API_KEY"
+        readme_name = "README_API_jellyfishp.md"
+    elif provider in {"openlux", "openai-compatible-openlux"}:
+        pool_env = "OPENLUX_API_KEYS"
+        single_env = "OPENLUX_API_KEY"
+        # Keep the new provider's credentials in the sibling project as
+        # requested; do not copy the secret-bearing README into this repo.
+        readme = ROOT / "README_API_OpenLux"
+        if not readme.exists():
+            readme = Path("/data_nvme/user/jli/codes/2027_ICLR_MARC/README_API_OpenLux.md")
+        keys: list[str] = []
+        values = [value.strip() for value in os.environ.get(pool_env, "").split(",") if value.strip()]
+        if values:
+            return list(dict.fromkeys(values))
+        if readme.exists():
+            keys.extend(re.findall(r"sk-[A-Za-z0-9]+", readme.read_text(encoding="utf-8")))
+        if keys:
+            return list(dict.fromkeys(keys))
+        single_key = os.environ.get(single_env, "").strip()
+        return [single_key] if single_key else []
+    else:
+        pool_env = "YUNWU_API_KEYS"
+        single_env = "YUNWU_API_KEY"
+        readme_name = "README_API_Yunwu.md"
     values = [
         value.strip()
-        for value in os.environ.get("YUNWU_API_KEYS", "").split(",")
+        for value in os.environ.get(pool_env, "").split(",")
         if value.strip()
     ]
     if values:
         return list(dict.fromkeys(values))
 
-    readme = ROOT / "README_API_Yunwu.md"
+    readme = ROOT / readme_name
     keys: list[str] = []
     if readme.exists():
-        for line in readme.read_text(encoding="utf-8").splitlines():
-            if "sk-" not in line:
-                continue
-            candidate = line.split("`")[1] if "`" in line else line.strip()
-            if candidate.startswith("sk-"):
-                keys.append(candidate)
+        # Accept Markdown code spans and quoted list entries.  The key pool
+        # must be complete before parallel episodes are started; silently
+        # reducing it to the backtick-formatted entries causes avoidable API
+        # contention and invalidates runtime comparisons.
+        text = readme.read_text(encoding="utf-8")
+        keys.extend(re.findall(r"sk-[A-Za-z0-9]+", text))
     if keys:
         return list(dict.fromkeys(keys))
 
-    single_key = os.environ.get("YUNWU_API_KEY", "").strip()
+    single_key = os.environ.get(single_env, "").strip()
     if single_key:
         return [single_key]
     return list(dict.fromkeys(keys))
+
+
+def _default_api_key_env(provider: str) -> str:
+    provider = provider.lower().strip()
+    if provider in {"jellyfishp", "openai-compatible-jellyfishp"}:
+        return "JELLYFISHP_API_KEY"
+    if provider in {"openlux", "openai-compatible-openlux"}:
+        return "OPENLUX_API_KEY"
+    return "YUNWU_API_KEY"
+
+
+def _pool_env(api_key_env: str) -> str:
+    return f"{api_key_env[:-3]}KEYS" if api_key_env.endswith("KEY") else f"{api_key_env}_POOL"
+
+
+def _set_child_provider_key(
+    child_env: dict[str, str],
+    *,
+    provider_config: dict,
+    provider: str,
+    keys: list[str],
+    key_index: int | None,
+) -> None:
+    if key_index is None or not keys:
+        return
+    key_env = str(provider_config.get("api_key_env") or _default_api_key_env(provider))
+    child_env[key_env] = keys[key_index]
+    # Restrict retries to the episode's leased key. Otherwise a failed request
+    # could rotate into a key belonging to another concurrent episode.
+    child_env[_pool_env(key_env)] = keys[key_index]
 
 
 def _episode_groups(entries: list[dict]) -> dict[str, list[dict]]:
@@ -194,21 +252,37 @@ def main() -> None:
     suite_name = str(payload.get("suite_name") or suite_manifest.stem)
     version = int(payload.get("version") or 1)
     grouped = _group_entries_by_domain(payload.get("entries", []))
-    api_keys = _discover_api_keys()
     llm_cfg = dict(config.get("llm") or {})
+    embedding_cfg = dict(config.get("embedding") or {})
+    llm_provider = str(llm_cfg.get("provider") or "yunwu")
+    embedding_provider = str(embedding_cfg.get("provider") or llm_provider)
+    llm_keys = _discover_api_keys(provider=llm_provider)
+    embedding_keys = _discover_api_keys(provider=embedding_provider)
     judge_cfg = dict((config.get("evaluation") or {}).get("official_judge") or {})
+    judge_provider = str(judge_cfg.get("provider") or "yunwu")
+    judge_keys = _discover_api_keys(provider=judge_provider)
     memory_system_base_llm = str(
         args.base_model
         or llm_cfg.get("base_model")
         or resolve_llm_model(config, "answering")
     )
     official_evaluation_llm = str(judge_cfg.get("model") or "gpt-4o")
-    embedding_model = str(args.embedding_model or (config.get("embedding") or {}).get("model") or "")
+    embedding_model = str(args.embedding_model or embedding_cfg.get("model") or "")
     available_key_indices: Queue[int] | None = None
-    if api_keys:
+    if llm_keys:
         available_key_indices = Queue()
-        for index in range(len(api_keys)):
+        for index in range(len(llm_keys)):
             available_key_indices.put(index)
+    available_embedding_key_indices: Queue[int] | None = None
+    if embedding_keys:
+        available_embedding_key_indices = Queue()
+        for index in range(len(embedding_keys)):
+            available_embedding_key_indices.put(index)
+    available_judge_key_indices: Queue[int] | None = None
+    if judge_keys:
+        available_judge_key_indices = Queue()
+        for index in range(len(judge_keys)):
+            available_judge_key_indices.put(index)
 
     suite_summary: dict[str, dict] = {
         "suite_name": suite_name,
@@ -216,12 +290,17 @@ def main() -> None:
         "execution": {
             "parallel_domains": max(1, int(args.parallel_domains)),
             "parallel_episodes": max(1, int(args.parallel_episodes)),
-            "yunwu_key_pool_size": len(api_keys),
-            "episode_key_isolation": bool(api_keys),
+            "memory_system_key_pool_size": len(llm_keys),
+            "memory_system_key_isolation": bool(llm_keys),
+            "memory_system_provider": llm_provider,
             "memory_system_base_llm": memory_system_base_llm,
-            "official_evaluation_llm": official_evaluation_llm,
-            "official_evaluation_provider": str(judge_cfg.get("provider") or "yunwu"),
+            "embedding_provider": embedding_provider,
             "embedding_model": embedding_model,
+            "embedding_key_pool_size": len(embedding_keys),
+            "embedding_key_isolation": bool(embedding_keys),
+            "official_evaluation_llm": official_evaluation_llm,
+            "official_evaluation_provider": judge_provider,
+            "official_evaluation_key_pool_size": len(judge_keys),
         },
         "domains": {},
     }
@@ -262,25 +341,32 @@ def main() -> None:
         if args.resume:
             cmd.append("--resume")
         key_index: int | None = None
+        embedding_key_index: int | None = None
         if available_key_indices is not None:
             # A lease is held for the complete child process lifetime. This
             # guarantees that concurrent episodes never share a Yunwu key;
             # when the pool is smaller than the requested parallelism, later
             # episodes wait and reuse keys only after an earlier episode ends.
             key_index = available_key_indices.get()
+        if available_embedding_key_indices is not None:
+            embedding_key_index = available_embedding_key_indices.get()
         try:
             child_env = os.environ.copy()
-            if key_index is not None:
-                child_env["YUNWU_API_KEY"] = api_keys[key_index]
-                # Keep retries inside this episode on its leased key. Passing
-                # the global pool here would let LLMClient rotate into a key
-                # currently owned by another concurrent episode.
-                child_env["YUNWU_API_KEYS"] = api_keys[key_index]
+            _set_child_provider_key(
+                child_env, provider_config=llm_cfg, provider=llm_provider,
+                keys=llm_keys, key_index=key_index,
+            )
+            _set_child_provider_key(
+                child_env, provider_config=embedding_cfg, provider=embedding_provider,
+                keys=embedding_keys, key_index=embedding_key_index,
+            )
             subprocess.run(cmd, check=True, cwd=str(ROOT), env=child_env)
             return episode_output_dir
         finally:
             if key_index is not None:
                 available_key_indices.put(key_index)
+            if embedding_key_index is not None:
+                available_embedding_key_indices.put(embedding_key_index)
 
     def run_domain(domain: str, entries: list[dict]) -> tuple[str, dict]:
         domain_output_dir = output_dir / domain
@@ -306,22 +392,29 @@ def main() -> None:
         official_out_dir = domain_output_dir / "official_eval" / "checkpoint_benchmark" / domain
         judge_config = dict((load_yaml_config(args.config).get("evaluation") or {}).get("official_judge") or {})
         if not args.skip_official_eval:
-            judge_key = api_keys[0] if api_keys else None
-            run_official_scorer(
-                domain=domain,
-                data_dir=Path(args.data_root) / domain,
-                predictions_path=merged_predictions,
-                out_dir=official_out_dir,
-                use_llm_judge=bool(judge_config.get("enabled", True)),
-                judge_provider=str(judge_config.get("provider") or "yunwu"),
-                judge_model=str(judge_config.get("model") or "gpt-4o"),
-                judge_temperature=float(judge_config.get("temperature", 0.0)),
-                judge_max_output_tokens=int(judge_config.get("max_output_tokens", 4096)),
-                judge_api_base=str(judge_config.get("api_base") or "https://yunwu.ai/v1"),
-                judge_api_key_env=str(judge_config.get("api_key_env") or "YUNWU_API_KEY"),
-                judge_api_key=judge_key,
-                judge_concurrency=int(judge_config.get("concurrency", 4)),
-            )
+            judge_key_index: int | None = None
+            if available_judge_key_indices is not None:
+                judge_key_index = available_judge_key_indices.get()
+            try:
+                judge_key = judge_keys[judge_key_index] if judge_key_index is not None else None
+                run_official_scorer(
+                    domain=domain,
+                    data_dir=Path(args.data_root) / domain,
+                    predictions_path=merged_predictions,
+                    out_dir=official_out_dir,
+                    use_llm_judge=bool(judge_config.get("enabled", True)),
+                    judge_provider=str(judge_config.get("provider") or "yunwu"),
+                    judge_model=str(judge_config.get("model") or "gpt-4o"),
+                    judge_temperature=float(judge_config.get("temperature", 0.0)),
+                    judge_max_output_tokens=int(judge_config.get("max_output_tokens", 4096)),
+                    judge_api_base=str(judge_config.get("api_base") or "https://yunwu.ai/v1"),
+                    judge_api_key_env=str(judge_config.get("api_key_env") or "YUNWU_API_KEY"),
+                    judge_api_key=judge_key,
+                    judge_concurrency=int(judge_config.get("concurrency", 4)),
+                )
+            finally:
+                if judge_key_index is not None:
+                    available_judge_key_indices.put(judge_key_index)
         return domain, {
             "n_entries": len(entries),
             "n_episodes": len(indexed_episodes),

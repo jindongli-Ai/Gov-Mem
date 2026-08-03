@@ -36,9 +36,11 @@ class DenseIndexRow:
 
 
 class DenseMemoryIndex:
-    def __init__(self, rows: list[DenseIndexRow], backend: str):
+    def __init__(self, rows: list[DenseIndexRow], backend: str, fallback_reason: str | None = None):
         self.rows = rows
         self.backend = backend
+        self.last_query_backend = backend
+        self.fallback_reason = fallback_reason
 
     @classmethod
     def build(
@@ -65,8 +67,12 @@ class DenseMemoryIndex:
                 for item, text, embedding in zip(items, texts, embeddings)
             ]
             return cls(rows=rows, backend="openai_embedding")
-        except (LLMClientUnavailableError, requests.RequestException, ValueError):
-            return cls(rows=_sparse_rows(items=items, texts=texts), backend="sparse_heuristic")
+        except (LLMClientUnavailableError, requests.RequestException, ValueError) as exc:
+            return cls(
+                rows=_sparse_rows(items=items, texts=texts),
+                backend="sparse_heuristic",
+                fallback_reason=type(exc).__name__,
+            )
 
     def query(
         self,
@@ -82,9 +88,11 @@ class DenseMemoryIndex:
         if self.backend == "openai_embedding":
             try:
                 query_embeddings = llm_client.embed_texts(model=embedding_model, texts=query_texts)
-            except (LLMClientUnavailableError, requests.RequestException, ValueError):
+            except (LLMClientUnavailableError, requests.RequestException, ValueError) as exc:
                 query_embeddings = []
+                self.fallback_reason = type(exc).__name__
             if len(query_embeddings) == len(query_texts) and all(query_embeddings):
+                self.last_query_backend = "openai_embedding"
                 scores: dict[str, float] = {}
                 for query_embedding in query_embeddings:
                     for row in self.rows:
@@ -96,6 +104,7 @@ class DenseMemoryIndex:
 
         # Keep retrieval useful when the provider becomes unavailable after
         # index construction; dense rows still retain their source text.
+        self.last_query_backend = "sparse_heuristic_query_fallback"
         sparse_rows = self.rows if self.backend == "sparse_heuristic" else [
             DenseIndexRow(
                 memory_id=row.memory_id,

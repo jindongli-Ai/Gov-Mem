@@ -24,8 +24,8 @@ CURRENT_STATE_SLOT_ALIASES: dict[str, list[str]] = {
         "current amount", "approved amount", "approved support amount",
     ],
     "safe_wording": [
-        "safe wording", "safe broad wording", "safe case wording", "safe label",
-        "safe summary", "public wording", "broad wording", "broad customer wording",
+        "safe wording", "safe broad wording", "audience-safe wording", "safe label",
+        "safe summary", "public wording", "broad wording", "shareable wording",
     ],
     "blocker": ["blocker", "current blocker", "case blocker", "remaining blocker", "only remaining", "open blocker", "blockers remain"],
     "access_room": [
@@ -75,7 +75,7 @@ CURRENT_STATE_DOMAIN_ALIASES: dict[str, list[str]] = {
         "stipend",
         "safe wording",
         "safe label",
-        "safe case wording",
+        "audience-safe wording",
         "support amount",
         "support figure",
         "research",
@@ -94,45 +94,47 @@ HOUSEHOLD_SLOT_ALIASES: dict[str, list[str]] = {
 }
 
 # Stage 2 delivery contracts use these aliases without changing the older
-# household-plan slot vocabulary used by the rest of the framework.  Several
-# benchmark questions name the same fact with an operational phrase such as
-# "meal-drop window" or "entry route" rather than the canonical label.
+# household-plan slot vocabulary used by the rest of the framework.  The
+# aliases describe transferable operational functions, not domain objects or
+# benchmark-specific names.
 HOUSEHOLD_DELIVERY_SLOT_ALIASES: dict[str, list[str]] = {
     "date": [
         "date", "day", "monday", "tuesday", "wednesday", "thursday",
         "friday", "saturday", "sunday",
     ],
     "visit_window": [
-        "visit window", "arrival window", "meal-drop window", "supply window",
-        "floral window", "setup window", "helper window", "delivery window",
-        "dropoff window", "pickup window", "watering window", "window",
+        "visit window", "arrival window", "service window", "delivery window",
+        "setup window", "support window", "access window", "time window",
     ],
     "entry_method": [
         "entry method", "entry route", "entry path", "access route",
-        "access path", "watering route", "route", "entrance", "approved door", "door",
+        "access path", "entrance", "approved door", "door",
     ],
     "approved_areas": [
         "approved areas", "approved spaces", "approved setup zones",
-        "arrangement zones", "approved zones", "handling areas", "watering areas",
-        "watering planters", "zones i can use",
+        "approved zones", "permitted areas", "handling areas", "work areas",
+        "service areas", "zones i can use",
     ],
     "signoff_window": ["signoff window", "sign-off window", "signoff"],
     "overflow_point": ["overflow point", "current overflow", "overflow"],
-    "label_color": ["label color", "label colour", "cable-tag color", "cable tag color", "labels"],
+    "label_color": [
+        "label color", "label colour", "cable-tag color", "cable tag color",
+        "marker color", "marker colour", "lane-marker color", "lane marker color",
+        "tag color", "tag colour", "labels",
+    ],
     "release_rule": ["release rule", "release after", "backup after", "become backup"],
     "fallback_rule": [
-        "rain fallback", "rain contingency", "late-arrival fallback",
-        "rain process", "rain procedure", "desk-buzz rule", "desk buzz rule",
-        "contingency", "fallback",
+        "contingency", "contingency plan", "fallback", "fallback plan",
+        "delay contingency", "weather contingency",
     ],
     "handling_constraints": [
         "handling constraints", "actual task", "no interior access",
         "interior access", "porch only", "setup logistics only",
     ],
     "task_scope": [
-        "helper summary", "helper-only summary", "logistics summary",
-        "setup state", "current plan", "current state", "outward-safe state",
-        "outward safe state", "release-safe state", "safe state",
+        "task summary", "operational summary", "logistics summary",
+        "setup state", "current plan", "current state", "external-safe state",
+        "external safe state", "shareable state", "safe state",
     ],
 }
 
@@ -215,6 +217,16 @@ def infer_current_state_slots(question: str) -> list[str]:
         if slot_name in {"monthly_stipend", "safe_wording"} and project_dominant:
             continue
         required.append(slot_name)
+    # Wording/summary labels are open vocabulary.  Match the semantic shape
+    # rather than memorizing an audience or case qualifier between the field
+    # head and its value.
+    if "safe_wording" not in required and re.search(
+        r"\b(?:safe|public|broad|shareable)(?:\s+[a-z0-9-]+){0,2}\s+"
+        r"(?:wording|label|summary)\b",
+        str(question or ""),
+        re.IGNORECASE,
+    ):
+        required.append("safe_wording")
     # Public schedules are often named by entity (for example, "public X
     # date") rather than by the literal phrase "public event date".
     if re.search(r"\bpublic(?:\s+[a-z][a-z0-9_-]*){0,3}\s+date\b", str(question or ""), re.IGNORECASE):
@@ -284,6 +296,36 @@ def infer_household_delivery_slots(question: str) -> list[str]:
     for slot_name, aliases in HOUSEHOLD_DELIVERY_SLOT_ALIASES.items():
         if contains_query_alias(question, aliases):
             slots.append(slot_name)
+    # Qualifier words are open vocabulary.  Recognize their stable field
+    # shape instead of enumerating domain-specific modifiers such as a type of
+    # delivery, plant, weather event, or helper.
+    text = str(question or "")
+    if re.search(
+        r"\b(?!(?:current|active|exact|the|this|that|my|your)\s)"
+        r"[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?\s+window\b",
+        text,
+        re.IGNORECASE,
+    ):
+        slots.append("visit_window")
+    if re.search(
+        r"\b(?!(?:current|active|exact|the|this|that|my|your)\s)"
+        r"[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?\s+(?:route|path)\b",
+        text,
+        re.IGNORECASE,
+    ):
+        slots.append("entry_method")
+    if re.search(
+        r"\b(?:approved|permitted|authorized|allowed)(?:\s+[a-z0-9-]+){0,2}\s+(?:areas?|zones?|spaces?)\b",
+        text,
+        re.IGNORECASE,
+    ):
+        slots.append("approved_areas")
+    if re.search(
+        r"\b[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?\s+(?:process|procedure|contingency|fallback)\b",
+        text,
+        re.IGNORECASE,
+    ):
+        slots.append("fallback_rule")
     return list(dict.fromkeys(slots))
 
 
