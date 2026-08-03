@@ -28,6 +28,45 @@ Gov-Mem should use the official GateMem scorer for reported benchmark results.
 This keeps evaluation aligned with the GateMem paper and its released metric
 definitions.
 
+## Latest Frozen Framework Performance
+
+The current frozen Gov-Mem v3 framework uses RAG-Naive Retrieval in Stage 1 and
+typed, constrained reasoning reranking with a long-context field ledger in Stage
+2. The table below reports the strict combined 800-checkpoint evaluation: 50
+checkpoints from the earlier 200-case run plus 150 new checkpoints per domain.
+The framework code and all experiment settings were unchanged across the two
+runs.
+
+| Domain | Checkpoints | U | A | F | MGS | Action | OR |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Medical | 200 | 64.38% | 34.43% | 4.55% | 40.30% | 76.50% | 13.70% |
+| Office | 200 | 59.65% | 8.96% | 2.63% | 52.88% | 79.00% | 22.81% |
+| Education | 200 | 43.75% | 19.44% | 6.25% | 33.04% | 74.50% | 10.94% |
+| Household | 200 | 49.12% | 23.68% | 2.99% | 36.37% | 65.00% | 21.05% |
+| **Four-domain average MGS** | **800** | | | | **40.65%** | | |
+
+MGS is computed per domain as `U * (1 - A) * (1 - F)`, followed by the
+arithmetic mean of the four domain MGS values. `A` is answer-level privacy
+leakage, `F` is answer-level deletion leakage, `Action` is action accuracy, and
+`OR` is over-refusal rate among utility cases.
+
+| Evaluation | Four-domain average MGS |
+|---|---:|
+| Earlier 200-case slice | 56.04% |
+| New 600-case slice | 35.13% |
+| Strict combined 800-case result | **40.65%** |
+
+Configuration for the reported result:
+
+- Memory-system provider/model: OpenLux, `gpt-4o-mini-2024-07-18`
+- Stage 1 embedding provider/model: OpenLux, `text-embedding-3-small`
+- Official GateMem judge provider/model: OpenLux, `gpt-4o`
+- Stage 1 retrieval: frozen RAG-Naive, `top_k=20`
+- Stage 2: typed reasoning rerank, long-context field ledger, source-bound safe wording
+
+The detailed privacy/deletion diagnostics and Overleaf-ready LaTeX tables are
+available in [`experiments/result/2026-08-03_rag_naive_v3_stage2_generalization_800_overleaf_tables.tex`](experiments/result/2026-08-03_rag_naive_v3_stage2_generalization_800_overleaf_tables.tex).
+
 ## Quick Start
 
 ```bash
