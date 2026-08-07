@@ -32,7 +32,7 @@ the frozen v3 main results.
 ### Latest strict full-benchmark performance
 
 These results cover all 2,218 GateMem checkpoints: Medical 579, Office 547,
-Education 540, and Household 552. All four runs use the same checkpoint
+Education 540, and Household 552. All five runs use the same checkpoint
 manifest, Stage 1 retrieval, embedding model (`text-embedding-3-small`), Stage
 2 configuration, and official evaluator (`gpt-4o`, temperature 0.0). Only the
 Gov-Mem base LLM changes. The official GateMem scorer uses
@@ -48,16 +48,17 @@ Action accuracy and over-refusal are supplementary metrics.
 | GPT-4o-mini | 32.89% | 43.35% | 25.66% | 34.39% | **34.07%** |
 | GPT-5-mini | 42.35% | 65.26% | 27.73% | 43.09% | **44.61%** |
 | GPT-5.4 | **56.88%** | 62.61% | 23.14% | 38.21% | **45.21%** |
+| GPT-5.4-mini | 47.56% | 54.43% | 24.53% | 38.07% | **41.15%** |
 | Gemini-2.5-Flash-Lite | 49.17% | **63.82%** | **30.43%** | 37.31% | **45.18%** |
 
-GPT-5.4 is currently the best of these four tested base LLMs by average MGS,
+GPT-5.4 is currently the best of these five tested base LLMs by average MGS,
 with an absolute improvement of 11.14 percentage points over GPT-4o-mini.
 The full set is important: smaller 40-, 200-, or 800-checkpoint diagnostics
 are not interchangeable with these results.
 
-An additional 2,218-checkpoint GPT-5.4-mini run reached 41.15% average MGS and
-is retained as a supplementary model comparison, not in the four-model table
-above.
+GPT-5.4-mini is included in the main table as a fifth full-benchmark model
+comparison. Its complete domain-level metrics and protocol are documented in
+the linked result artifact below.
 
 ### Safety and interpretation boundaries
 
@@ -81,7 +82,7 @@ model, evaluator, and whether the comparison is on U, A, F, or MGS.
 - [GPT-5-mini strict full result](experiments/result/2026-08-05-23-57-05_Gov-Mem_v3_full_all_2218_openlux_gpt5mini_strict.md)
 - [Gemini-2.5-Flash-Lite strict full result](experiments/result/2026-08-06-01-41-13_Gov-Mem_v3_full_all_2218_openlux_gemini25flashlite_strict.md)
 - [GPT-4o-mini strict full result](experiments/result/2026-08-05_Gov-Mem_v3_paper_compatible_2218_openlux_gpt4omini_strict.md)
-- [GPT-5.4-mini supplementary full result](experiments/result/2026-08-05_Gov-Mem_v3_full_all_2218_openlux_gpt54mini_strict.md)
+- [GPT-5.4-mini strict full result](experiments/result/2026-08-05_Gov-Mem_v3_full_all_2218_openlux_gpt54mini_strict.md)
 - [Current implementation and contribution reconstruction](report.md)
 
 When reporting a new result, record the commit, config, model/provider,
