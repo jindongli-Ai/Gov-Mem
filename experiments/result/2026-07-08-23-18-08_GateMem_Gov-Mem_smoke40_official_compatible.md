@@ -5,10 +5,10 @@ Timestamp: 2026-07-08 23:18:08
 ## Evaluation Setting
 
 - Suite manifest: `experiments/gatemem_suites/gatemem_smoke40.json`
-- Run directory: `/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/gatemem_smoke40_2026-07-08-22-44-00_fix4`
+- Run directory: `/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/2026-07-08-22-44-00_gatemem_smoke40_fix4`
 - Runtime API: `yunwu`
 - Base LLM: `gpt-5.4-nano-2026-03-17`
-- Official scorer output root: `/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/gatemem_smoke40_2026-07-08-22-44-00_fix4`
+- Official scorer output root: `/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/2026-07-08-22-44-00_gatemem_smoke40_fix4`
 - Official scorer: `third_party/GateMem-official/bench/scripts/score_predictions.py`
 - LLM judge: `False`
 
@@ -24,10 +24,10 @@ Timestamp: 2026-07-08 23:18:08
 
 ## Per-Domain Official Files
 
-- Medical: `/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/gatemem_smoke40_2026-07-08-22-44-00_fix4/medical/official_eval/gatemem/medical/summary.json`
-- Office: `/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/gatemem_smoke40_2026-07-08-22-44-00_fix4/office/official_eval/gatemem/office/summary.json`
-- Education: `/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/gatemem_smoke40_2026-07-08-22-44-00_fix4/education/official_eval/gatemem/education/summary.json`
-- Household: `/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/gatemem_smoke40_2026-07-08-22-44-00_fix4/household/official_eval/gatemem/household/summary.json`
+- Medical: `/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/2026-07-08-22-44-00_gatemem_smoke40_fix4/medical/official_eval/gatemem/medical/summary.json`
+- Office: `/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/2026-07-08-22-44-00_gatemem_smoke40_fix4/office/official_eval/gatemem/office/summary.json`
+- Education: `/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/2026-07-08-22-44-00_gatemem_smoke40_fix4/education/official_eval/gatemem/education/summary.json`
+- Household: `/data_nvme/user/jli/codes/2027_Gov-Mem/outputs/2026-07-08-22-44-00_gatemem_smoke40_fix4/household/official_eval/gatemem/household/summary.json`
 
 ## Notes
 

@@ -1,7 +1,7 @@
 """Regression check: final alignment cannot anchor a non-certifiable source."""
 
 from gov_mem.graph.graph_builder import GovernedGraphBuilder
-from gov_mem.governance_runtime.semantic_alignment import _is_record_collection_attribute, align_requested_attributes
+from gov_mem.legacy.semantic_alignment import _is_record_collection_attribute, align_requested_attributes
 from gov_mem.memory.governed_atom import GovernedMemoryAtom
 
 

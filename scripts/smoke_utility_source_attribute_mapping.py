@@ -2,7 +2,7 @@
 """Source-local utility bridge must preserve exact attribute/value bindings."""
 
 from gov_mem.data.schema import RetrievedEvidence
-from gov_mem.governance_runtime.semantic_reranker import map_utility_source_attributes
+from gov_mem.legacy.semantic_reranker import map_utility_source_attributes
 
 
 class FakeClient:

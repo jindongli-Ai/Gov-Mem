@@ -7,7 +7,7 @@ Timestamp: 2026-07-06 17:32:47
 - Suite manifest:
   `experiments/gatemem_suites/medical_regimen_dualcheck_v1.json`
 - Result directory:
-  `outputs/medical_regimen_dualcheck_v1_20260706`
+  `outputs/2026-07-06-17-32-47_medical_regimen_dualcheck_v1`
 - Config:
   `configs/govmem_gpt5_nano.yaml`
 - Experiment mode:

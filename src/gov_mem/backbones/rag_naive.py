@@ -64,11 +64,15 @@ def _build_turn_chunks(instance: MemoryInstance) -> list[RAGChunk]:
     for index, message in enumerate(instance.messages):
         speaker_id = str(message.get("speaker_id") or "unknown")
         role = str(message.get("speaker_role") or "")
+        message_id = str(message.get("message_id") or "")
         text = str(message.get("text") or "").strip()
         prefix = f"[{role}:{speaker_id}]" if role else f"[{speaker_id}]"
         chunks.append(
             RAGChunk(
-                chunk_id=f"{instance.instance_id}_msg_{index:04d}",
+                # Match the released GateMem Chunker. The identifier is local
+                # to this visible turn sequence and must not expose the
+                # benchmark checkpoint ID to a later Stage 2 model.
+                chunk_id=f"chunk_{index + 1:04d}_{message_id}_{message_id}",
                 instance_id=instance.instance_id,
                 text=f"{prefix} {text}".strip(),
                 source_message_ids=[str(message.get("message_id") or "")],
@@ -124,6 +128,43 @@ _STAGE2_FIELD_LABELS = {
     "fallback_rule": "fallback/contingency rule",
     "handling_constraints": "handling constraints",
 }
+
+_REDACTED_CONFIRMATION_QUERY_RE = re.compile(
+    r"^\s*(?:is|are|was|were|does|do|did|has|have)\b",
+    re.IGNORECASE,
+)
+_REDACTED_CONFIRMATION_PRIVACY_MARKERS = (
+    "private", "restricted", "confidential", "hidden", "secret", "deleted",
+    "exact", "on file", "yes or no", "associated", "linked", "exist",
+)
+
+
+def _answer_redacted_confirmation_boundary_reason(
+    *,
+    question: str,
+    answer: str,
+    action: str,
+) -> str | None:
+    """Reject confirmation text that contradicts an answer-redacted action."""
+
+    if action != "answer_redacted":
+        return None
+    answer_text = str(answer or "").strip()
+    if not re.match(r"^(?:yes|no)\b", answer_text, re.IGNORECASE):
+        return None
+    lowered_question = str(question or "").casefold()
+    if not _REDACTED_CONFIRMATION_QUERY_RE.search(lowered_question):
+        return None
+    privacy_probe = any(
+        marker in lowered_question
+        for marker in _REDACTED_CONFIRMATION_PRIVACY_MARKERS
+    ) or any(
+        pattern.search(lowered_question)
+        for _, pattern in _EXPLICIT_SENSITIVE_FIELD_PATTERNS
+    )
+    if not privacy_probe:
+        return None
+    return "answer_redacted contained a sensitive confirmation"
 
 
 def _stage2_answer_instruction(
@@ -558,6 +599,7 @@ def _direct_answer(
     instance: MemoryInstance,
     evidence: list[RetrievedEvidence],
     stage2_decision: Stage2Decision | None = None,
+    stage2_prompt_audit: Any = None,
     llm_client: LLMClient,
     model_name: str,
 ) -> AnswerResult:
@@ -600,7 +642,18 @@ def _direct_answer(
             used_memory_ids=[],
             reasoning_summary=f"RAG-Naive direct answer failed: {type(exc).__name__}",
             action="no_memory",
-            raw_response={"error": type(exc).__name__},
+            raw_response={
+                "error": type(exc).__name__,
+                "prompt_audit": {
+                    "schema_version": 1,
+                    "answer_prompt": {
+                        "system_prompt": system_prompt,
+                        "user_prompt": user_prompt,
+                        "context_text": _format_retrieved_memory(evidence),
+                    },
+                    "stage2_rerank_prompt": stage2_prompt_audit,
+                },
+            },
         )
 
     raw = raw if isinstance(raw, dict) else {}
@@ -613,19 +666,29 @@ def _direct_answer(
     used_ids = [str(value) for value in list(raw.get("used_record_ids") or []) if str(value).strip()]
     if not used_ids and action in {"answer", "answer_redacted"}:
         used_ids = [row.memory_id for row in evidence]
-    boundary_reason = mixed_answer_boundary_reason(
+    boundary_reason = _answer_redacted_confirmation_boundary_reason(
         question=instance.question,
-        decision=stage2_decision,
-        action=action,
         answer=answer,
-        instance=instance,
-        evidence=evidence,
+        action=action,
     )
     if boundary_reason:
-        action = "answer"
-        answer = answer.replace(
-            "However, I can only provide a high-level summary.", ""
-        ).strip()
+        action = "refuse"
+        answer = "I cannot provide that information under the current access policy."
+        used_ids = []
+    else:
+        boundary_reason = mixed_answer_boundary_reason(
+            question=instance.question,
+            decision=stage2_decision,
+            action=action,
+            answer=answer,
+            instance=instance,
+            evidence=evidence,
+        )
+        if boundary_reason:
+            action = "answer"
+            answer = answer.replace(
+                "However, I can only provide a high-level summary.", ""
+            ).strip()
     if action == "answer":
         answer = _repair_requester_bound_scalar_values(
             instance=instance,
@@ -664,7 +727,18 @@ def _direct_answer(
         ),
         action=action,
         answer_structured={},
-        raw_response={"rag_naive_raw": raw},
+        raw_response={
+            "rag_naive_raw": raw,
+            "prompt_audit": {
+                "schema_version": 1,
+                "answer_prompt": {
+                    "system_prompt": system_prompt,
+                    "user_prompt": user_prompt,
+                    "context_text": _format_retrieved_memory(evidence),
+                },
+                "stage2_rerank_prompt": stage2_prompt_audit,
+            },
+        },
     )
 
 
@@ -692,6 +766,10 @@ class RAGNaiveBackbone:
             items=items,
             llm_client=self.embedding_client,
             embedding_model=str(self.config["embedding"]["model"]),
+            # GateMem RAG-Naive embeds the visible turn text itself. Do not
+            # add Gov-Mem memory metadata to the frozen Stage 1 representation.
+            embedding_texts=[chunk.text for chunk in chunks],
+            allow_fallback=bool(self.config["embedding"].get("allow_fallback", True)),
         )
         top_k = int((self.config.get("rag") or {}).get("naive_top_k", 20))
         rows = index.query(
@@ -699,6 +777,7 @@ class RAGNaiveBackbone:
             top_k=top_k,
             llm_client=self.embedding_client,
             embedding_model=str(self.config["embedding"]["model"]),
+            allow_fallback=bool(self.config["embedding"].get("allow_fallback", True)),
         )
         memory_by_id = {item.memory_id: item for item in items}
         evidence = [
@@ -720,6 +799,7 @@ class RAGNaiveBackbone:
             if memory_id in memory_by_id
         ]
         stage2_before = list(evidence)
+        stage2_prompt_audit = None
         stage2_decision = Stage2Decision(
             route="baseline",
             applied=False,
@@ -826,6 +906,7 @@ class RAGNaiveBackbone:
                     ],
                     llm_reasoning_confidence=llm_reasoning_info.get("confidence"),
                 )
+                stage2_prompt_audit = llm_reasoning_info.get("prompt_audit")
                 if self._stage2_typed_rerank_enabled() and not llm_reasoning_info.get("validated"):
                     evidence, projected_decision = project_mixed_current_state_evidence(
                         instance=instance,
@@ -852,6 +933,16 @@ class RAGNaiveBackbone:
                     model_name=resolve_llm_model(self.config, "answering"),
                     config=self.config,
                 )
+                long_context_audit = long_context_info.get("prompt_audit")
+                if long_context_audit is not None:
+                    existing_audits = (
+                        list(stage2_prompt_audit)
+                        if isinstance(stage2_prompt_audit, list)
+                        else [stage2_prompt_audit]
+                        if isinstance(stage2_prompt_audit, dict)
+                        else []
+                    )
+                    stage2_prompt_audit = [*existing_audits, long_context_audit]
                 stage2_decision = replace(
                     stage2_decision,
                     selected_memory_ids=[row.memory_id for row in evidence],
@@ -869,6 +960,7 @@ class RAGNaiveBackbone:
                     instance=instance,
                     evidence=evidence,
                     stage2_decision=stage2_decision,
+                    stage2_prompt_audit=stage2_prompt_audit,
                     llm_client=self.llm_client,
                     model_name=resolve_llm_model(self.config, "answering"),
                 )
@@ -894,6 +986,15 @@ class RAGNaiveBackbone:
                             "Stage 2 summary-only delivery boundary."
                         ),
                     )
+        raw_response = dict(answer_result.raw_response or {})
+        if not isinstance(raw_response.get("prompt_audit"), dict):
+            raw_response["prompt_audit"] = {
+                "schema_version": 1,
+                "audit_status": "no_runtime_answer_prompt",
+                "answer_prompt": None,
+                "stage2_rerank_prompt": stage2_prompt_audit,
+            }
+            answer_result = replace(answer_result, raw_response=raw_response)
         reasoning_state = build_reasoning_state(
             evidence,
             trace=[

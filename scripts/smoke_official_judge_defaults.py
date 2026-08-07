@@ -16,7 +16,7 @@ def main() -> None:
         benchmark_official.run_official_scorer(
             domain="medical",
             data_dir=None,
-            predictions_path=benchmark_official.PROJECT_ROOT / "report.txt",
+            predictions_path=benchmark_official.PROJECT_ROOT / "2026-07-23-07-23-21_2026-07-23-07-23-21_report.txt",
             out_dir=benchmark_official.PROJECT_ROOT / "outputs" / "smoke_official_judge_defaults",
             judge_provider="yunwu",
             judge_model="gpt-4o",

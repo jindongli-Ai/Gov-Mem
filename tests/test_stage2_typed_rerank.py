@@ -419,6 +419,22 @@ def test_deletion_gate_is_narrow_and_does_not_cover_current_utility():
     assert deletion_gate_reason("What was the earlier approved amount before the final amount?")
 
 
+def test_deletion_gate_uses_generic_lifecycle_language_without_template_phrase():
+    assert deletion_gate_reason("What was the previous confidential callback phone number on file?")
+    assert deletion_gate_reason("What was the access code before the replacement?")
+    assert deletion_gate_reason("What is the current callback number?") is None
+
+
+def test_checkpoint_truncation_fails_closed_for_missing_boundary():
+    from gov_mem.data.adapters import CheckpointBenchmarkAdapter
+
+    turns = [{"turn_id": "t1", "text": "first"}, {"turn_id": "t2", "text": "second"}]
+    assert len(CheckpointBenchmarkAdapter._visible_messages_until_checkpoint(turns, "t1")) == 1
+    import pytest
+    with pytest.raises(ValueError):
+        CheckpointBenchmarkAdapter._visible_messages_until_checkpoint(turns, "missing")
+
+
 def test_household_delivery_contract_maps_marker_color_to_label_color():
     question = "What is the current lane-marker color for the setup?"
     assert "label_color" in infer_household_delivery_slots(question)
@@ -1004,6 +1020,15 @@ def test_mixed_reasoning_rerank_reorders_closed_set_candidates_and_preserves_fie
     assert info["applied"] is True
     assert info["confidence"] == 0.91
     assert [row.memory_id for row in result] == ["room", "wording", "noise"]
+    prompt = llm.calls[0]["user_prompt"]
+    assert '"candidate_id": "candidate_0"' in prompt
+    assert '"candidate_id": "candidate_1"' in prompt
+    assert '"memory_id": "noise"' not in prompt
+    assert '"memory_id": "room"' not in prompt
+    assert '"memory_id": "wording"' not in prompt
+    assert '"source_message_ids": ["m_old"]' not in prompt
+    assert '"source_message_ids": ["m_new"]' not in prompt
+    assert info["prompt_audit"]["context_text"]
 
 
 def test_mixed_reasoning_accepts_closed_set_rank_and_source_aliases():
@@ -1247,13 +1272,13 @@ def test_long_context_ledger_adds_only_verified_current_field_carriers():
             {
                 "slot": "monthly_stipend",
                 "status": "current",
-                "source_message_ids": ["m_new"],
+                "source_message_ids": ["source_1"],
                 "quote": "The current approved support amount is 3,990 USD",
             },
             {
                 "slot": "family_release_scope",
                 "status": "approved",
-                "source_message_ids": ["m_new"],
+                "source_message_ids": ["source_1"],
                 "quote": "family-release scope is schedule timing only",
             },
         ]
@@ -1270,6 +1295,11 @@ def test_long_context_ledger_adds_only_verified_current_field_carriers():
     assert info["applied"] is True
     assert info["fields"] == ["monthly_stipend", "family_release_scope"]
     assert len(llm.calls) == 1
+    prompt = llm.calls[0]["user_prompt"]
+    assert "SOURCE_REF=source_0" in prompt
+    assert "SOURCE_REF=source_1" in prompt
+    assert "MESSAGE_ID=m_old" not in prompt
+    assert "MESSAGE_ID=m_new" not in prompt
     assert len(result) == 3
     assert all(row.metadata.get("stage2_long_context") for row in result[:2])
     assert "3,990 USD" in result[0].content
@@ -1320,13 +1350,13 @@ def test_long_context_ledger_rejects_a_provably_stale_field_value():
             {
                 "slot": "monthly_stipend",
                 "status": "current",
-                "source_message_ids": ["m_old"],
+                "source_message_ids": ["source_0"],
                 "quote": "The initial support amount was 3,980 USD.",
             },
             {
                 "slot": "family_release_scope",
                 "status": "current",
-                "source_message_ids": ["m_new"],
+                "source_message_ids": ["source_1"],
                 "quote": "family-release scope is schedule timing only.",
             },
         ]

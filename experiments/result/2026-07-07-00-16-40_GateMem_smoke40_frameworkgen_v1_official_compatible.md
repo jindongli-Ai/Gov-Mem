@@ -7,7 +7,7 @@ Timestamp: 2026-07-07 00:16:40
 - Suite manifest:
   `experiments/gatemem_suites/gatemem_smoke40.json`
 - Result directory:
-  `outputs/gatemem_smoke40_20260706_234805_frameworkgen_v1`
+  `outputs/2026-07-07-00-15-42_gatemem_smoke40_frameworkgen_v1`
 - Config:
   `configs/govmem_gpt5_nano.yaml`
 - Experiment mode:
@@ -46,15 +46,15 @@ The following table follows the GateMem paper's reporting semantics:
 ## Source Files
 
 - suite summary:
-  `outputs/gatemem_smoke40_20260706_234805_frameworkgen_v1/suite_summary.json`
+  `outputs/2026-07-07-00-15-42_gatemem_smoke40_frameworkgen_v1/suite_summary.json`
 - medical summary:
-  `outputs/gatemem_smoke40_20260706_234805_frameworkgen_v1/medical/official_eval/gatemem/medical/summary.json`
+  `outputs/2026-07-07-00-15-42_gatemem_smoke40_frameworkgen_v1/medical/official_eval/gatemem/medical/summary.json`
 - office summary:
-  `outputs/gatemem_smoke40_20260706_234805_frameworkgen_v1/office/official_eval/gatemem/office/summary.json`
+  `outputs/2026-07-07-00-15-42_gatemem_smoke40_frameworkgen_v1/office/official_eval/gatemem/office/summary.json`
 - education summary:
-  `outputs/gatemem_smoke40_20260706_234805_frameworkgen_v1/education/official_eval/gatemem/education/summary.json`
+  `outputs/2026-07-07-00-15-42_gatemem_smoke40_frameworkgen_v1/education/official_eval/gatemem/education/summary.json`
 - household summary:
-  `outputs/gatemem_smoke40_20260706_234805_frameworkgen_v1/household/official_eval/gatemem/household/summary.json`
+  `outputs/2026-07-07-00-15-42_gatemem_smoke40_frameworkgen_v1/household/official_eval/gatemem/household/summary.json`
 
 ## Short Interpretation
 

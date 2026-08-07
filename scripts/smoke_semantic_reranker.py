@@ -1,7 +1,7 @@
 """Closed-set Stage 2 reranker must retain complementary active records only."""
 
 from gov_mem.data.schema import RetrievedEvidence
-from gov_mem.governance_runtime.semantic_reranker import semantic_rerank_evidence
+from gov_mem.legacy.semantic_reranker import semantic_rerank_evidence
 
 
 class FakeClient:

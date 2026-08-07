@@ -8,7 +8,7 @@ from gov_mem.planning.query_planner import (
     _semantic_spec_from_response,
     _semantic_contract_is_complete,
 )
-from gov_mem.governance_runtime.semantic_alignment import _query_span_is_grounded
+from gov_mem.legacy.semantic_alignment import _query_span_is_grounded
 from gov_mem.governance_runtime.action_predictor import _is_deleted_secret_safety_request
 from gov_mem.backbones.rag_policy_amem import RAGPolicyAMemBackbone
 from gov_mem.planning.query_planner import QueryUnderstandingAgent
@@ -118,6 +118,45 @@ def main() -> None:
     )
     assert qualified["requested_attributes"] == ["leo_access_scope"], qualified
     assert qualified["attribute_bindings"][0]["support_span"] == "access scope", qualified
+
+    # Composite query properties may be serialized as open-schema names whose
+    # meaningful words are separated by verbs or modifiers in the question.
+    # Recover those members and preserve the outer bundle as a collection.
+    composite = _normalize_certifiable_contract(
+        {
+            "raw_requested_attributes": [
+                "medications", "medications_for_pain", "medications_for_nausea",
+                "medications_to_stop", "what_should_i_stop",
+            ],
+            "requested_attributes": ["medications", "what_should_i_stop"],
+            "attribute_bindings": [
+                {
+                    "attribute": "medications",
+                    "support_span": "medications should I use right now for pain and nausea",
+                    "semantic_role": "requested_property",
+                    "evidence_slot_hint": "medications",
+                },
+                {
+                    "attribute": "what_should_i_stop",
+                    "support_span": "what should I stop",
+                    "semantic_role": "requested_property",
+                },
+                {
+                    "attribute": "medications_to_stop",
+                    "support_span": "what should I stop",
+                    "semantic_role": "requested_property",
+                    "evidence_slot_hint": "medications_to_stop",
+                },
+            ],
+            "request_shape": "mixed",
+        },
+        "Which medications should I use right now for pain and nausea, and what should I stop?",
+    )
+    assert composite["requested_attributes"] == [
+        "medications", "medications_to_stop", "medications_for_pain", "medications_for_nausea",
+    ], composite
+    assert composite["certifiable_needs"][0]["need_kind"] == "record_collection", composite
+    assert "what_should_i_stop" not in composite["requested_attributes"], composite
     structured_targets = _as_string_list([
         {"entity_type": "record", "identification": "booked visits"},
     ])

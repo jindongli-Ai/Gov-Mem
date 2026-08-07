@@ -11,7 +11,7 @@ Timestamp: 2026-07-06 06:51:12
 - Config:
   `configs/govmem_gpt5_nano.yaml`
 - Output root:
-  `outputs/framework_recheck_focus_v10_20260706_household_verifier`
+  `outputs/2026-07-06-06-51-13_framework_recheck_focus_v10_household_verifier`
 
 This focused partial evaluation contains 3 checkpoints:
 
@@ -49,7 +49,7 @@ Interpretation:
 ### Household
 
 - Output:
-  `outputs/framework_recheck_focus_v10_20260706_household_verifier/household`
+  `outputs/2026-07-06-06-51-13_framework_recheck_focus_v10_household_verifier/household`
 - Official-compatible result on the 2 targeted cases:
   - `action_accuracy = 1.0`
   - `utility_accuracy = 1.0`

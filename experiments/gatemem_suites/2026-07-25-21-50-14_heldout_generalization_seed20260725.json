@@ -1,0 +1,263 @@
+{
+  "suite_name": "gov_mem_random_episode_checkpoint_probe_hashseed20260725",
+  "dataset_name": "checkpoint_benchmark",
+  "version": 1,
+  "purpose": "ID-only cross-domain diagnostic probe; not a full-benchmark result.",
+  "selection_policy": {
+    "unit": "random_episodes_then_random_checkpoints",
+    "hash": "sha256(seed|domain|episode|episode_id) then sha256(seed|domain|episode_id|checkpoint|checkpoint_id)",
+    "seed": 20260725,
+    "domains": [
+      "medical",
+      "office",
+      "education",
+      "household"
+    ],
+    "episodes_per_domain": 2,
+    "checkpoints_per_domain": 5,
+    "available_checkpoints_in_selected_episode": {
+      "medical": {
+        "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact": 28,
+        "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact": 28
+      },
+      "office": {
+        "office_episode_custom_en_012_timber_timberlane_dual_project": 32,
+        "office_episode_custom_en_001_maple_maplemark_dual_project": 32
+      },
+      "education": {
+        "education_episode_custom_en_026_ember_practicum_ember_guides_dual_track": 18,
+        "education_episode_custom_en_029_paragon_petition_paragon_coaches_dual_track": 18
+      },
+      "household": {
+        "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup": 24,
+        "household_episode_custom_en_019_walnut_wreath_walnut_wrap_holiday_storage_private_note": 24
+      }
+    },
+    "selected_episodes": {
+      "medical": [
+        "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact",
+        "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact"
+      ],
+      "office": [
+        "office_episode_custom_en_012_timber_timberlane_dual_project",
+        "office_episode_custom_en_001_maple_maplemark_dual_project"
+      ],
+      "education": [
+        "education_episode_custom_en_026_ember_practicum_ember_guides_dual_track",
+        "education_episode_custom_en_029_paragon_petition_paragon_coaches_dual_track"
+      ],
+      "household": [
+        "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup",
+        "household_episode_custom_en_019_walnut_wreath_walnut_wrap_holiday_storage_private_note"
+      ]
+    },
+    "uses_answer_fields": false,
+    "uses_query_type_fields": false,
+    "uses_attack_type_fields": false,
+    "uses_evidence_fields": false,
+    "uses_scorer_fields": false,
+    "dataset_identity_sha256": "a9b2298a899a3750b1eeda6f40568f6ba6b60de4bb85099279e9445e2c2f34f2"
+  },
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact_ckpt_23",
+      "episode_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact_ckpt_03",
+      "episode_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact_ckpt_04",
+      "episode_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact_ckpt_24",
+      "episode_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact_ckpt_06",
+      "episode_id": "med_episode_rewrite_en_003_hepatitisC_mavyret_deleted_recovery_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_20",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_24",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_03",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_07",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_14",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_012_timber_timberlane_dual_project_ckpt_01",
+      "episode_id": "office_episode_custom_en_012_timber_timberlane_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_012_timber_timberlane_dual_project_ckpt_32",
+      "episode_id": "office_episode_custom_en_012_timber_timberlane_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_012_timber_timberlane_dual_project_ckpt_03",
+      "episode_id": "office_episode_custom_en_012_timber_timberlane_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_012_timber_timberlane_dual_project_ckpt_07",
+      "episode_id": "office_episode_custom_en_012_timber_timberlane_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_012_timber_timberlane_dual_project_ckpt_31",
+      "episode_id": "office_episode_custom_en_012_timber_timberlane_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_13",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_15",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_05",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_10",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_001_maple_maplemark_dual_project_ckpt_03",
+      "episode_id": "office_episode_custom_en_001_maple_maplemark_dual_project"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_026_ember_practicum_ember_guides_dual_track_ckpt_02",
+      "episode_id": "education_episode_custom_en_026_ember_practicum_ember_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_026_ember_practicum_ember_guides_dual_track_ckpt_15",
+      "episode_id": "education_episode_custom_en_026_ember_practicum_ember_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_026_ember_practicum_ember_guides_dual_track_ckpt_09",
+      "episode_id": "education_episode_custom_en_026_ember_practicum_ember_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_026_ember_practicum_ember_guides_dual_track_ckpt_08",
+      "episode_id": "education_episode_custom_en_026_ember_practicum_ember_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_026_ember_practicum_ember_guides_dual_track_ckpt_03",
+      "episode_id": "education_episode_custom_en_026_ember_practicum_ember_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_029_paragon_petition_paragon_coaches_dual_track_ckpt_15",
+      "episode_id": "education_episode_custom_en_029_paragon_petition_paragon_coaches_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_029_paragon_petition_paragon_coaches_dual_track_ckpt_03",
+      "episode_id": "education_episode_custom_en_029_paragon_petition_paragon_coaches_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_029_paragon_petition_paragon_coaches_dual_track_ckpt_02",
+      "episode_id": "education_episode_custom_en_029_paragon_petition_paragon_coaches_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_029_paragon_petition_paragon_coaches_dual_track_ckpt_08",
+      "episode_id": "education_episode_custom_en_029_paragon_petition_paragon_coaches_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_029_paragon_petition_paragon_coaches_dual_track_ckpt_14",
+      "episode_id": "education_episode_custom_en_029_paragon_petition_paragon_coaches_dual_track"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup_ckpt_15",
+      "episode_id": "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup_ckpt_03",
+      "episode_id": "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup_ckpt_13",
+      "episode_id": "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup_ckpt_08",
+      "episode_id": "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup_ckpt_05",
+      "episode_id": "household_episode_custom_en_008_saffron_supper_saffron_stems_surprise_setup"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_019_walnut_wreath_walnut_wrap_holiday_storage_private_note_ckpt_12",
+      "episode_id": "household_episode_custom_en_019_walnut_wreath_walnut_wrap_holiday_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_019_walnut_wreath_walnut_wrap_holiday_storage_private_note_ckpt_03",
+      "episode_id": "household_episode_custom_en_019_walnut_wreath_walnut_wrap_holiday_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_019_walnut_wreath_walnut_wrap_holiday_storage_private_note_ckpt_22",
+      "episode_id": "household_episode_custom_en_019_walnut_wreath_walnut_wrap_holiday_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_019_walnut_wreath_walnut_wrap_holiday_storage_private_note_ckpt_15",
+      "episode_id": "household_episode_custom_en_019_walnut_wreath_walnut_wrap_holiday_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_019_walnut_wreath_walnut_wrap_holiday_storage_private_note_ckpt_10",
+      "episode_id": "household_episode_custom_en_019_walnut_wreath_walnut_wrap_holiday_storage_private_note"
+    }
+  ]
+}

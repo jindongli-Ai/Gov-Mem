@@ -7,7 +7,7 @@ Timestamp: 2026-07-06 16:53:44
 - Suite manifest:
   `experiments/gatemem_suites/framework_recheck_focus_v1.json`
 - Result directory:
-  `outputs/framework_recheck_focus_v11_20260706_official_export_fix`
+  `outputs/2026-07-06-16-47-25_framework_recheck_focus_v11_official_export_fix`
 - Config:
   `configs/govmem_gpt5_nano.yaml`
 - Experiment mode:
@@ -75,15 +75,15 @@ Note:
 ## Source Files
 
 - suite summary:
-  `outputs/framework_recheck_focus_v11_20260706_official_export_fix/suite_summary.json`
+  `outputs/2026-07-06-16-47-25_framework_recheck_focus_v11_official_export_fix/suite_summary.json`
 - education summary:
-  `outputs/framework_recheck_focus_v11_20260706_official_export_fix/education/official_eval/gatemem/education/summary.json`
+  `outputs/2026-07-06-16-47-25_framework_recheck_focus_v11_official_export_fix/education/official_eval/gatemem/education/summary.json`
 - household summary:
-  `outputs/framework_recheck_focus_v11_20260706_official_export_fix/household/official_eval/gatemem/household/summary.json`
+  `outputs/2026-07-06-16-47-25_framework_recheck_focus_v11_official_export_fix/household/official_eval/gatemem/household/summary.json`
 - education scores:
-  `outputs/framework_recheck_focus_v11_20260706_official_export_fix/education/official_eval/gatemem/education/scores.jsonl`
+  `outputs/2026-07-06-16-47-25_framework_recheck_focus_v11_official_export_fix/education/official_eval/gatemem/education/scores.jsonl`
 - household scores:
-  `outputs/framework_recheck_focus_v11_20260706_official_export_fix/household/official_eval/gatemem/household/scores.jsonl`
+  `outputs/2026-07-06-16-47-25_framework_recheck_focus_v11_official_export_fix/household/official_eval/gatemem/household/scores.jsonl`
 
 ## Short Interpretation
 

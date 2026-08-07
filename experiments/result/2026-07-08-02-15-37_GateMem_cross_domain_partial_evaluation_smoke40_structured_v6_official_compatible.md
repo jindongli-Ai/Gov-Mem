@@ -7,7 +7,7 @@ Timestamp: 2026-07-08 02:15:37
 - Suite manifest:
   `experiments/gatemem_suites/gatemem_smoke40.json`
 - Result directory:
-  `outputs/gatemem_smoke40_20260708_0146_structured_v6`
+  `outputs/2026-07-08-02-15-38_gatemem_smoke40_structured_v6`
 - Config:
   `configs/govmem_gpt5_nano.yaml`
 - Experiment mode:
@@ -48,26 +48,26 @@ The following table follows the GateMem paper's main reporting semantics:
 ## Supporting Regressions
 
 - Current 4-case failure regression:
-  `outputs/v4_failure_regression_v1_20260708_0001`
+  `outputs/2026-07-08-01-11-06_v4_failure_regression_v1`
 - Result:
   `4/4` passed
 - Safety refusal regression:
-  `outputs/smoke40_safety_refusal_regression_v1_20260708_0140`
+  `outputs/2026-07-08-01-46-04_smoke40_safety_refusal_regression_v1`
 - Result:
   official action `5/5` corrected to `no_memory`
 
 ## Source Files
 
 - smoke40 suite summary:
-  `outputs/gatemem_smoke40_20260708_0146_structured_v6/suite_summary.json`
+  `outputs/2026-07-08-02-15-38_gatemem_smoke40_structured_v6/suite_summary.json`
 - medical summary:
-  `outputs/gatemem_smoke40_20260708_0146_structured_v6/medical/official_eval/gatemem/medical/summary.json`
+  `outputs/2026-07-08-02-15-38_gatemem_smoke40_structured_v6/medical/official_eval/gatemem/medical/summary.json`
 - office summary:
-  `outputs/gatemem_smoke40_20260708_0146_structured_v6/office/official_eval/gatemem/office/summary.json`
+  `outputs/2026-07-08-02-15-38_gatemem_smoke40_structured_v6/office/official_eval/gatemem/office/summary.json`
 - education summary:
-  `outputs/gatemem_smoke40_20260708_0146_structured_v6/education/official_eval/gatemem/education/summary.json`
+  `outputs/2026-07-08-02-15-38_gatemem_smoke40_structured_v6/education/official_eval/gatemem/education/summary.json`
 - household summary:
-  `outputs/gatemem_smoke40_20260708_0146_structured_v6/household/official_eval/gatemem/household/summary.json`
+  `outputs/2026-07-08-02-15-38_gatemem_smoke40_structured_v6/household/official_eval/gatemem/household/summary.json`
 
 ## Short Interpretation
 

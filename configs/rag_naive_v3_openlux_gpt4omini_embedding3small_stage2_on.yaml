@@ -14,7 +14,8 @@ llm:
   memory_ingestion_model: gpt-4o-mini-2024-07-18
   query_planner_model: gpt-4o-mini-2024-07-18
   answering_model: gpt-4o-mini-2024-07-18
-  temperature: 0.0
+  temperature: 0.2
+  max_output_tokens: 4096
   max_retries: 3
   request_timeout: 120
   retry_backoff_seconds: 5.0
@@ -63,6 +64,8 @@ stage2:
     max_context_chars: 120000
 
 evaluation:
+  clean_benchmark: true
+  allow_gold_feedback: false
   official_judge:
     enabled: true
     provider: openlux
@@ -72,6 +75,8 @@ evaluation:
     temperature: 0.0
     max_output_tokens: 4096
     concurrency: 4
+    # GateMem paper main protocol: no post-hoc action gate.
+    gate_by_action: false
 
 runner:
   dataset_name: checkpoint_benchmark

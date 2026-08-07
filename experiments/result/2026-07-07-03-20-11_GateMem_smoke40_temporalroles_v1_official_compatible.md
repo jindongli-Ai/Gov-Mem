@@ -7,7 +7,7 @@ Timestamp: 2026-07-07 03:20:11
 - Suite manifest:
   `experiments/gatemem_suites/gatemem_smoke40.json`
 - Result directory:
-  `outputs/gatemem_smoke40_20260707_025813_temporalroles_v1`
+  `outputs/2026-07-07-03-19-47_gatemem_smoke40_temporalroles_v1`
 - Config:
   `configs/govmem_gpt5_nano.yaml`
 - Experiment mode:
@@ -46,7 +46,7 @@ The following table follows the GateMem paper's reporting semantics:
 ## Focused Regression Update
 
 - Current-state focused regression:
-  `outputs/current_state_bundle_regression_v15_20260707_025425_temporalroles_publicsplit`
+  `outputs/2026-07-07-02-56-36_current_state_bundle_regression_v15_temporalroles_publicsplit`
 - Focused result:
   Office `1/1`, Education `3/3`, total `4/4`
 - Focused paper metrics:
@@ -55,17 +55,17 @@ The following table follows the GateMem paper's reporting semantics:
 ## Source Files
 
 - smoke40 suite summary:
-  `outputs/gatemem_smoke40_20260707_025813_temporalroles_v1/suite_summary.json`
+  `outputs/2026-07-07-03-19-47_gatemem_smoke40_temporalroles_v1/suite_summary.json`
 - focused current-state suite summary:
-  `outputs/current_state_bundle_regression_v15_20260707_025425_temporalroles_publicsplit/suite_summary.json`
+  `outputs/2026-07-07-02-56-36_current_state_bundle_regression_v15_temporalroles_publicsplit/suite_summary.json`
 - medical summary:
-  `outputs/gatemem_smoke40_20260707_025813_temporalroles_v1/medical/official_eval/gatemem/medical/summary.json`
+  `outputs/2026-07-07-03-19-47_gatemem_smoke40_temporalroles_v1/medical/official_eval/gatemem/medical/summary.json`
 - office summary:
-  `outputs/gatemem_smoke40_20260707_025813_temporalroles_v1/office/official_eval/gatemem/office/summary.json`
+  `outputs/2026-07-07-03-19-47_gatemem_smoke40_temporalroles_v1/office/official_eval/gatemem/office/summary.json`
 - education summary:
-  `outputs/gatemem_smoke40_20260707_025813_temporalroles_v1/education/official_eval/gatemem/education/summary.json`
+  `outputs/2026-07-07-03-19-47_gatemem_smoke40_temporalroles_v1/education/official_eval/gatemem/education/summary.json`
 - household summary:
-  `outputs/gatemem_smoke40_20260707_025813_temporalroles_v1/household/official_eval/gatemem/household/summary.json`
+  `outputs/2026-07-07-03-19-47_gatemem_smoke40_temporalroles_v1/household/official_eval/gatemem/household/summary.json`
 
 ## Short Interpretation
 

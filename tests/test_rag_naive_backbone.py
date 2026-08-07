@@ -5,6 +5,8 @@ from gov_mem.backbones.rag_naive import (
     _build_turn_chunks,
     _direct_answer,
 )
+from gov_mem.memory.dense_index import DenseMemoryIndex
+from gov_mem.llm.client import LLMClientUnavailableError
 from gov_mem.backbones.stage2_typed_rerank import Stage2Decision
 from gov_mem.data.schema import MemoryInstance, RetrievedEvidence
 
@@ -52,12 +54,68 @@ def test_rag_naive_uses_one_turn_chunk_per_message():
     chunks = _build_turn_chunks(_instance())
 
     assert [chunk.chunk_id for chunk in chunks] == [
-        "education_ckpt_01_msg_0000",
-        "education_ckpt_01_msg_0001",
+        "chunk_0001_t001_t001",
+        "chunk_0002_t002_t002",
     ]
     assert [chunk.metadata["chunk_type"] for chunk in chunks] == ["turn", "turn"]
     assert chunks[0].text == "[student:student_lina] The current date is May 12, 2026."
     assert chunks[0].source_message_ids == ["t001"]
+
+
+def test_stage1_embedding_input_can_match_raw_gate_mem_turn_text():
+    class FakeEmbeddingClient:
+        def embed_texts(self, *, model, texts):
+            return [[1.0] for _ in texts]
+
+    items = [
+        type("Item", (), {
+            "memory_id": "m1",
+            "scope": "private",
+            "memory_type": "chunk",
+            "user_id": "student_lina",
+            "entities": [],
+            "content": "[student:student_lina] The current date is May 12, 2026.",
+        })()
+    ]
+    index = DenseMemoryIndex.build(
+        items=items,
+        llm_client=FakeEmbeddingClient(),
+        embedding_model="text-embedding-3-small",
+        embedding_texts=[items[0].content],
+        allow_fallback=False,
+    )
+
+    assert index.backend == "openai_embedding"
+    assert index.rows[0].text == items[0].content
+
+
+def test_stage1_formal_retrieval_does_not_silently_replace_embedding_backend():
+    class UnavailableEmbeddingClient:
+        def embed_texts(self, *, model, texts):
+            raise LLMClientUnavailableError("embedding unavailable")
+
+    items = [
+        type("Item", (), {
+            "memory_id": "m1",
+            "scope": "private",
+            "memory_type": "chunk",
+            "user_id": "student_lina",
+            "entities": [],
+            "content": "turn text",
+        })()
+    ]
+    try:
+        DenseMemoryIndex.build(
+            items=items,
+            llm_client=UnavailableEmbeddingClient(),
+            embedding_model="text-embedding-3-small",
+            embedding_texts=["turn text"],
+            allow_fallback=False,
+        )
+    except LLMClientUnavailableError:
+        pass
+    else:
+        raise AssertionError("formal Stage 1 must not silently fall back to sparse retrieval")
 
 
 def test_rag_naive_direct_answer_preserves_official_fields_without_projection():
@@ -66,12 +124,12 @@ def test_rag_naive_direct_answer_preserves_official_fields_without_projection():
             "action": "answer",
             "answer": "May 12, 2026; blocker: room booking.",
             "answer_structured": {"date": "May 12, 2026"},
-            "used_record_ids": ["education_ckpt_01_msg_0000"],
+            "used_record_ids": ["chunk_0001_t001_t001"],
         }
     )
     evidence = [
         RetrievedEvidence(
-            memory_id="education_ckpt_01_msg_0000",
+            memory_id="chunk_0001_t001_t001",
             content="[student:student_lina] The current date is May 12, 2026.",
             score=0.9,
             retrieval_source="dense",
@@ -90,7 +148,7 @@ def test_rag_naive_direct_answer_preserves_official_fields_without_projection():
 
     assert result.action == "answer"
     assert result.answer_text == "May 12, 2026; blocker: room booking."
-    assert result.used_memory_ids == ["education_ckpt_01_msg_0000"]
+    assert result.used_memory_ids == ["chunk_0001_t001_t001"]
     assert result.answer_structured == {}
     assert len(llm.calls) == 1
     assert "[MEMORY PROVIDED]" in llm.calls[0][2]
@@ -233,3 +291,44 @@ def test_stage2_answer_instruction_stays_off_sensitive_mixed_requests():
     )
 
     assert "Stage 2 field-completeness check" not in llm.calls[0][2]
+
+
+def test_redacted_sensitive_confirmation_is_replaced_with_refusal():
+    llm = FakeLLM({
+        "action": "answer_redacted",
+        "answer": "No, there is no hidden spare-key location on file for this unit.",
+        "used_record_ids": ["private-row"],
+    })
+    instance = _instance()
+    instance.question = "Is there still a hidden spare-key location on file for this unit?"
+
+    result = _direct_answer(
+        instance=instance,
+        evidence=[],
+        llm_client=llm,
+        model_name="gpt-4o-mini-2024-07-18",
+    )
+
+    assert result.action == "refuse"
+    assert result.answer_text == "I cannot provide that information under the current access policy."
+    assert result.used_memory_ids == []
+
+
+def test_redacted_ordinary_confirmation_is_left_unchanged():
+    llm = FakeLLM({
+        "action": "answer_redacted",
+        "answer": "Yes, the review is scheduled for Monday.",
+        "used_record_ids": ["schedule-row"],
+    })
+    instance = _instance()
+    instance.question = "Is the current review date Monday?"
+
+    result = _direct_answer(
+        instance=instance,
+        evidence=[],
+        llm_client=llm,
+        model_name="gpt-4o-mini-2024-07-18",
+    )
+
+    assert result.action == "answer_redacted"
+    assert result.answer_text == "Yes, the review is scheduled for Monday."

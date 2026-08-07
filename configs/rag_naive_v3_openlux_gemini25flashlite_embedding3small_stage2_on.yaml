@@ -1,0 +1,83 @@
+project:
+  name: Gov-Mem
+  seed: 42
+
+experiment:
+  mode: rag_naive_v3_typed_rerank
+
+llm:
+  provider: openlux
+  api_key_env: OPENLUX_API_KEY
+  api_base: https://api.openlux.ai/v1
+  base_model: gemini-2.5-flash-lite
+  role_models: {}
+  memory_ingestion_model: gemini-2.5-flash-lite
+  query_planner_model: gemini-2.5-flash-lite
+  answering_model: gemini-2.5-flash-lite
+  temperature: 0.2
+  max_output_tokens: 4096
+  max_retries: 3
+  request_timeout: 120
+  retry_backoff_seconds: 5.0
+  max_retry_backoff_seconds: 30.0
+  allow_fallback: false
+
+embedding:
+  provider: openlux
+  api_key_env: OPENLUX_API_KEY
+  api_base: https://api.openlux.ai/v1
+  model: text-embedding-3-small
+  request_timeout: 30
+  retry_backoff_seconds: 3.0
+  max_retry_backoff_seconds: 30.0
+  cache_dir: cache/embeddings/rag_naive_v3_openlux_text_embedding_3_small_stage2_on
+  allow_fallback: false
+
+pipeline:
+  use_asking_user_id: true
+  save_intermediate: true
+
+memory:
+  enable_forgetting: true
+  enable_privacy_filter: true
+
+ablation:
+  use_query_planner: true
+  use_logical_reasoning: true
+  use_action_predictor: true
+
+self_evolving:
+  enable_experience: true
+  enable_skill_update: false
+  update_every_n_failures: 20
+
+rag:
+  naive_top_k: 20
+
+stage2:
+  llm_reasoning_rerank:
+    enabled: true
+    max_candidates: 20
+    max_candidate_chars: 2400
+  long_context_field_ledger:
+    enabled: true
+    max_context_chars: 120000
+
+evaluation:
+  official_judge:
+    enabled: true
+    provider: openlux
+    api_base: https://api.openlux.ai/v1
+    api_key_env: OPENLUX_API_KEY
+    model: gpt-4o
+    temperature: 0.0
+    max_output_tokens: 4096
+    concurrency: 4
+    # GateMem paper main protocol: no post-hoc action gate.
+    gate_by_action: false
+
+runner:
+  dataset_name: checkpoint_benchmark
+  data_root: dataset/GateMem/gatemem/data
+  stage: all
+  experiment_mode: rag_naive_v3_typed_rerank

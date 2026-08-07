@@ -14,9 +14,9 @@ This note records targeted official-compatible rechecks after framework-level ch
 
 Relevant outputs:
 
-- `outputs/framework_recheck_v2_20260706`
-- `outputs/framework_recheck_v3_20260706`
-- `outputs/framework_recheck_focus_v1_20260706`
+- `outputs/2026-07-06-03-55-49_framework_recheck_v2`
+- `outputs/2026-07-06-04-04-51_framework_recheck_v3`
+- `outputs/2026-07-06-04-10-42_framework_recheck_focus_v1`
 
 ## Latest targeted results
 

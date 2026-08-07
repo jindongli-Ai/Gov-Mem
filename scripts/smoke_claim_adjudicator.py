@@ -4,11 +4,12 @@
 from gov_mem.data.schema import RetrievedEvidence
 import requests
 
-from gov_mem.governance_runtime.claim_adjudicator import (
+from gov_mem.legacy.claim_adjudicator import (
     _fallback_slot_is_structurally_compatible,
     _paired_operational_role_conflict,
     _resolve_current_collection_components,
     _slot_matches_attribute,
+    _stage2_attribute_fallback,
     adjudicate_claims,
 )
 from gov_mem.governance_runtime.provenance_authorization import _is_summary_attribute
@@ -237,6 +238,27 @@ def main():
             "evidence_slot_hint": "approved_budget",
         }],
     }
+    # Locator-selected utility closures may carry a valid typed slot that
+    # Stage 2 did not repeat explicitly. Keep it available for chronology;
+    # an ordinary Stage-2 record must still use an explicit binding.
+    closure_record = {
+        "memory_id": "closure",
+        "source_text": "The current approved budget is 225,000 USD.",
+        "timestamp": "2026-01-02T00:00:00",
+        "source_message_ids": ["t130"],
+        "stage2_served_attributes": ["approved_budget"],
+        "utility_source_closure": True,
+        "slots": {"approved_budget": "225,000 USD"},
+        "state_delta": {"changed_fields": {}},
+    }
+    assert _stage2_attribute_fallback(
+        "approved_budget", [closure_record], spec, question="What is the current approved budget?"
+    )["value"] == "225,000 USD"
+    ordinary_record = dict(closure_record, utility_source_closure=False)
+    assert _stage2_attribute_fallback(
+        "approved_budget", [ordinary_record], spec, question="What is the current approved budget?"
+    ) is None
+
     meta = row(
         "meta",
         "Nothing in this message changes the approved budget.",

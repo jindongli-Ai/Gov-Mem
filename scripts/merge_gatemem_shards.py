@@ -11,7 +11,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from gov_mem.eval.gatemem_official import load_and_validate_predictions, run_official_scorer
+from gov_mem.eval.benchmark_official import load_and_validate_predictions, run_official_scorer
 from gov_mem.utils.io import ensure_dir
 
 
@@ -20,6 +20,11 @@ def main() -> None:
     parser.add_argument("--domain", required=True)
     parser.add_argument("--output_dir", required=True)
     parser.add_argument("--shard_dirs", nargs="+", required=True)
+    parser.add_argument(
+        "--gate_by_action",
+        action="store_true",
+        help="Enable the optional strict post-hoc action gate; disabled for GateMem paper-compatible metrics.",
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -47,6 +52,7 @@ def main() -> None:
         domain=args.domain,
         predictions_path=merged_pred_path,
         out_dir=official_out_dir,
+        gate_by_action=bool(args.gate_by_action),
     )
 
 

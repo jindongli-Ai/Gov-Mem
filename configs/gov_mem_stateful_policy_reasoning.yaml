@@ -1,0 +1,134 @@
+project:
+  name: Gov-Mem-Stateful-Policy-Reasoning
+  seed: 42
+
+experiment:
+  mode: stateful_policy_reasoning
+
+llm:
+  provider: yunwu
+  api_key_env: YUNWU_API_KEY
+  api_base: https://yunwu.ai/v1
+  base_model: gpt-4o-mini-2024-07-18
+  role_models: {}
+  memory_ingestion_model: gpt-4o-mini-2024-07-18
+  query_planner_model: gpt-4o-mini-2024-07-18
+  answering_model: gpt-4o-mini-2024-07-18
+  temperature: 0.0
+  max_retries: 6
+  request_timeout: 120
+  retry_backoff_seconds: 3.0
+  max_retry_backoff_seconds: 30.0
+  allow_fallback: true
+
+embedding:
+  provider: yunwu
+  api_key_env: YUNWU_API_KEY
+  api_base: https://yunwu.ai/v1
+  model: text-embedding-3-large
+  request_timeout: 30
+  retry_backoff_seconds: 3.0
+  max_retry_backoff_seconds: 30.0
+  cache_dir: cache/embeddings
+  allow_fallback: true
+
+memory:
+  enable_forgetting: true
+  enable_privacy_filter: true
+
+pipeline:
+  use_asking_user_id: true
+  save_intermediate: true
+
+policy_reasoning:
+  mode: full
+  owner_access: true
+  # A role can self-authorize exact sensitive facts only through an owned,
+  # query-relevant active record.  Generic ownership remains insufficient.
+  sensitive_owner_roles: [patient, primary_resident, account_owner, case_owner]
+  retrieval_top_k: 24
+  temporal_transition: true
+  conflict_resolution: true
+  explicit_memory_status: true
+  # Stable baseline retrieval: one authorized global candidate set. Field
+  # completeness is checked after policy filtering; retrieval must not create
+  # a second authority by running competing per-field searches.
+  # Build a bounded union of per-field candidates inside the already-issued
+  # authorization set.  This prevents one high-similarity field from evicting
+  # the carrier for another field in a compound request.
+  retrieval_strategy: per_field_union
+  # The final answer path is field-scoped: policy-approved records are used
+  # only for semantic closure, then projection-only realization is enforced.
+  field_state_projection: true
+  # Local retrieval is a recall hint. An empty local closure may make one
+  # bounded pass over the already-authorized global candidates.
+  field_projection_global_recovery: false
+  # Recover a scalar only when an already-authorized source row contains an
+  # explicit typed carrier (amount/date/structure). This restores recall for
+  # short source records without reopening the global candidate pool.
+  field_projection_scalar_carrier_recovery: true
+  field_claim_adjudication: true
+  # Aggregate expansion is recall-only; this second semantic pass removes
+  # neighboring facts that happen to share the authorized evidence bundle.
+  aggregate_field_adjudication: true
+  # A role can guide semantic parsing, but cannot authorize a concrete memory
+  # without an observable owner/delegation/permission chain.
+  role_capabilities_enabled: false
+  role_capabilities:
+    patient: ["*"]
+    nurse: [logistics, scheduling, communication, medication, health, laboratory, imaging, safety]
+    clinician: [logistics, scheduling, communication, medication, health, laboratory, imaging, safety]
+    pharmacist: [logistics, scheduling, communication, medication, health, safety]
+    scheduler: [logistics, scheduling]
+    social_worker: [logistics, scheduling, communication]
+    reception: [logistics, scheduling, communication]
+    family_member: [logistics, scheduling]
+    billing: [finance]
+  default_conflict_priority:
+    - deleted
+    - forgotten
+    - inaccessible
+    - revoke_or_deny
+    - specific_scope
+    - later_effective_update
+    - general_allow
+
+policy_verifier:
+  enabled: true
+  llm_enabled: true
+  # LLM verification is an auditable second opinion.  The structured
+  # policy/leakage checks remain the hard gate so a conservative verifier
+  # cannot downgrade a complete authorized Utility answer.
+  llm_advisory_only: true
+  fail_closed: true
+
+self_evolving:
+  enable_experience: false
+  enable_skill_update: false
+  update_every_n_failures: 20
+
+ablation:
+  use_dense_retrieval: true
+  use_symbolic_retrieval: false
+  use_query_planner: false
+  use_logical_reasoning: true
+  use_privacy_filter: true
+  use_forgetting: true
+
+evaluation:
+  official_judge:
+    enabled: true
+    provider: yunwu
+    model: gpt-4o
+    temperature: 0.0
+    max_output_tokens: 4096
+    concurrency: 4
+
+runner:
+  dataset_name: checkpoint_benchmark
+  suite_manifest: experiments/gatemem_suites/gov_mem_medical_probe5_hashseed20260717.json
+  data_root: dataset/GateMem/gatemem/data
+  output_dir: outputs/stateful_policy_medical_smoke
+  stage: all
+  experiment_mode: stateful_policy_reasoning
+  skip_official_eval: false

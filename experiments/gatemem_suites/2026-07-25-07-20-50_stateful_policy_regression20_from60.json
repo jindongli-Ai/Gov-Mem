@@ -1,0 +1,107 @@
+{
+  "suite_name": "stateful_policy_regression20_from60_20260725",
+  "dataset_name": "gatemem",
+  "version": 1,
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact_ckpt_12",
+      "episode_id": "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact_ckpt_25",
+      "episode_id": "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact_ckpt_01",
+      "episode_id": "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact_ckpt_02",
+      "episode_id": "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact_ckpt_21",
+      "episode_id": "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_005_redwood_redfield_extreme_safety_privacy_ckpt_20",
+      "episode_id": "office_episode_custom_en_005_redwood_redfield_extreme_safety_privacy"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_005_redwood_redfield_extreme_safety_privacy_ckpt_19",
+      "episode_id": "office_episode_custom_en_005_redwood_redfield_extreme_safety_privacy"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_005_redwood_redfield_extreme_safety_privacy_ckpt_26",
+      "episode_id": "office_episode_custom_en_005_redwood_redfield_extreme_safety_privacy"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_005_redwood_redfield_extreme_safety_privacy_ckpt_21",
+      "episode_id": "office_episode_custom_en_005_redwood_redfield_extreme_safety_privacy"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_005_redwood_redfield_extreme_safety_privacy_ckpt_06",
+      "episode_id": "office_episode_custom_en_005_redwood_redfield_extreme_safety_privacy"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_009_tidal_exchange_tidal_leaders_dual_track_ckpt_05",
+      "episode_id": "education_episode_custom_en_009_tidal_exchange_tidal_leaders_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_009_tidal_exchange_tidal_leaders_dual_track_ckpt_04",
+      "episode_id": "education_episode_custom_en_009_tidal_exchange_tidal_leaders_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_009_tidal_exchange_tidal_leaders_dual_track_ckpt_12",
+      "episode_id": "education_episode_custom_en_009_tidal_exchange_tidal_leaders_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_009_tidal_exchange_tidal_leaders_dual_track_ckpt_10",
+      "episode_id": "education_episode_custom_en_009_tidal_exchange_tidal_leaders_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_009_tidal_exchange_tidal_leaders_dual_track_ckpt_15",
+      "episode_id": "education_episode_custom_en_009_tidal_exchange_tidal_leaders_dual_track"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_007_juniper_paws_juniper_parcel_pet_courier_ckpt_22",
+      "episode_id": "household_episode_custom_en_007_juniper_paws_juniper_parcel_pet_courier"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_007_juniper_paws_juniper_parcel_pet_courier_ckpt_19",
+      "episode_id": "household_episode_custom_en_007_juniper_paws_juniper_parcel_pet_courier"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_007_juniper_paws_juniper_parcel_pet_courier_ckpt_02",
+      "episode_id": "household_episode_custom_en_007_juniper_paws_juniper_parcel_pet_courier"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_007_juniper_paws_juniper_parcel_pet_courier_ckpt_20",
+      "episode_id": "household_episode_custom_en_007_juniper_paws_juniper_parcel_pet_courier"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_007_juniper_paws_juniper_parcel_pet_courier_ckpt_08",
+      "episode_id": "household_episode_custom_en_007_juniper_paws_juniper_parcel_pet_courier"
+    }
+  ]
+}

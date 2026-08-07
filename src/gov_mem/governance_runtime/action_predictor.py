@@ -1109,18 +1109,10 @@ class GovernedActionPredictor:
             relation_override=verified_relation_to_owner,
         )
         planner_query_type = str(getattr(plan, "query_type", "") or "") or None
-        evaluation_query_type = str(
-            ((instance.metadata.get("evaluation") or {}).get("query_type") or "")
-        ).strip().lower()
-        # Planning operation type (factual/temporal/...) and disclosure
-        # regime (utility/privacy/safety) are separate namespaces.  The
-        # benchmark adapter already carries the latter; use it for action
-        # normalization while retaining the planner type for prompt context.
-        query_type = (
-            evaluation_query_type
-            if evaluation_query_type in {"utility", "privacy", "safety"}
-            else planner_query_type
-        )
+        # The evaluator's query_type is gold metadata and is unavailable at
+        # runtime. Action policy must rely on the planner and observable query
+        # evidence rather than the benchmark label.
+        query_type = planner_query_type
         question_disclosure_profile = _apply_semantic_disclosure_spec(
             _build_question_disclosure_profile(instance.question),
             dict(getattr(plan, "semantic_spec", {}) or {}),

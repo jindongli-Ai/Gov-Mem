@@ -666,7 +666,7 @@ def check_slot_version_graph() -> None:
     )
     if not certificate.get("authorized"):
         raise AssertionError(f"explicit graph allow path was not certified: {certificate}")
-    from gov_mem.governance_runtime.graph_slot_renderer import build_graph_authorized_projection
+    from gov_mem.legacy.graph_slot_renderer import build_graph_authorized_projection
     projection = build_graph_authorized_projection(
         certificate=certificate,
         semantic_spec={"requested_slots": ["approved_budget"], "temporal_scope": "current"},
@@ -1048,7 +1048,7 @@ def check_dev_only_adaptation_gate() -> None:
 def check_open_attribute_alignment_and_temporal_certificates() -> None:
     """Validate evidence-mediated alignment without a curated slot vocabulary."""
     from gov_mem.governance_runtime.provenance_authorization import certify_graph_slot_paths
-    from gov_mem.governance_runtime.semantic_alignment import align_requested_attributes
+    from gov_mem.legacy.semantic_alignment import align_requested_attributes
     from gov_mem.graph.graph_builder import GovernedGraphBuilder
     from gov_mem.memory.governed_atom import GovernedMemoryAtom
 
@@ -1178,9 +1178,9 @@ def check_certificate_driven_action_normalization() -> None:
 
 def check_list_alignment_requires_explicit_multiple_anchors() -> None:
     """List realization may include multiple records only through explicit alignment."""
-    from gov_mem.governance_runtime.graph_slot_renderer import render_graph_authorized_slots
+    from gov_mem.legacy.graph_slot_renderer import render_graph_authorized_slots
     from gov_mem.governance_runtime.provenance_authorization import certify_graph_slot_paths
-    from gov_mem.governance_runtime.semantic_alignment import align_requested_attributes
+    from gov_mem.legacy.semantic_alignment import align_requested_attributes
     from gov_mem.graph.graph_builder import GovernedGraphBuilder
     from gov_mem.memory.governed_atom import GovernedMemoryAtom
 
@@ -1267,7 +1267,7 @@ def check_list_alignment_requires_explicit_multiple_anchors() -> None:
 def check_attested_span_certificate_gate() -> None:
     """Experimental realization accepts only a fact with an attested source span."""
     from gov_mem.governance_runtime.provenance_authorization import certify_graph_slot_paths
-    from gov_mem.governance_runtime.semantic_alignment import align_requested_attributes
+    from gov_mem.legacy.semantic_alignment import align_requested_attributes
     from gov_mem.graph.graph_builder import GovernedGraphBuilder
     from gov_mem.memory.governed_atom import GovernedMemoryAtom
 
@@ -1382,7 +1382,7 @@ def check_alignment_routes_dual_channel_selection() -> None:
 
 def check_planner_slot_hint_and_two_stage_alignment() -> None:
     """A grounded planner hint routes retrieval but cannot bypass final selection."""
-    from gov_mem.governance_runtime.semantic_alignment import align_requested_attributes
+    from gov_mem.legacy.semantic_alignment import align_requested_attributes
     from gov_mem.graph.graph_builder import GovernedGraphBuilder
     from gov_mem.memory.governed_atom import GovernedMemoryAtom
     from gov_mem.planning.query_planner import _normalize_attribute_bindings
@@ -1513,7 +1513,7 @@ def check_grounded_state_identity() -> None:
 def check_composite_claim_owner_certificate() -> None:
     """A composite attested fact may serve one need without authorizing outsiders."""
     from gov_mem.governance_runtime.provenance_authorization import certify_graph_slot_paths
-    from gov_mem.governance_runtime.semantic_alignment import align_requested_attributes
+    from gov_mem.legacy.semantic_alignment import align_requested_attributes
     from gov_mem.graph.graph_builder import GovernedGraphBuilder
     from gov_mem.memory.governed_atom import GovernedMemoryAtom
 
@@ -1726,7 +1726,7 @@ def check_utility_source_provenance_routing() -> None:
 
 def check_alignment_envelope_compatibility() -> None:
     """Equivalent LLM envelopes remain subject to the same closed-set gate."""
-    from gov_mem.governance_runtime.semantic_alignment import _alignment_items
+    from gov_mem.legacy.semantic_alignment import _alignment_items
 
     item = {"attribute": "dynamic_property", "slot_node_ids": ["slot::one"]}
     nested = _alignment_items({"semantic_alignment": {"bindings": [item]}})

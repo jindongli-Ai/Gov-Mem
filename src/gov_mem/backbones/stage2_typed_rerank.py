@@ -610,9 +610,11 @@ def _mixed_reasoning_prompt(
     for rank, row in enumerate(evidence):
         text = str(row.content or "")
         candidate_rows.append({
+            # Dataset checkpoint/message IDs can encode the test domain and
+            # attack type. Only process-local aliases may cross this boundary.
             "rank": rank,
-            "memory_id": row.memory_id,
-            "source_message_ids": list(row.source_message_ids),
+            "candidate_id": f"candidate_{rank}",
+            "source_ref": f"source_{rank}",
             "retrieval_score": round(float(row.score), 6),
             "text": text[:max_candidate_chars],
         })
@@ -881,6 +883,7 @@ def reason_mixed_evidence_with_llm(
     max_candidates = max(1, int(rerank_config.get("max_candidates", 20)))
     max_candidate_chars = max(200, int(rerank_config.get("max_candidate_chars", 2400)))
     bounded_evidence = list(evidence[:max_candidates])
+    prompt_audit: dict[str, Any] | None = None
     try:
         system_prompt, user_prompt = _mixed_reasoning_prompt(
             question=instance.question,
@@ -888,6 +891,14 @@ def reason_mixed_evidence_with_llm(
             evidence=bounded_evidence,
             max_candidate_chars=max_candidate_chars,
         )
+        prompt_audit = {
+            "schema_version": 1,
+            "stage": "stage2_rerank",
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
+            "context_text": "\n".join(str(row.content or "") for row in bounded_evidence),
+            "candidate_count": len(bounded_evidence),
+        }
         raw = llm_client.chat_json(
             model=model_name,
             system_prompt=system_prompt,
@@ -900,11 +911,17 @@ def reason_mixed_evidence_with_llm(
         )
     except Exception as exc:
         base["reason"] = f"reasoning failed: {type(exc).__name__}"
+        if prompt_audit is not None:
+            base["prompt_audit"] = prompt_audit
         return list(evidence), base
     if reason:
         base["reason"] = reason
+        if prompt_audit is not None:
+            base["prompt_audit"] = prompt_audit
         return list(evidence), base
     info["model"] = model_name
+    if prompt_audit is not None:
+        info["prompt_audit"] = prompt_audit
     # Reranking must not become a second retrieval stage.  Keep every Stage 1
     # candidate and only move the reasoner's selected evidence to the front;
     # otherwise a valid but narrow LLM selection can discard another requested
@@ -1010,24 +1027,35 @@ def _long_context_requested_slots(question: str) -> list[str]:
 
 def _long_context_transcript(
     instance: MemoryInstance,
-) -> tuple[str, dict[str, str], dict[str, int]]:
+) -> tuple[str, dict[str, str], dict[str, int], dict[str, str]]:
     """Serialize the visible transcript and retain its exact source strings."""
 
     source_text: dict[str, str] = {}
     source_order: dict[str, int] = {}
+    alias_to_source: dict[str, str] = {}
     lines: list[str] = []
     for index, message in enumerate(instance.messages):
         if not isinstance(message, dict):
             continue
         message_id = str(message.get("message_id") or f"visible_{index:04d}").strip()
+        source_ref = f"source_{index}"
         text = str(message.get("text") or "").strip()
         if not text:
             continue
         source_text[message_id] = text
         source_order[message_id] = index
+        alias_to_source[source_ref] = message_id
         timestamp = str(message.get("timestamp") or "")
-        lines.append(f"MESSAGE_ID={message_id} TIMESTAMP={timestamp}\n{text}")
-    return "\n\n".join(lines), source_text, source_order
+        lines.append(f"SOURCE_REF={source_ref} TIMESTAMP={timestamp}\n{text}")
+    prompt_source_text = {
+        source_ref: source_text[source_id]
+        for source_ref, source_id in alias_to_source.items()
+    }
+    prompt_source_order = {
+        source_ref: source_order[source_id]
+        for source_ref, source_id in alias_to_source.items()
+    }
+    return "\n\n".join(lines), prompt_source_text, prompt_source_order, alias_to_source
 
 
 def _long_context_prompt(*, question: str, slots: list[str], transcript: str) -> tuple[str, str]:
@@ -1053,7 +1081,7 @@ def _long_context_prompt(*, question: str, slots: list[str], transcript: str) ->
         "question names a plan/entity, never use a sibling plan's date.\n\n"
         "Every returned item must have exactly this shape: "
         '{"slot":"canonical slot", "status":"current", '
-        '"source_message_ids":["real message id"], "quote":"exact substring"}.\n'
+        '"source_message_ids":["opaque source ref"], "quote":"exact substring"}.\n'
         f"Requested canonical slots: {json.dumps(slots, ensure_ascii=True)}\n"
         "Allowed statuses: "
         f"{json.dumps(sorted(_LONG_CONTEXT_ALLOWED_STATUSES), ensure_ascii=True)}\n"
@@ -1334,7 +1362,9 @@ def _long_context_carriers(
         if extra_quotes:
             content += "\nAdditional source-bound supporting quotes: " + " | ".join(extra_quotes)
         carriers.append(RetrievedEvidence(
-            memory_id=f"{instance.instance_id}::stage2_long_context::{index:02d}_{slot}",
+            # Per-query opaque alias. Neither the checkpoint ID nor the
+            # canonical slot name belongs in an LLM-visible candidate ID.
+            memory_id=f"stage2_field_carrier_{index:02d}",
             content=content,
             score=1.0,
             retrieval_source="stage2_long_context",
@@ -1390,10 +1420,11 @@ def resolve_long_context_field_ledger(
     model_name: str,
     config: dict[str, Any],
 ) -> tuple[list[RetrievedEvidence], dict[str, Any]]:
-    """Use the full visible transcript only for a safe, closed-set field ledger.
+    """Use the full visible transcript for an explicit Long-Context ablation.
 
-    This is deliberately all-or-nothing. It is a Stage 2 answer-context
-    supplement, never a second retrieval path or an authorization mechanism.
+    This is deliberately all-or-nothing. It is not part of the formal
+    retrieved-evidence-only Gov-Mem path and must remain disabled in formal
+    framework configurations.
     """
 
     question = str(instance.question or "")
@@ -1444,7 +1475,7 @@ def resolve_long_context_field_ledger(
     if llm_client is None or not llm_client.is_available():
         base["reason"] = "long-context resolver unavailable"
         return list(evidence), base
-    transcript, source_text, source_order = _long_context_transcript(instance)
+    transcript, source_text, source_order, alias_to_source = _long_context_transcript(instance)
     max_chars = int((config.get("stage2") or {}).get("long_context_field_ledger", {}).get("max_context_chars", 120000))
     if not transcript:
         base["reason"] = "visible transcript is empty"
@@ -1458,6 +1489,13 @@ def resolve_long_context_field_ledger(
             slots=requested_slots,
             transcript=transcript,
         )
+        prompt_audit = {
+            "schema_version": 1,
+            "stage": "stage2_long_context",
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
+            "context_text": transcript,
+        }
         raw = llm_client.chat_json(
             model=model_name,
             system_prompt=system_prompt,
@@ -1472,10 +1510,18 @@ def resolve_long_context_field_ledger(
         )
     except Exception as exc:
         base["reason"] = f"resolver failed: {type(exc).__name__}"
+        if "prompt_audit" in locals():
+            base["prompt_audit"] = prompt_audit
         return list(evidence), base
     if reason:
         base["reason"] = reason
+        base["prompt_audit"] = prompt_audit
         return list(evidence), base
+    for item in ledger:
+        item["source_message_ids"] = [
+            alias_to_source.get(str(source_id), str(source_id))
+            for source_id in item["source_message_ids"]
+        ]
     carriers = _long_context_carriers(
         instance=instance,
         ledger=ledger,
@@ -1491,6 +1537,7 @@ def resolve_long_context_field_ledger(
             source_id for item in ledger for source_id in item["source_message_ids"]
         )),
         "reason": "verified current field ledger from complete visible transcript",
+        "prompt_audit": prompt_audit,
     })
     # Verified current carriers are the answer-context front matter.  Retain
     # ordinary Stage 1 recall, but remove concrete stale/unrequested
@@ -2001,26 +2048,35 @@ def deletion_gate_reason(question: str) -> str | None:
         "location", "mapping", "note", "relationship", "room", "scope",
         "sponsor", "stipend", "support", "text", "value", "discount cap",
     )
-    if "temporary confidential callback number" in text:
-        return "temporary confidential callback number is a protected historical scalar"
-    explicit_deleted = any(marker in text for marker in ("deleted", "erased", "purged", "retired", "removed"))
+    protected_callback = bool(re.search(
+        r"\b(?:temporary|former|old|previous|private|confidential)\b"
+        r"[^.!?]{0,60}\bcallback\s+(?:phone\s+)?number\b",
+        text,
+    ))
+    explicit_deleted = any(
+        _contains_marker(text, marker)
+        for marker in ("deleted", "erased", "purged", "retired", "removed", "withdrawn", "revoked", "invalidated")
+    )
+    if protected_callback:
+        return "protected historical callback number request"
     explicit_replacement = any(
-        marker in text
+        _contains_marker(text, marker)
         for marker in (
-            "before the current rotation",
-            "before we switched",
-            "before the replacement",
             "used to",
             "no longer current",
+            "superseded",
+            "replaced",
+            "withdrawn",
+            "revoked",
         )
     )
     transition_before = bool(re.search(
-        r"\bbefore\s+(?:cleanup|the\s+cleanup|the\s+final|final|"
-        r"portal[- ]only\s+contact|access\s+(?:was\s+)?(?:activated|closed|revoked)|"
-        r"(?:the\s+)?(?:current\s+)?rotation)\b"
-        r"|\bbefore\s+[a-z-]+(?:\s+[a-z-]+){0,3}\s+was\s+"
-        r"(?:activated|enabled|closed|revoked|removed|finalized|cleaned|"
-        r"simplified|standardized|updated|replaced|switched)\b",
+        r"\bbefore\s+(?:the\s+)?(?:current\s+)?(?:cleanup|final(?:ization)?|replacement|"
+        r"rotation|revision|update|cutover|closure|revocation)\b"
+        r"|\bbefore\s+(?:we\s+)?(?:switched|replaced|updated|revoked|closed)\b"
+        r"|\bbefore\s+[a-z0-9-]+(?:\s+[a-z0-9-]+){0,4}\s+"
+        r"(?:was|were)\s+(?:activated|enabled|closed|revoked|removed|finalized|"
+        r"cleaned|simplified|standardized|updated|replaced|switched)\b",
         text,
     ))
     legacy_transition = bool(re.search(
@@ -2032,10 +2088,10 @@ def deletion_gate_reason(question: str) -> str | None:
         re.search(r"\b(?:still\s+have|stored|kept|exists?)\b[^?]{0,40}\bexact\b", text)
         and re.search(r"\b(?:minute|time|point|location|number|code|phrase)\b", text)
     )
-    if explicit_deleted and any(term in text for term in (*scalar_terms, *historical_field_terms)):
+    if explicit_deleted and any(_contains_marker(text, term) for term in (*scalar_terms, *historical_field_terms)):
         return "query explicitly asks for deleted historical information"
     if (explicit_replacement or transition_before) and any(
-        term in text for term in (*scalar_terms, *historical_field_terms)
+        _contains_marker(text, term) for term in (*scalar_terms, *historical_field_terms)
     ):
         return "query asks for a historical value before a replacement"
     if legacy_transition or exact_existence_probe:
@@ -2044,12 +2100,6 @@ def deletion_gate_reason(question: str) -> str | None:
         return None
     if explicit_deleted:
         return "query explicitly asks for a deleted or retired scalar"
-    if (
-        "earlier" in text
-        or "before the current rotation" in text
-        or "before we switched" in text
-    ):
-        return "query asks for a historical scalar before a replacement"
     return None
 
 

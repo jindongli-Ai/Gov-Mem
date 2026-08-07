@@ -65,6 +65,11 @@ def _normalize_prediction_row(row: Dict[str, Any]) -> Dict[str, Any]:
             for k, v in row.items()
             if k not in {"checkpoint_id", "action", "answer", "answer_structured", "used_record_ids"}
         }
+        # memory_audit is part of the official evaluation contract, not debug
+        # metadata: the scorer needs it to inspect the actual answer context.
+        memory_audit = extras.pop("memory_audit", None)
+        if isinstance(memory_audit, dict):
+            normalized["output"]["memory_audit"] = memory_audit
         if extras:
             normalized["output"]["debug_external"] = extras
 
@@ -118,6 +123,44 @@ def _duplicates(values: Iterable[str]) -> List[str]:
     return duplicates
 
 
+def _prediction_context_audit_available(row: Dict[str, Any]) -> bool:
+    output = row.get("output") if isinstance(row.get("output"), dict) else row
+    audit = output.get("memory_audit") if isinstance(output, dict) else None
+    prompt_context = audit.get("prompt_context") if isinstance(audit, dict) else None
+    return isinstance(prompt_context, dict) and "text" in prompt_context
+
+
+def _annotate_context_audit_coverage(*, predictions: List[Dict[str, Any]], out_dir: Path) -> None:
+    """Record whether official context leakage metrics have full evidence.
+
+    The vendored scorer keeps backward-compatible zero-valued fields for old
+    prediction files. A Gov-Mem result must distinguish a real zero from a
+    missing audit field, so the wrapper annotates coverage and marks context
+    leakage as unknown when coverage is incomplete.
+    """
+    summary_path = out_dir / "summary.json"
+    if not summary_path.exists():
+        return
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    total = len(predictions)
+    audited = sum(1 for row in predictions if _prediction_context_audit_available(row))
+    coverage = float(audited) / float(total) if total else 0.0
+    summary["n_context_audited"] = audited
+    summary["context_audit_coverage_rate"] = coverage
+    summary["context_audit_status"] = "complete" if coverage >= 1.0 else "incomplete_or_unknown"
+    if coverage < 1.0:
+        for key in (
+            "privacy_context_leakage_rate",
+            "deletion_context_leakage_rate",
+            "privacy_e2e_leakage_rate",
+            "deletion_e2e_leakage_rate",
+            "compliance_utility_e2e_score",
+        ):
+            if key in summary:
+                summary[key] = None
+    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 def run_official_scorer(
     *,
     domain: str,
@@ -133,6 +176,10 @@ def run_official_scorer(
     judge_api_key_env: str | None = None,
     judge_api_key: str | None = None,
     judge_concurrency: int | None = None,
+    resume_judge: bool = False,
+    # GateMem paper main tables report judge-derived U/A/F without the
+    # optional post-hoc action gate. Keep the stricter gate opt-in.
+    gate_by_action: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     resolved_data_dir = dataset_dir_for_domain(domain, data_root=data_dir.parent if data_dir is not None and data_dir.name == domain else data_dir)
     if not OFFICIAL_SCORE_SCRIPT.exists():
@@ -148,6 +195,8 @@ def run_official_scorer(
         "--out_dir",
         str(out_dir),
     ]
+    if gate_by_action:
+        cmd.append("--gate_by_action")
 
     if use_llm_judge:
         cmd.append("--use_llm_judge")
@@ -165,6 +214,8 @@ def run_official_scorer(
             cmd.extend(["--judge_api_key_env", judge_api_key_env])
         if judge_concurrency is not None:
             cmd.extend(["--judge_concurrency", str(judge_concurrency)])
+        if resume_judge:
+            cmd.append("--resume_judge")
 
     out_dir.mkdir(parents=True, exist_ok=True)
     env = os.environ.copy()
@@ -177,4 +228,12 @@ def run_official_scorer(
     if judge_api_key:
         env[judge_api_key_env or "YUNWU_API_KEY"] = judge_api_key
 
-    return subprocess.run(cmd, check=True, text=True, env=env)
+    result = subprocess.run(cmd, check=True, text=True, env=env)
+    # Some command-construction smoke tests intentionally use a placeholder
+    # predictions path. Audit coverage is only meaningful for a real file.
+    if predictions_path.exists():
+        _annotate_context_audit_coverage(
+            predictions=load_and_validate_predictions(predictions_path),
+            out_dir=out_dir,
+        )
+    return result

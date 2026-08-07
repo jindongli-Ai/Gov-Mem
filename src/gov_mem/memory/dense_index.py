@@ -49,8 +49,16 @@ class DenseMemoryIndex:
         items: list[MemoryItem],
         llm_client: LLMClient,
         embedding_model: str,
+        embedding_texts: list[str] | None = None,
+        allow_fallback: bool = True,
     ) -> "DenseMemoryIndex":
-        texts = [_memory_item_to_embedding_text(item) for item in items]
+        texts = list(embedding_texts) if embedding_texts is not None else [
+            _memory_item_to_embedding_text(item) for item in items
+        ]
+        if len(texts) != len(items):
+            raise ValueError(
+                f"Embedding text count mismatch: items={len(items)} texts={len(texts)}"
+            )
         try:
             embeddings = llm_client.embed_texts(model=embedding_model, texts=texts)
             # A provider can return a successful HTTP response with a partial
@@ -68,6 +76,8 @@ class DenseMemoryIndex:
             ]
             return cls(rows=rows, backend="openai_embedding")
         except (LLMClientUnavailableError, requests.RequestException, ValueError) as exc:
+            if not allow_fallback:
+                raise
             return cls(
                 rows=_sparse_rows(items=items, texts=texts),
                 backend="sparse_heuristic",
@@ -81,6 +91,7 @@ class DenseMemoryIndex:
         top_k: int,
         llm_client: LLMClient,
         embedding_model: str,
+        allow_fallback: bool = True,
     ) -> list[tuple[str, float]]:
         if not query_texts:
             return []
@@ -89,6 +100,8 @@ class DenseMemoryIndex:
             try:
                 query_embeddings = llm_client.embed_texts(model=embedding_model, texts=query_texts)
             except (LLMClientUnavailableError, requests.RequestException, ValueError) as exc:
+                if not allow_fallback:
+                    raise
                 query_embeddings = []
                 self.fallback_reason = type(exc).__name__
             if len(query_embeddings) == len(query_texts) and all(query_embeddings):
@@ -100,7 +113,15 @@ class DenseMemoryIndex:
                             continue
                         score = _cosine_dense(query_embedding, row.embedding)
                         scores[row.memory_id] = max(score, scores.get(row.memory_id, float("-inf")))
-                return sorted(scores.items(), key=lambda item: item[1], reverse=True)[:top_k]
+                ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+                out: list[tuple[str, float]] = []
+                for memory_id, score in ranked[: min(top_k * 5, len(ranked))]:
+                    if score <= 0:
+                        continue
+                    out.append((memory_id, score))
+                    if len(out) >= top_k:
+                        break
+                return out
 
         # Keep retrieval useful when the provider becomes unavailable after
         # index construction; dense rows still retain their source text.

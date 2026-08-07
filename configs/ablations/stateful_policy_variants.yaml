@@ -1,0 +1,34 @@
+# Variant definitions consumed by --policy_ablation in run_govmem.py.
+# Keep the base system fixed and vary exactly one stateful-policy component.
+variants:
+  full:
+    policy_reasoning:
+      mode: full
+      temporal_transition: true
+      conflict_resolution: true
+      explicit_memory_status: true
+  wo_temporal_transition:
+    policy_reasoning:
+      mode: full
+      temporal_transition: false
+      conflict_resolution: true
+      explicit_memory_status: true
+  wo_policy_conflict_resolution:
+    policy_reasoning:
+      mode: full
+      temporal_transition: true
+      conflict_resolution: false
+      explicit_memory_status: true
+  wo_explicit_memory_status:
+    policy_reasoning:
+      mode: full
+      temporal_transition: true
+      conflict_resolution: true
+      explicit_memory_status: false
+  llm_only:
+    policy_reasoning:
+      mode: llm_only
+  rule_only:
+    policy_reasoning:
+      mode: rule_only
+

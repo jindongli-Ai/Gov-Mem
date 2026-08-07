@@ -1,6 +1,6 @@
 """A partial certificate must realize allowed fields without reopening denied ones."""
 
-from gov_mem.governance_runtime.graph_slot_renderer import (
+from gov_mem.legacy.graph_slot_renderer import (
     build_graph_authorized_projection,
     render_graph_authorized_slots,
 )

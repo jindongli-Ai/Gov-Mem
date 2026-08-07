@@ -22,6 +22,7 @@ class LLMClientUnavailableError(RuntimeError):
 class LLMConfig:
     provider: str
     temperature: float = 0.0
+    max_output_tokens: int = 4096
     max_retries: int = 3
     api_base: str | None = None
     api_key_env: str | None = None
@@ -296,6 +297,9 @@ class LLMClient:
         payload = {
             "model": model,
             "temperature": self.config.temperature,
+            # GateMem paper-style runs use a 4096-token answer budget. Yunwu,
+            # OpenLux, and other OpenAI-compatible endpoints expect max_tokens.
+            "max_tokens": int(self.config.max_output_tokens),
             "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": system_prompt},

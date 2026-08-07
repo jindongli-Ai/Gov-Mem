@@ -29,6 +29,11 @@ def main() -> None:
     parser.add_argument("--judge_api_base", default="https://yunwu.ai/v1")
     parser.add_argument("--judge_api_key_env", default="YUNWU_API_KEY")
     parser.add_argument("--judge_concurrency", type=int, default=None)
+    parser.add_argument(
+        "--gate_by_action",
+        action="store_true",
+        help="Enable the optional strict post-hoc action gate. Disabled by default for GateMem paper-compatible metrics.",
+    )
     args = parser.parse_args()
 
     predictions_path = Path(args.predictions).resolve()
@@ -55,6 +60,7 @@ def main() -> None:
         judge_api_base=args.judge_api_base,
         judge_api_key_env=args.judge_api_key_env,
         judge_concurrency=args.judge_concurrency,
+        gate_by_action=bool(args.gate_by_action),
     )
 
 

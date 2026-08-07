@@ -19,7 +19,7 @@ It is not a full-benchmark run over all GateMem checkpoints, so its numbers are 
 - Suite manifest:
   `experiments/gatemem_suites/gatemem_smoke40.json`
 - Result directory:
-  `outputs/gatemem_smoke40_v9_20260706_review`
+  `outputs/2026-07-06-01-28-28_gatemem_smoke40_v9_review`
 - Config:
   `configs/govmem_gpt5_nano.yaml`
 - Experiment mode:
@@ -73,15 +73,15 @@ Official file fields and paper metrics are aligned as follows:
 ## Result Sources
 
 - suite summary:
-  `outputs/gatemem_smoke40_v9_20260706_review/suite_summary.json`
+  `outputs/2026-07-06-01-28-28_gatemem_smoke40_v9_review/suite_summary.json`
 - medical:
-  `outputs/gatemem_smoke40_v9_20260706_review/medical/official_eval/gatemem/medical/summary.json`
+  `outputs/2026-07-06-01-28-28_gatemem_smoke40_v9_review/medical/official_eval/gatemem/medical/summary.json`
 - office:
-  `outputs/gatemem_smoke40_v9_20260706_review/office/official_eval/gatemem/office/summary.json`
+  `outputs/2026-07-06-01-28-28_gatemem_smoke40_v9_review/office/official_eval/gatemem/office/summary.json`
 - education:
-  `outputs/gatemem_smoke40_v9_20260706_review/education/official_eval/gatemem/education/summary.json`
+  `outputs/2026-07-06-01-28-28_gatemem_smoke40_v9_review/education/official_eval/gatemem/education/summary.json`
 - household:
-  `outputs/gatemem_smoke40_v9_20260706_review/household/official_eval/gatemem/household/summary.json`
+  `outputs/2026-07-06-01-28-28_gatemem_smoke40_v9_review/household/official_eval/gatemem/household/summary.json`
 
 ## Short Interpretation
 

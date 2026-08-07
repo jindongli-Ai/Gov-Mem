@@ -98,6 +98,23 @@ def resolve_uncertified_graph_action(action: str | None) -> str:
     return str(action) if action in {"refuse", "no_memory"} else "answer_redacted"
 
 
+def _runtime_disclosure_regime(question: str) -> str:
+    """Infer a coarse disclosure regime from runtime-visible query text only."""
+
+    text = str(question or "").casefold()
+    if any(term in text for term in ("delete", "deleted", "deletion", "remove", "removed", "forget")):
+        return "safety"
+    if any(
+        term in text
+        for term in (
+            "private", "confidential", "restricted", "sensitive", "secret",
+            "password", "passcode", "token", "ssn", "exact private",
+        )
+    ):
+        return "privacy"
+    return "utility"
+
+
 def _stage2_safe_projection_slots(evidence: list[RetrievedEvidence]) -> set[str]:
     """Collect only source-validated safe typed slot names from Stage 2."""
     slots: set[str] = set()
@@ -669,9 +686,7 @@ class RAGPolicyAMemBackbone:
         stage2_candidates = list(stage2_by_memory_id.values())
         if not stage2_candidates:
             stage2_candidates = list(amem_evidence)
-        evaluation_query_type = str(
-            ((instance.metadata.get("evaluation") or {}).get("query_type") or "")
-        ).strip().lower()
+        runtime_disclosure_regime = _runtime_disclosure_regime(instance.question)
         stage2_allowed, decisions, stage2_filtered, stage2_debug = semantic_rerank_evidence(
             question=instance.question,
             semantic_spec=plan.semantic_spec,
@@ -691,7 +706,7 @@ class RAGPolicyAMemBackbone:
             "reason": "single_stage2_binding_boundary",
         }
         if (
-            evaluation_query_type == "utility"
+            runtime_disclosure_regime == "utility"
             and not stage2_allowed
             and not bool(stage2_debug.get("available"))
         ):
@@ -744,7 +759,7 @@ class RAGPolicyAMemBackbone:
         # utility request is not mistaken for a privacy request.
         stage2_capability_mode = (
             "utility"
-            if evaluation_query_type == "utility"
+            if runtime_disclosure_regime == "utility"
             else "explicit_graph_authorization"
         )
         for decision in decisions:
@@ -1002,7 +1017,7 @@ class RAGPolicyAMemBackbone:
                 }
                 for attribute, item in build_canonical_field_map(claim_adjudication).items()
             },
-            allow_record_local_completion=evaluation_query_type == "utility",
+            allow_record_local_completion=runtime_disclosure_regime == "utility",
             llm_client=self.llm_client,
             model_name=resolve_llm_model(self.config, "reasoning"),
             semantic_contract_certifiable=self._semantic_contract_certifiable(plan),
@@ -1118,7 +1133,7 @@ class RAGPolicyAMemBackbone:
             stage2_authorized_atom_ids=stage2_operational_capability_atom_ids,
             stage2_authorized_atom_ids_by_attribute=stage2_operational_capability_by_attribute,
             stage2_realizations=claim_adjudication,
-            allow_utility_record_completion=evaluation_query_type == "utility",
+            allow_utility_record_completion=runtime_disclosure_regime == "utility",
         )
         graph_authorized_projection = None
         if bool(self.config.get("enable_graph_typed_slot_realization", False)):
@@ -1127,7 +1142,7 @@ class RAGPolicyAMemBackbone:
                 semantic_spec=plan.semantic_spec,
             )
         prefer_graph_utility_projection = _should_prefer_graph_utility_projection(
-            query_type=evaluation_query_type,
+            query_type=runtime_disclosure_regime,
             certificate=graph_authorization_certificate,
             graph_projection=graph_authorized_projection,
             utility_projection=utility_adjudicated_projection,
@@ -1557,7 +1572,7 @@ class RAGPolicyAMemBackbone:
             self._save_final_realization(instance.instance_id, final_realization.debug_payload)
         else:
             utility_stage2_answerable = _utility_stage2_answerable(
-                query_type=evaluation_query_type,
+                query_type=runtime_disclosure_regime,
                 semantic_spec=plan.semantic_spec,
                 decisions=claim_adjudication,
                 projection=utility_adjudicated_projection,
@@ -1597,7 +1612,7 @@ class RAGPolicyAMemBackbone:
                     if utility_adjudicated_projection
                     else stage2_allowed
                 )
-                if evaluation_query_type == "utility" and utility_realization_evidence:
+                if runtime_disclosure_regime == "utility" and utility_realization_evidence:
                     requested_attributes = [
                         str(attribute).strip()
                         for attribute in list(
@@ -1670,7 +1685,7 @@ class RAGPolicyAMemBackbone:
                     answer_result = render_answer(action, selected_evidence)
 
         utility_graph_direct = bool(
-            evaluation_query_type == "utility"
+            runtime_disclosure_regime == "utility"
             and graph_authorization_certificate.get("stage2_operational_capability_authorized")
             and not graph_authorization_certificate.get("requires_redaction")
             and not graph_authorization_certificate.get("redacted_slot_names")

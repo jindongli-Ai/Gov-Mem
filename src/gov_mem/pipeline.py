@@ -13,6 +13,7 @@ from gov_mem.answering.answer_agent import AnsweringAgent
 from gov_mem.data.adapters import DatasetBundle, build_dataset_adapter
 from gov_mem.data.schema import CaseResult, MemoryInstance, QueryPlan, ReasoningState, RetrievedEvidence
 from gov_mem.evaluation.evaluator import Evaluator
+from gov_mem.evaluation.prompt_context_audit import audit_prompt_contexts
 from gov_mem.eval.benchmark_official import run_official_scorer
 from gov_mem.experience.experience_bank import ExperienceBank
 from gov_mem.governance_runtime.action_predictor import GovernedActionPredictor
@@ -72,6 +73,7 @@ class GovMemRunner:
         self.resume = resume
         self.run_official_benchmark_eval = run_official_benchmark_eval
         self.experiment_mode = experiment_mode
+        self._validate_experiment_contract()
 
         log_dir = ensure_dir(self.output_dir / "logs")
         self.logger = setup_logger("govmem", log_dir / "run.log")
@@ -83,6 +85,7 @@ class GovMemRunner:
         llm_cfg = LLMConfig(
             provider=str(self.config["llm"]["provider"]),
             temperature=float(self.config["llm"]["temperature"]),
+            max_output_tokens=int(self.config["llm"].get("max_output_tokens", 4096)),
             max_retries=int(self.config["llm"]["max_retries"]),
             api_base=self.config["llm"].get("api_base"),
             api_key_env=self.config["llm"].get("api_key_env"),
@@ -107,12 +110,21 @@ class GovMemRunner:
         self.embedding_client = LLMClient(embed_cfg)
         self.resolved_llm_settings = build_resolved_llm_settings(self.config)
         self._log_llm_mode()
-        self._save_run_metadata()
 
+        evaluation_config = dict(self.config.get("evaluation") or {})
+        # Clean benchmark evaluation is the default. Gold-derived lessons are
+        # available only for an explicitly separate adaptation run.
+        self.clean_benchmark = bool(evaluation_config.get("clean_benchmark", True))
+        self.allow_gold_feedback = bool(evaluation_config.get("allow_gold_feedback", False))
+        feedback_enabled = bool(
+            self.config["self_evolving"]["enable_experience"]
+            and not self.clean_benchmark
+            and self.allow_gold_feedback
+        )
         experience_path = self.output_dir / "experience" / self.dataset_name / "experience_bank.jsonl"
         self.experience_bank = (
             ExperienceBank(experience_path)
-            if self.config["self_evolving"]["enable_experience"]
+            if feedback_enabled
             else None
         )
         self.skill_updater = SkillUpdater(
@@ -123,6 +135,25 @@ class GovMemRunner:
             update_every_n_failures=int(self.config["self_evolving"]["update_every_n_failures"]),
         )
         self._backbone = None
+        self._save_run_metadata()
+
+    def _validate_experiment_contract(self) -> None:
+        """Reject accidental full-transcript access in formal Gov-Mem runs."""
+        stage2 = dict(self.config.get("stage2") or {})
+        ledger = dict(stage2.get("long_context_field_ledger") or {})
+        evaluation = dict(self.config.get("evaluation") or {})
+        allow_ablation = bool(evaluation.get("allow_full_transcript_ablation", False))
+        if (
+            self.experiment_mode == "rag_naive_v3_typed_rerank"
+            and bool(ledger.get("enabled", False))
+            and not allow_ablation
+        ):
+            raise ValueError(
+                "Formal rag_naive_v3_typed_rerank requires retrieved-evidence-only Stage 2. "
+                "Disable stage2.long_context_field_ledger or explicitly mark a separate "
+                "full-transcript ablation with evaluation.allow_full_transcript_ablation=true."
+            )
+
 
     def _configure_provider_env(self) -> None:
         provider = str(self.config["llm"]["provider"]).strip().lower()
@@ -226,6 +257,11 @@ class GovMemRunner:
                 "resolved_llm_settings": self.resolved_llm_settings,
                 "llm_telemetry": self.llm_client.telemetry_snapshot(),
                 "embedding_telemetry": self.embedding_client.telemetry_snapshot(),
+                "evaluation_isolation": {
+                    "clean_benchmark": self.clean_benchmark,
+                    "allow_gold_feedback": self.allow_gold_feedback,
+                    "runtime_experience_enabled": self.experience_bank is not None,
+                },
                 "config_snapshot": self.config,
             },
         )
@@ -256,6 +292,7 @@ class GovMemRunner:
 
     def run(self) -> dict[str, Any]:
         bundle = self.load_dataset()
+        self._benchmark_instances = list(bundle.instances)
         official_predictions_path = self.output_dir / "predictions" / bundle.dataset_name / "predictions.jsonl"
         completed_ids = self._load_completed_prediction_ids(official_predictions_path) if self.resume else set()
         expected_ids = {str(instance.instance_id) for instance in bundle.instances}
@@ -440,13 +477,14 @@ class GovMemRunner:
         evaluator: Evaluator,
     ) -> None:
         self.logger.info("Processing instance=%s", instance.instance_id)
+        runtime_instance = runtime_instance_view(instance)
 
         ingestion_agent = MemoryIngestionAgent(
             llm_client=self.llm_client,
             model_name=resolve_llm_model(self.config, "memory_ingestion"),
             skill_text=self.skill_registry.get_stage_text("ingestion"),
         )
-        memory_items = ingestion_agent.ingest(instance)
+        memory_items = ingestion_agent.ingest(runtime_instance)
         self._save_memory_items(dataset_name, instance.instance_id, memory_items)
         if self.stage == "ingest":
             return
@@ -466,11 +504,11 @@ class GovMemRunner:
             experience_bank=self.experience_bank,
         )
         if bool(self.config.get("ablation", {}).get("use_query_planner", True)):
-            plan = planner.plan(instance)
+            plan = planner.plan(runtime_instance)
         else:
             plan = planner._heuristic_plan(
-                instance,
-                asking_user_id=instance.asking_user_id if bool(self.config["pipeline"]["use_asking_user_id"]) else None,
+                runtime_instance,
+                asking_user_id=runtime_instance.asking_user_id if bool(self.config["pipeline"]["use_asking_user_id"]) else None,
             )
         self._save_query_plan(dataset_name, instance.instance_id, plan)
 
@@ -490,12 +528,12 @@ class GovMemRunner:
             dense_index=dense_index,
             symbolic_store=symbolic_store,
             memory_by_id={item.memory_id: item for item in memory_items},
-            requester=instance.asking_user_id,
+            requester=runtime_instance.asking_user_id,
             config={
                 **self.config,
                 "_runtime_instance_metadata": {
-                    "requester": instance.metadata.get("requester"),
-                    "observable": instance.metadata.get("observable"),
+                    "requester": runtime_instance.metadata.get("requester"),
+                    "observable": runtime_instance.metadata.get("observable"),
                 },
             },
         )
@@ -511,9 +549,9 @@ class GovMemRunner:
                 config={
                     **self.config,
                     "_runtime_instance_metadata": {
-                        "question": instance.question,
-                        "requester": instance.metadata.get("requester"),
-                        "observable": instance.metadata.get("observable"),
+                        "question": runtime_instance.question,
+                        "requester": runtime_instance.metadata.get("requester"),
+                        "observable": runtime_instance.metadata.get("observable"),
                     },
                 },
             )
@@ -531,7 +569,7 @@ class GovMemRunner:
         self._save_reasoning(dataset_name, instance.instance_id, reasoning_state)
 
         action_decision = None
-        runtime_profile = dict(instance.metadata.get("runtime_profile") or {})
+        runtime_profile = dict(runtime_instance.metadata.get("runtime_profile") or {})
         if bool(runtime_profile.get("use_action_decision", False)) and bool(self.config.get("ablation", {}).get("use_action_predictor", True)):
             action_predictor = GovernedActionPredictor(
                 llm_client=self.llm_client,
@@ -539,7 +577,7 @@ class GovMemRunner:
                 experience_bank=self.experience_bank,
             )
             action_decision = action_predictor.decide(
-                instance=instance,
+                instance=runtime_instance,
                 plan=plan,
                 evidence=evidence,
             )
@@ -554,15 +592,16 @@ class GovMemRunner:
         )
         answer_result = (
             answer_agent.answer_with_action(
-                instance=instance,
+                instance=runtime_instance,
                 reasoning_state=reasoning_state,
                 action_decision=action_decision,
                 query_type=plan.query_type,
             )
             if action_decision is not None
-            else answer_agent.answer(instance=instance, reasoning_state=reasoning_state, query_type=plan.query_type)
+            else answer_agent.answer(instance=runtime_instance, reasoning_state=reasoning_state, query_type=plan.query_type)
         )
         self._save_prediction(dataset_name, instance.instance_id, answer_result)
+        self._save_prompt_audit(dataset_name, instance.instance_id, answer_result)
         self._append_official_prediction(official_predictions_path, instance, answer_result)
         if self.stage == "answer":
             return
@@ -601,6 +640,7 @@ class GovMemRunner:
         self._save_retrieval(dataset_name, instance.instance_id, result.retrieval_result)
         self._save_reasoning(dataset_name, instance.instance_id, result.reasoning_state)
         self._save_prediction(dataset_name, instance.instance_id, result.answer_result)
+        self._save_prompt_audit(dataset_name, instance.instance_id, result.answer_result)
         self._append_official_prediction(official_predictions_path, instance, result.answer_result)
         case_result = evaluator.evaluate_case(
             instance=instance,
@@ -640,10 +680,16 @@ class GovMemRunner:
         path = self.output_dir / "predictions" / dataset_name / f"{instance_id}.json"
         write_json(path, answer_result)
 
+    def _save_prompt_audit(self, dataset_name: str, instance_id: str, answer_result) -> None:
+        audit = (getattr(answer_result, "raw_response", {}) or {}).get("prompt_audit")
+        if not isinstance(audit, dict):
+            return
+        path = self.output_dir / "prompt_audit" / dataset_name / f"{instance_id}.json"
+        write_json(path, audit)
+
     def _append_official_prediction(self, path: Path, instance: MemoryInstance, answer_result) -> None:
-        # Official benchmark scoring is text-based. Exporting debug-heavy structured
-        # payloads can create false privacy leaks because the scorer scans both
-        # `answer` and `answer_structured` as flat text.
+        # Export the exact context exposed to the answer model for the official
+        # prompt-context audit. Other debug payloads stay in sidecar files.
         row = {
             "checkpoint_id": instance.instance_id,
             "action": answer_result.action,
@@ -651,6 +697,29 @@ class GovMemRunner:
             "answer_structured": {},
             "used_record_ids": answer_result.used_memory_ids,
         }
+        prompt_audit = (getattr(answer_result, "raw_response", {}) or {}).get("prompt_audit")
+        if isinstance(prompt_audit, dict):
+            answer_prompt = prompt_audit.get("answer_prompt")
+            runtime_prompt_present = isinstance(answer_prompt, dict) and "context_text" in answer_prompt
+            memory_audit = {
+                "schema_version": 1,
+                "audit_status": str(prompt_audit.get("audit_status") or "runtime_answer_prompt"),
+                "prompt_context": {
+                    "source": "answer_prompt.context_text" if runtime_prompt_present else "no_runtime_answer_prompt",
+                    "text": str(answer_prompt.get("context_text") or "") if runtime_prompt_present else "",
+                },
+            }
+            stage2 = prompt_audit.get("stage2_rerank_prompt")
+            stage2_values = stage2 if isinstance(stage2, list) else [stage2]
+            memory_audit["stage2_rerank_contexts"] = [
+                {
+                    "stage": str(item.get("stage") or "stage2_rerank"),
+                    "text": str(item.get("context_text") or ""),
+                }
+                for item in stage2_values
+                if isinstance(item, dict) and "context_text" in item
+            ]
+            row["memory_audit"] = memory_audit
         append_jsonl(path, row)
 
     def _save_debug_case(
@@ -721,6 +790,9 @@ class GovMemRunner:
                 "api_base": str(judge_config.get("api_base") or self.config["llm"].get("api_base") or ""),
                 "api_key_env": str(judge_config.get("api_key_env") or self.config["llm"].get("api_key_env") or ""),
                 "concurrency": int(judge_config.get("concurrency", 4)),
+                # GateMem paper main tables do not apply the optional
+                # post-hoc action gate; strict gating remains opt-in.
+                "gate_by_action": bool(judge_config.get("gate_by_action", False)),
             }
             write_json(out_dir / "judge_config.json", judge_settings)
             run_official_scorer(
@@ -736,7 +808,21 @@ class GovMemRunner:
                 judge_api_base=judge_settings["api_base"] or None,
                 judge_api_key_env=judge_settings["api_key_env"] or None,
                 judge_concurrency=judge_settings["concurrency"],
+                gate_by_action=judge_settings["gate_by_action"],
             )
+            audit_summary = audit_prompt_contexts(
+                audit_dir=self.output_dir / "prompt_audit" / self.dataset_name,
+                instances=getattr(self, "_benchmark_instances", []),
+            )
+            write_json(out_dir / "prompt_context_audit.json", audit_summary)
+            summary_path = out_dir / "summary.json"
+            if summary_path.exists():
+                summary = read_json(summary_path)
+                if isinstance(summary, dict):
+                    summary["prompt_context_audit"] = {
+                        key: value for key, value in audit_summary.items() if key != "rows"
+                    }
+                    write_json(summary_path, summary)
             self._write_benchmark_paper_metrics(out_dir=out_dir)
             self.logger.info("Official benchmark scorer completed: %s", out_dir)
         except Exception as exc:
@@ -752,12 +838,24 @@ class GovMemRunner:
         utility = float(summary.get("utility_accuracy", 0.0))
         access = float(summary.get("privacy_leakage_rate", 0.0))
         forgetting = float(summary.get("deletion_leakage_rate", 0.0))
+        context_audit = dict(summary.get("prompt_context_audit") or {})
+        context_coverage = float(context_audit.get("audit_coverage_rate", 0.0))
+        context_complete = context_coverage >= 1.0
         paper_metrics = {
             "U": utility,
             "A": access,
             "F": forgetting,
             "OR": float(summary.get("over_refusal_rate", 0.0)),
             "MGS": utility * (1.0 - access) * (1.0 - forgetting),
+            "privacy_context_leakage": (
+                float(context_audit.get("privacy_context_leakage_rate", 0.0)) if context_complete else None
+            ),
+            "deletion_context_leakage": (
+                float(context_audit.get("deletion_context_leakage_rate", 0.0)) if context_complete else None
+            ),
+            "context_audit_coverage": context_coverage,
+            "context_audit_status": "complete" if context_complete else "incomplete_or_unknown",
+            "gated_by_action": bool(summary.get("llm_judge", {}).get("gated_by_action", True)),
             "source_summary": str(summary_path),
         }
         write_json(out_dir / "paper_metrics.json", paper_metrics)

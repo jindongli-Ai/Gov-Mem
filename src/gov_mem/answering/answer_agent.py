@@ -179,23 +179,34 @@ class AnsweringAgent:
                 action_decision=action_decision,
             )
         try:
+            user_prompt = build_answering_user_prompt(
+                question=instance.question,
+                asking_user_id=asking_user_id,
+                choices=instance.choices,
+                selected_evidence=evidence_rows,
+                reasoning_trace=reasoning_state.reasoning_trace + [
+                    f"Action decision: {action_decision.action} / {action_decision.answer_mode}"
+                ],
+                conclusion_hint=action_decision.rationale_summary or reasoning_state.conclusion_hint,
+                skill_text=self.skill_text,
+                retrieved_lessons=lessons,
+            )
             raw = self.llm_client.chat_json(
                 model=self.model_name,
                 system_prompt=ANSWERING_SYSTEM_PROMPT,
-                user_prompt=build_answering_user_prompt(
-                    question=instance.question,
-                    asking_user_id=asking_user_id,
-                    choices=instance.choices,
-                    selected_evidence=evidence_rows,
-                    reasoning_trace=reasoning_state.reasoning_trace + [
-                        f"Action decision: {action_decision.action} / {action_decision.answer_mode}"
-                    ],
-                    conclusion_hint=action_decision.rationale_summary or reasoning_state.conclusion_hint,
-                    skill_text=self.skill_text,
-                    retrieved_lessons=lessons,
-                ),
+                user_prompt=user_prompt,
             )
             if isinstance(raw, dict):
+                raw_response = dict(raw)
+                raw_response["prompt_audit"] = {
+                    "schema_version": 1,
+                    "answer_prompt": {
+                        "system_prompt": ANSWERING_SYSTEM_PROMPT,
+                        "user_prompt": user_prompt,
+                        "context_text": str(evidence_rows),
+                    },
+                    "stage2_rerank_prompt": None,
+                }
                 return AnswerResult(
                     prediction=raw.get("prediction"),
                     answer_text=str(raw.get("answer_text") or ""),
@@ -205,7 +216,7 @@ class AnsweringAgent:
                     answer_structured=dict(raw.get("answer_structured", {}) or {}),
                     redacted_memory_ids=[str(x) for x in raw.get("redacted_memory_ids", [])],
                     refused_memory_ids=[str(x) for x in raw.get("refused_memory_ids", [])],
-                    raw_response=raw,
+                    raw_response=raw_response,
                 )
         except LLMClientUnavailableError:
             pass

@@ -10,7 +10,7 @@ from gov_mem.memory.amem_memory import (
     _ground_record_annotations,
     _materialize_record_atom,
 )
-from gov_mem.governance_runtime.graph_slot_renderer import render_graph_authorized_slots
+from gov_mem.legacy.graph_slot_renderer import render_graph_authorized_slots
 
 
 def main() -> None:

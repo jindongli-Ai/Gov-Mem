@@ -170,6 +170,19 @@ class CheckpointBenchmarkAdapter(BaseDatasetAdapter):
 
     @staticmethod
     def _visible_messages_until_checkpoint(turns: list[dict], as_of_turn_id: str) -> list[dict]:
+        target = str(as_of_turn_id or "").strip()
+        if not target:
+            raise ValueError("Checkpoint is missing as_of_turn_id; refusing to expose episode history.")
+
+        turn_ids = [str(turn.get("turn_id") or "") for turn in turns]
+        if len(turn_ids) != len(set(turn_ids)):
+            raise ValueError("Episode contains duplicate turn_id values; refusing unsafe time truncation.")
+        if target not in turn_ids:
+            raise ValueError(
+                f"as_of_turn_id={target!r} was not found in the episode; "
+                "refusing to expose the full episode as a fallback."
+            )
+
         visible: list[dict] = []
         for turn in turns:
             speaker = turn.get("speaker") or {}
@@ -183,7 +196,7 @@ class CheckpointBenchmarkAdapter(BaseDatasetAdapter):
                     "turn_kind": turn.get("turn_kind"),
                 }
             )
-            if str(turn.get("turn_id")) == as_of_turn_id:
+            if str(turn.get("turn_id")) == target:
                 break
         return visible
 

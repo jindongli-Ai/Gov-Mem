@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from gov_mem.governance_runtime.semantic_alignment import _candidate_slots
+from gov_mem.legacy.semantic_alignment import _candidate_slots
 from gov_mem.graph.graph_builder import GovernedGraphBuilder
 from gov_mem.memory.governed_atom import GovernedMemoryAtom
 

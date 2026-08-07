@@ -7,7 +7,7 @@ Timestamp: 2026-07-06 17:20:58
 - Suite manifest:
   `experiments/gatemem_suites/gatemem_smoke40.json`
 - Result directory:
-  `outputs/cross_domain_partial_balanced40_v10_20260706_frameworkrefresh`
+  `outputs/2026-07-06-17-20-59_cross_domain_partial_balanced40_v10_frameworkrefresh`
 - Config:
   `configs/govmem_gpt5_nano.yaml`
 - Experiment mode:
@@ -46,15 +46,15 @@ The following table follows the GateMem paper's reporting semantics:
 ## Source Files
 
 - suite summary:
-  `outputs/cross_domain_partial_balanced40_v10_20260706_frameworkrefresh/suite_summary.json`
+  `outputs/2026-07-06-17-20-59_cross_domain_partial_balanced40_v10_frameworkrefresh/suite_summary.json`
 - medical summary:
-  `outputs/cross_domain_partial_balanced40_v10_20260706_frameworkrefresh/medical/official_eval/gatemem/medical/summary.json`
+  `outputs/2026-07-06-17-20-59_cross_domain_partial_balanced40_v10_frameworkrefresh/medical/official_eval/gatemem/medical/summary.json`
 - office summary:
-  `outputs/cross_domain_partial_balanced40_v10_20260706_frameworkrefresh/office/official_eval/gatemem/office/summary.json`
+  `outputs/2026-07-06-17-20-59_cross_domain_partial_balanced40_v10_frameworkrefresh/office/official_eval/gatemem/office/summary.json`
 - education summary:
-  `outputs/cross_domain_partial_balanced40_v10_20260706_frameworkrefresh/education/official_eval/gatemem/education/summary.json`
+  `outputs/2026-07-06-17-20-59_cross_domain_partial_balanced40_v10_frameworkrefresh/education/official_eval/gatemem/education/summary.json`
 - household summary:
-  `outputs/cross_domain_partial_balanced40_v10_20260706_frameworkrefresh/household/official_eval/gatemem/household/summary.json`
+  `outputs/2026-07-06-17-20-59_cross_domain_partial_balanced40_v10_frameworkrefresh/household/official_eval/gatemem/household/summary.json`
 
 ## Short Interpretation
 

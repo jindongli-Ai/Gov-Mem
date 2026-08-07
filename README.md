@@ -2,6 +2,93 @@
 
 This workspace uses GateMem as the default benchmark dataset for Gov-Mem.
 
+## Current Research Snapshot (2026-08-07)
+
+This section records the current paper-facing Gov-Mem framework and its latest
+full-benchmark results. Treat the commit containing this snapshot as a
+recovery point: later framework changes should be committed separately, so a
+regression can be diagnosed or the previous version can be restored from Git
+history.
+
+### Canonical paper-facing method
+
+The current canonical method is the frozen Gov-Mem v3 pipeline,
+`rag_naive_v3_typed_rerank`:
+
+1. GateMem-compatible Stage 1 RAG-Naive retrieval over visible dialogue turns,
+   using the raw query and `top_k=20`.
+2. Stage 2 typed, constrained evidence reranking over retrieved evidence only.
+   The reranker binds query fields to typed source evidence, resolves current
+   versus stale/deleted values, and preserves field-level answer boundaries.
+3. Source-bound answer realization with explicit deletion and sensitive-field
+   boundaries.
+
+The formal main protocol disables the complete-transcript/long-context ledger,
+gold feedback, and runtime experience updates. The richer
+`rag_policy_amem`/governance-runtime branch remains in the repository as an
+extended architecture and research branch; it must not be silently mixed with
+the frozen v3 main results.
+
+### Latest strict full-benchmark performance
+
+These results cover all 2,218 GateMem checkpoints: Medical 579, Office 547,
+Education 540, and Household 552. All four runs use the same checkpoint
+manifest, Stage 1 retrieval, embedding model (`text-embedding-3-small`), Stage
+2 configuration, and official evaluator (`gpt-4o`, temperature 0.0). Only the
+Gov-Mem base LLM changes. The official GateMem scorer uses
+`gate_by_action=false`.
+
+`U` is utility accuracy, `A` is answer-level access-control/privacy leakage,
+and `F` is answer-level active-forgetting/deletion leakage. The headline score
+is `MGS = U * (1 - A) * (1 - F)`, averaged across the four domain MGS values.
+Action accuracy and over-refusal are supplementary metrics.
+
+| Gov-Mem base LLM | Medical MGS | Office MGS | Education MGS | Household MGS | Four-domain avg. MGS |
+|---|---:|---:|---:|---:|---:|
+| GPT-4o-mini | 32.89% | 43.35% | 25.66% | 34.39% | **34.07%** |
+| GPT-5-mini | 42.35% | 65.26% | 27.73% | 43.09% | **44.61%** |
+| GPT-5.4 | **56.88%** | 62.61% | 23.14% | 38.21% | **45.21%** |
+| Gemini-2.5-Flash-Lite | 49.17% | **63.82%** | **30.43%** | 37.31% | **45.18%** |
+
+GPT-5.4 is currently the best of these four tested base LLMs by average MGS,
+with an absolute improvement of 11.14 percentage points over GPT-4o-mini.
+The full set is important: smaller 40-, 200-, or 800-checkpoint diagnostics
+are not interchangeable with these results.
+
+An additional 2,218-checkpoint GPT-5.4-mini run reached 41.15% average MGS and
+is retained as a supplementary model comparison, not in the four-model table
+above.
+
+### Safety and interpretation boundaries
+
+The official MGS is an answer-level benchmark metric. It is not equivalent to
+zero exposure of restricted evidence in intermediate prompts. The independent
+context audit for the strict runs reports non-zero privacy/deletion context
+exposure in particular for Medical and Household. Therefore this repository
+does not claim that the current v3 system has zero end-to-end leakage.
+
+The latest full Gov-Mem v3 results are not a complete four-model, full-set
+paired comparison against locally regenerated plain RAG-Naive predictions.
+GateMem's released GPT-5.4 RAG-Naive reference Utility values are Medical
+64.8%, Office 74.0%, Education 32.8%, and Household 51.1%. These are Utility
+references only and should not be presented as MGS comparisons. A future
+paper table must report the exact baseline protocol, checkpoint manifest,
+model, evaluator, and whether the comparison is on U, A, F, or MGS.
+
+### Main result artifacts
+
+- [GPT-5.4 strict full result](experiments/result/2026-08-05-22-53-20_Gov-Mem_v3_full_all_2218_openlux_gpt54_strict.md)
+- [GPT-5-mini strict full result](experiments/result/2026-08-05-23-57-05_Gov-Mem_v3_full_all_2218_openlux_gpt5mini_strict.md)
+- [Gemini-2.5-Flash-Lite strict full result](experiments/result/2026-08-06-01-41-13_Gov-Mem_v3_full_all_2218_openlux_gemini25flashlite_strict.md)
+- [GPT-4o-mini strict full result](experiments/result/2026-08-05_Gov-Mem_v3_paper_compatible_2218_openlux_gpt4omini_strict.md)
+- [GPT-5.4-mini supplementary full result](experiments/result/2026-08-05_Gov-Mem_v3_full_all_2218_openlux_gpt54mini_strict.md)
+- [Current implementation and contribution reconstruction](report.md)
+
+When reporting a new result, record the commit, config, model/provider,
+manifest, evaluator, and whether long-context or gold-derived feedback was
+enabled. Commit improvements as new history points instead of overwriting the
+current snapshot.
+
 ## Dataset
 
 The raw GateMem dataset is stored under `dataset/GateMem`.
@@ -28,11 +115,14 @@ Gov-Mem should use the official GateMem scorer for reported benchmark results.
 This keeps evaluation aligned with the GateMem paper and its released metric
 definitions.
 
-## Latest Frozen Framework Performance
+## Historical Frozen Framework Diagnostic
 
 The current frozen Gov-Mem v3 framework uses RAG-Naive Retrieval in Stage 1 and
-typed, constrained reasoning reranking with a long-context field ledger in Stage
-2. The table below reports the strict combined 800-checkpoint evaluation: 50
+typed, constrained reasoning reranking over retrieved evidence in Stage 2. The
+table below preserves an earlier strict combined 800-checkpoint diagnostic for
+traceability. That run used the long-context field ledger and therefore is not
+directly comparable to the GateMem paper main table or to the formal protocol
+below.
 checkpoints from the earlier 200-case run plus 150 new checkpoints per domain.
 The framework code and all experiment settings were unchanged across the two
 runs.
@@ -56,13 +146,21 @@ leakage, `F` is answer-level deletion leakage, `Action` is action accuracy, and
 | New 600-case slice | 35.13% |
 | Strict combined 800-case result | **40.65%** |
 
-Configuration for the reported result:
+Configuration for this historical diagnostic:
 
 - Memory-system provider/model: OpenLux, `gpt-4o-mini-2024-07-18`
 - Stage 1 embedding provider/model: OpenLux, `text-embedding-3-small`
 - Official GateMem judge provider/model: OpenLux, `gpt-4o`
 - Stage 1 retrieval: frozen RAG-Naive, `top_k=20`
-- Stage 2: typed reasoning rerank, long-context field ledger, source-bound safe wording
+- Stage 2: typed reasoning rerank plus long-context field ledger, source-bound safe wording
+- This result must be labeled as a strict/ablation diagnostic, not as a GateMem paper-compatible main result
+
+Formal GateMem-compatible Gov-Mem evaluations use the official scorer with
+`gate_by_action=false`, memory-system temperature `0.2`, judge temperature
+`0.0`, `text-embedding-3-small`, turn-level RAG-Naive retrieval with
+`top_k=20`, and the retrieved-evidence-only Stage 2 configuration
+`configs/rag_naive_v3_openlux_gpt4omini_embedding3small_pure.yaml`. Context-audit
+rates are reported separately because they are not part of GateMem's paper MGS.
 
 The detailed privacy/deletion diagnostics and Overleaf-ready LaTeX tables are
 available in [`experiments/result/2026-08-03_rag_naive_v3_stage2_generalization_800_overleaf_tables.tex`](experiments/result/2026-08-03_rag_naive_v3_stage2_generalization_800_overleaf_tables.tex).
@@ -112,6 +210,12 @@ If you enable the official LLM judge or retrieval-heavy baselines, the full
 `third_party/GateMem-official/requirements.txt` stack may also be needed.
 
 ## Gov-Mem Pipeline
+
+Formal Gov-Mem evaluations use retrieved evidence only in Stage 2. In
+particular, `long_context_field_ledger.enabled` must remain `false`: that
+optional component reads the complete visible checkpoint transcript and is
+reserved for explicitly labeled Long-Context ablations. The formal Gemini
+configuration is `configs/rag_naive_v3_openlux_gemini25flashlite_embedding3small_pure.yaml`.
 
 Main entry:
 
