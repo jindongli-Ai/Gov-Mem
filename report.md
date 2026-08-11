@@ -31,14 +31,15 @@ operational tracks:
   constrained reranking and answer-boundary layer over only the retrieved
   evidence. This is the track used by the latest paper-compatible full result
   in `experiments/result/2026-08-05_Gov-Mem_v3_paper_compatible_2218_openlux_gpt4omini_strict.md`.
-- **Full Gov-Mem governance track:** `rag_policy_amem`. It adds query semantic
+- **Gov-Mem-Symbolic governance track:** `govmem_symbolic`. It adds query semantic
   contracts, source localization, atomic memory, information-owner and
   principal-relation ledgers, governed atoms/policy frames, an optional
   governed graph, dual-channel retrieval, current-state ledgers, slot-level
   authorization certificates, action decisions, and typed realization. This
   is the richer architecture represented by `configs/gov_mem_v0_strong.yaml`
   through `configs/gov_mem_v4_skill_runtime_with_updates.yaml` and the
-  governance-contract configurations.
+  governance-contract configurations. The old `rag_policy_amem` string is
+  retained only as a backward-compatible mode alias.
 
 The first track is experimentally clean and benchmark-comparable. The second
 track is the main candidate for a novel systems contribution, but its claims
@@ -89,7 +90,7 @@ flowchart TD
     E -->|rag_naive| G[RAG-Naive baseline]
     E -->|rag_naive_v3_typed_rerank| H[Formal frozen Gov-Mem v3]
     E -->|rag_policy| I[RAG-Policy]
-    E -->|rag_policy_amem| J[Full Gov-Mem + A-Mem]
+    E -->|govmem_symbolic| J[Gov-Mem-Symbolic]
     E -->|govmem_rag_policy_incremental| K[Incremental state renderer]
     E -->|stateful_policy_reasoning| L[State-first policy backbone]
     F --> M[Save prediction and debug artifacts]
@@ -161,10 +162,11 @@ no_memory       requested value unavailable/deleted/unresolved
 The answer is written to the prediction file and exported to the official
 scorer. Prompt audits record the actual answer context for leakage analysis.
 
-## 5. Full Gov-Mem Pipeline Candidate: `rag_policy_amem`
+## 5. Gov-Mem-Symbolic Pipeline: `govmem_symbolic`
 
 The following is the richer architecture in
-`src/gov_mem/backbones/rag_policy_amem.py`. The implementation is deliberately
+`src/gov_mem/backbones/rag_policy_amem.py` (the legacy implementation path).
+The implementation is deliberately
 closed-set: later stages may narrow or reorganize already selected evidence,
 but they should not invent a new source or use hidden evaluation metadata to
 authorize disclosure.
@@ -467,7 +469,7 @@ official judge metrics and an independent deterministic safety audit.
 | CLI and mode dispatch | `run_govmem.py`, `src/gov_mem/pipeline.py` |
 | Checkpoint truncation and runtime isolation | `src/gov_mem/data/adapters.py`, `src/gov_mem/governance_runtime/leakage_guard.py` |
 | Formal v3 retrieval and Stage 2 | `src/gov_mem/backbones/rag_naive.py`, `src/gov_mem/backbones/stage2_typed_rerank.py` |
-| Full Gov-Mem+A-Mem | `src/gov_mem/backbones/rag_policy_amem.py` |
+| Gov-Mem-Symbolic runtime (legacy implementation path) | `src/gov_mem/backbones/rag_policy_amem.py` |
 | Atomic memory | `src/gov_mem/memory/amem_memory.py`, `src/gov_mem/memory/governed_atom.py` |
 | Query semantics and slot plan | `src/gov_mem/planning/query_planner.py`, `src/gov_mem/query_semantics.py`, `src/gov_mem/reasoning/operators.py` |
 | Owner/relation/policy | `src/gov_mem/governance_runtime/information_owner_ledger.py`, `principal_relation_ledger.py`, `policy_frames.py` |
@@ -484,7 +486,7 @@ and the repository, do the following:
 
 1. Reconstruct the single canonical Gov-Mem method. Resolve the apparent
    tension between the formal frozen `rag_naive_v3_typed_rerank` track and the
-   richer `rag_policy_amem` track. State which one should be the paper's main
+   richer `govmem_symbolic` track. State which one should be the paper's main
    method, and what must be called an ablation or an evolution branch.
 2. Produce a contribution taxonomy with three labels for every proposed item:
    **defensible core contribution**, **supporting mechanism**, or
@@ -515,7 +517,7 @@ and the repository, do the following:
 The output should prioritize a coherent, falsifiable story over listing every
 class in the repository. Treat the latest 2218-checkpoint v3 result as evidence
 for the frozen benchmark track only; do not use it as evidence for the full
-`rag_policy_amem` architecture unless the matching configuration and ablations
+`govmem_symbolic` architecture unless the matching configuration and ablations
 are available.
 
 ## 10. Bottom Line for the Author

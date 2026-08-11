@@ -10,10 +10,15 @@ recovery point: later framework changes should be committed separately, so a
 regression can be diagnosed or the previous version can be restored from Git
 history.
 
-### Canonical paper-facing method
+### Canonical symbolic experiment method
 
-The current canonical method is the frozen Gov-Mem v3 pipeline,
-`rag_naive_v3_typed_rerank`:
+The canonical symbolic method is **Gov-Mem-Symbolic**, selected by the
+`govmem_symbolic` experiment mode. It is the neuro-symbolic governance track
+with typed memory, policy/state ledgers, governed evidence, and slot-level
+authorization. The historical `rag_policy_amem` mode is retained only as a
+backward-compatible alias for reproducing old runs.
+
+The separate frozen benchmark track is `rag_naive_v3_typed_rerank`:
 
 1. GateMem-compatible Stage 1 RAG-Naive retrieval over visible dialogue turns,
    using the raw query and `top_k=20`.
@@ -23,19 +28,21 @@ The current canonical method is the frozen Gov-Mem v3 pipeline,
 3. Source-bound answer realization with explicit deletion and sensitive-field
    boundaries.
 
-The formal main protocol disables the complete-transcript/long-context ledger,
-gold feedback, and runtime experience updates. The richer
-`rag_policy_amem`/governance-runtime branch remains in the repository as an
-extended architecture and research branch; it must not be silently mixed with
-the frozen v3 main results.
+The formal frozen benchmark protocol disables the complete-transcript/
+long-context ledger, gold feedback, and runtime experience updates. Its results
+must not be labeled as Gov-Mem-Symbolic results.
 
-### Latest strict full-benchmark performance
+### Latest frozen typed-rerank full-benchmark performance
+
+The following table is the frozen `rag_naive_v3_typed_rerank` track, not the
+Gov-Mem-Symbolic track. A new Symbolic full-benchmark table must be generated
+under `govmem_symbolic` after the unified Symbolic configuration is frozen.
 
 These results cover all 2,218 GateMem checkpoints: Medical 579, Office 547,
 Education 540, and Household 552. All seven runs use the same checkpoint
 manifest, Stage 1 retrieval, embedding model (`text-embedding-3-small`), Stage
 2 configuration, and official evaluator (`gpt-4o`, temperature 0.0). Only the
-Gov-Mem base LLM changes. The official GateMem scorer uses
+base LLM changes. The official GateMem scorer uses
 `gate_by_action=false`.
 
 `U` is utility accuracy, `A` is answer-level access-control/privacy leakage,
@@ -43,7 +50,7 @@ and `F` is answer-level active-forgetting/deletion leakage. The headline score
 is `MGS = U * (1 - A) * (1 - F)`, averaged across the four domain MGS values.
 Action accuracy and over-refusal are supplementary metrics.
 
-| Gov-Mem base LLM | Medical MGS | Office MGS | Education MGS | Household MGS | Four-domain avg. MGS |
+| Frozen typed-rerank base LLM | Medical MGS | Office MGS | Education MGS | Household MGS | Four-domain avg. MGS |
 |---|---:|---:|---:|---:|---:|
 | GPT-4o-mini | 32.89% | 43.35% | 25.66% | 34.39% | **34.07%** |
 | GPT-5-mini | 42.35% | 65.26% | 27.73% | 43.09% | **44.61%** |
@@ -73,7 +80,7 @@ context audit for the strict runs reports non-zero privacy/deletion context
 exposure in particular for Medical and Household. Therefore this repository
 does not claim that the current v3 system has zero end-to-end leakage.
 
-The latest full Gov-Mem v3 results are not a complete four-model, full-set
+The latest frozen typed-rerank results are not a complete four-model, full-set
 paired comparison against locally regenerated plain RAG-Naive predictions.
 GateMem's released GPT-5.4 RAG-Naive reference Utility values are Medical
 64.8%, Office 74.0%, Education 32.8%, and Household 51.1%. These are Utility
@@ -286,7 +293,7 @@ python3 run_govmem.py \
   --data_path dataset/GateMem/gatemem/data/medical \
   --output_dir outputs/govmem_gpt5_nano_medical \
   --config configs/govmem_gpt5_nano.yaml \
-  --experiment_mode rag_policy_amem \
+  --experiment_mode govmem_symbolic \
   --max_instances 30 \
   --stage all
 ```
@@ -297,7 +304,7 @@ python3 run_govmem.py \
   --data_path dataset/GateMem/gatemem/data/medical \
   --output_dir outputs/govmem_deepseek_v4_flash_medical \
   --config configs/govmem_deepseek_v4_flash.yaml \
-  --experiment_mode rag_policy_amem \
+  --experiment_mode govmem_symbolic \
   --max_instances 30 \
   --stage all
 ```
@@ -311,7 +318,7 @@ python3 run_govmem.py \
   --data_path dataset/GateMem/gatemem/data/medical \
   --output_dir outputs/govmem_runtime_override \
   --config configs/govmem_default.yaml \
-  --experiment_mode rag_policy_amem \
+  --experiment_mode govmem_symbolic \
   --base_model DeepSeek-V4-Flash \
   --llm_provider yunwu \
   --llm_api_base https://yunwu.ai/v1 \
@@ -328,7 +335,7 @@ python3 run_govmem.py \
   --data_path dataset/GateMem/gatemem/data/medical \
   --output_dir outputs/govmem_role_override \
   --config configs/govmem_default.yaml \
-  --experiment_mode rag_policy_amem \
+  --experiment_mode govmem_symbolic \
   --base_model Qwen3.5-plus \
   --role_model action_decision=gpt-5 \
   --role_model answering=gpt-5 \

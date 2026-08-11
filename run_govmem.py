@@ -71,6 +71,8 @@ def main() -> None:
             "rag_naive",
             "rag_naive_v3_typed_rerank",
             "rag_policy",
+            "govmem_symbolic",
+            # Legacy name retained so historical configs and outputs remain reproducible.
             "rag_policy_amem",
             "govmem_rag_policy_incremental",
             "govmem_structured_old",

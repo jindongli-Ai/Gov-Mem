@@ -1,5 +1,8 @@
 # Gov-Mem v3 Full Evaluation with GPT-5.4: 2218 Checkpoints
 
+Protocol label: `rag_naive_v3_typed_rerank` frozen typed-rerank track; not
+`govmem_symbolic`.
+
 This report records the full evaluation of the current Gov-Mem framework. It
 is a Gov-Mem result, not a RAG-Naive baseline result.
 
@@ -70,4 +73,3 @@ official 45.21% MGS should not be interpreted as zero context leakage.
 - Per-domain official summaries: `outputs/2026-08-05-22-03-28_Gov-Mem_v3_full_all_2218_openlux_gpt54_v1/<domain>/official_eval/checkpoint_benchmark/<domain>/summary.json`
 - Frozen manifest: `experiments/gatemem_suites/rag_naive_v3_full_all_2218_seed20260803.json`
 - Configuration: `configs/rag_naive_v3_openlux_gpt4omini_embedding3small_pure.yaml` with runtime override `--base_model gpt-5.4`
-

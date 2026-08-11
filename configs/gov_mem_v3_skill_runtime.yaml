@@ -3,7 +3,7 @@ project:
   seed: 42
 
 experiment:
-  mode: rag_policy_amem
+  mode: govmem_symbolic
 
 llm:
   provider: yunwu
@@ -123,5 +123,5 @@ runner:
   data_root: dataset/GateMem/gatemem/data
   output_dir: outputs/gov_mem_v3_skill_runtime
   stage: all
-  experiment_mode: rag_policy_amem
+  experiment_mode: govmem_symbolic
   skip_official_eval: false

@@ -1,7 +1,8 @@
-# Gov-Mem v3 Full-Benchmark Performance Summary
+# Frozen Gov-Mem v3 Typed-Rerank Full-Benchmark Performance Summary
 
 Date: 2026-08-11
 Benchmark: GateMem full benchmark, 2,218 checkpoints
+Protocol: `rag_naive_v3_typed_rerank` (not `govmem_symbolic`)
 Metric: `MGS = U * (1 - A) * (1 - F)`
 
 | Task | Base LLM | N | U | A | F | MGS |

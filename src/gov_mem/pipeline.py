@@ -457,7 +457,7 @@ class GovMemRunner:
             from gov_mem.backbones.rag_policy import RAGPolicyBackbone
 
             self._backbone = RAGPolicyBackbone(**kwargs)
-        elif self.experiment_mode == "rag_policy_amem":
+        elif self.experiment_mode in {"govmem_symbolic", "rag_policy_amem"}:
             from gov_mem.backbones.rag_policy_amem import RAGPolicyAMemBackbone
 
             self._backbone = RAGPolicyAMemBackbone(**kwargs)

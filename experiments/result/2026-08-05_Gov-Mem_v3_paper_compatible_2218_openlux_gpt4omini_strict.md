@@ -1,5 +1,8 @@
 # Gov-Mem v3 Strict GateMem Protocol, Full 2218 Checkpoints
 
+Protocol label: `rag_naive_v3_typed_rerank` frozen typed-rerank track; not
+`govmem_symbolic`.
+
 This run evaluates the complete available GateMem checkpoint set with the
 current paper-compatible Gov-Mem pipeline.
 

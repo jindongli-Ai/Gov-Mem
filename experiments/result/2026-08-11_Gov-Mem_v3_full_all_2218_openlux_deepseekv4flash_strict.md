@@ -1,5 +1,8 @@
 # Gov-Mem v3 Full Evaluation with DeepSeek-V4-Flash: 2,218 Checkpoints
 
+Protocol label: `rag_naive_v3_typed_rerank` frozen typed-rerank track; not
+`govmem_symbolic`.
+
 This dated report records the real full-benchmark evaluation completed on
 2026-08-11. It is a Gov-Mem result, not a RAG-Naive baseline result.
 
