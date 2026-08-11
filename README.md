@@ -87,6 +87,7 @@ model, evaluator, and whether the comparison is on U, A, F, or MGS.
 - [GPT-4o-mini strict full result](experiments/result/2026-08-05_Gov-Mem_v3_paper_compatible_2218_openlux_gpt4omini_strict.md)
 - [GPT-5.4-mini strict full result](experiments/result/2026-08-05_Gov-Mem_v3_full_all_2218_openlux_gpt54mini_strict.md)
 - [DeepSeek-V4-Flash strict full result (2026-08-11)](experiments/result/2026-08-11_Gov-Mem_v3_full_all_2218_openlux_deepseekv4flash_strict.md)
+- [Overleaf full performance table (2026-08-11)](experiments/result/2026-08-11_Gov-Mem_v3_full_all_2218_overleaf_performance_table.tex)
 - [Current implementation and contribution reconstruction](report.md)
 
 When reporting a new result, record the commit, config, model/provider,
