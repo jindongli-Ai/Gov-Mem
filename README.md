@@ -32,7 +32,7 @@ the frozen v3 main results.
 ### Latest strict full-benchmark performance
 
 These results cover all 2,218 GateMem checkpoints: Medical 579, Office 547,
-Education 540, and Household 552. All six runs use the same checkpoint
+Education 540, and Household 552. All seven runs use the same checkpoint
 manifest, Stage 1 retrieval, embedding model (`text-embedding-3-small`), Stage
 2 configuration, and official evaluator (`gpt-4o`, temperature 0.0). Only the
 Gov-Mem base LLM changes. The official GateMem scorer uses
@@ -51,17 +51,19 @@ Action accuracy and over-refusal are supplementary metrics.
 | GPT-5.4-mini | 47.56% | 54.43% | 24.53% | 38.07% | **41.15%** |
 | Gemini-2.5-Flash-Lite | 49.17% | **63.82%** | **30.43%** | 37.31% | **45.18%** |
 | DeepSeek-V4-Flash | **58.89%** | 61.56% | 26.88% | **47.47%** | **48.70%** |
+| Llama-3.3-70B-Instruct | 27.78% | 34.92% | 14.71% | 20.70% | 24.53% |
 
-DeepSeek-V4-Flash is currently the best of these six tested base LLMs by
+DeepSeek-V4-Flash is currently the best of these seven tested base LLMs by
 average MGS, with an absolute improvement of 14.63 percentage points over
 GPT-4o-mini. It also gives the best Medical and Household domain MGS in this
 comparison.
 The full set is important: smaller 40-, 200-, or 800-checkpoint diagnostics
 are not interchangeable with these results.
 
-GPT-5.4-mini and DeepSeek-V4-Flash are included in the main table as full-
-benchmark model comparisons. Their complete domain-level metrics and
-protocols are documented in the linked result artifacts below.
+GPT-5.4-mini, DeepSeek-V4-Flash, and Llama-3.3-70B-Instruct are included in
+the main table as full-benchmark model comparisons. Their complete
+domain-level metrics and protocols are documented in the linked result
+artifacts below.
 
 ### Safety and interpretation boundaries
 
@@ -87,6 +89,7 @@ model, evaluator, and whether the comparison is on U, A, F, or MGS.
 - [GPT-4o-mini strict full result](experiments/result/2026-08-05_Gov-Mem_v3_paper_compatible_2218_openlux_gpt4omini_strict.md)
 - [GPT-5.4-mini strict full result](experiments/result/2026-08-05_Gov-Mem_v3_full_all_2218_openlux_gpt54mini_strict.md)
 - [DeepSeek-V4-Flash strict full result (2026-08-11)](experiments/result/2026-08-11_Gov-Mem_v3_full_all_2218_openlux_deepseekv4flash_strict.md)
+- [Llama-3.3-70B-Instruct strict full result (2026-08-11)](experiments/result/2026-08-11_Gov-Mem_v3_full_all_2218_openlux_llama33_70b_instruct_strict.md)
 - [Full U/A/F/MGS Markdown summary table (2026-08-11)](experiments/result/2026-08-11_Gov-Mem_v3_full_all_2218_performance_summary.md)
 - [Current implementation and contribution reconstruction](report.md)
 

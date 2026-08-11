@@ -1,0 +1,24 @@
+% Gov-Mem v3 full GateMem evaluation completed on 2026-08-11.
+% Base LLM: OpenLux llama-3.3-70b-instruct; N = 2,218.
+% MGS is computed per domain as U(1-A)(1-F), then averaged across domains.
+
+\begin{table}[t]
+\centering
+\caption{Gov-Mem performance with Llama-3.3-70B-Instruct on the full
+2,218-checkpoint GateMem benchmark. $U$, $A$, and $F$ denote utility,
+answer-level privacy leakage, and answer-level deletion/staleness leakage;
+MGS is computed per domain as $U(1-A)(1-F)$.}
+\label{tab:govmem-llama33-70b-full}
+\begin{tabular}{lrrrr}
+\toprule
+Task & $U$ (\%) & $A$ (\%) & $F$ (\%) & MGS (\%) \\
+\midrule
+Medical & 39.05 & 18.75 & 12.43 & 27.78 \\
+Office & 36.36 & 1.75 & 2.25 & 34.92 \\
+Education & 17.22 & 11.11 & 3.89 & 14.71 \\
+Household & 23.91 & 12.50 & 1.09 & 20.70 \\
+\midrule
+\textbf{Four-domain average} & & & & \textbf{24.53} \\
+\bottomrule
+\end{tabular}
+\end{table}
