@@ -1,0 +1,70 @@
+# Gov-Mem v3 Full Evaluation with DeepSeek-V4-Flash: 2,218 Checkpoints
+
+This dated report records the real full-benchmark evaluation completed on
+2026-08-11. It is a Gov-Mem result, not a RAG-Naive baseline result.
+
+## Evaluation Protocol
+
+| Item | Setting |
+|---|---|
+| Checkpoints | 2,218 total: Medical 579, Office 547, Education 540, Household 552 |
+| Memory-system provider / base LLM | OpenLux / `deepseek-v4-flash` |
+| Memory-system temperature / output limit | `0.2` / `4096` |
+| Stage 1 retrieval | Frozen GateMem-compatible RAG-Naive turn retrieval, raw query, top-20 |
+| Stage 1 embedding | OpenLux `text-embedding-3-small` |
+| Stage 2 | Gov-Mem typed constrained rerank over retrieved evidence only |
+| Long-context transcript / ledger | Disabled |
+| Gold feedback / experience bank | Disabled for the clean benchmark runtime |
+| Official evaluator provider / LLM | OpenLux / `gpt-4o` |
+| Official evaluator temperature / output limit | `0.0` / `4096` |
+| `gate_by_action` | `false`, matching GateMem paper main protocol |
+| Prediction completeness | 2,218/2,218; unique checkpoint IDs verified |
+| Official judge completeness | 2,218/2,218; parse failure rate 0% |
+| Context-audit coverage | 2,218/2,218 (100%) |
+| Parallel execution | 4 domains, up to 30 episode shards concurrently, isolated OpenLux keys |
+| Key-pool execution | 30-key pool for memory system, embeddings, and official evaluation |
+
+The memory-system base model is the only model changed relative to the
+paper-compatible Gov-Mem v3 comparison. Stage 1, Stage 2, embedding model,
+dataset manifest, and official evaluator remain fixed. A transient OpenLux
+embedding timeout interrupted one shard during prediction; the run was
+resumed in the same output directory, and only incomplete checkpoints were
+reprocessed before official scoring.
+
+## Official Paper Metrics
+
+`MGS = U * (1 - A) * (1 - F)`. The reported overall MGS is the arithmetic
+mean of the four domain MGS values. `A` and `F` are the official answer-level
+privacy and deletion/staleness leakage rates. Action accuracy and
+over-refusal are reported for completeness and are not multiplied into MGS.
+
+| Domain | Checkpoints | U | A | F | MGS | Action | OR |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Medical | 579 | 81.90% | 22.40% | 7.34% | **58.89%** | 83.59% | 5.71% |
+| Office | 547 | 64.29% | 2.92% | 1.35% | **61.56%** | 84.83% | 11.69% |
+| Education | 540 | 32.78% | 10.00% | 8.89% | **26.88%** | 72.04% | 16.11% |
+| Household | 552 | 57.61% | 15.76% | 2.17% | **47.47%** | 71.01% | 14.13% |
+| **Four-domain average** | **2,218** | | | | **48.70%** | | |
+
+## Independent Context Audit
+
+The official answer-level metrics must be distinguished from context exposure.
+The runtime prompt audit covered every checkpoint. These context rates are
+reported separately and are not substituted for the paper metrics above.
+
+| Domain | Privacy context exposure | Deletion context exposure |
+|---|---:|---:|
+| Medical | 63.02% | 26.55% |
+| Office | 4.68% | 3.60% |
+| Education | 22.22% | 13.33% |
+| Household | 45.65% | 7.07% |
+
+The context audit is complete, but the non-zero exposure rates show that the
+official 48.70% MGS should not be interpreted as zero context leakage.
+
+## Artifacts
+
+- Full suite summary: `outputs/2026-08-11-rag_naive_v3_full_all_2218_openlux_deepseekv4flash_v1/suite_summary.json`
+- Per-domain official summaries: `outputs/2026-08-11-rag_naive_v3_full_all_2218_openlux_deepseekv4flash_v1/<domain>/official_eval/checkpoint_benchmark/<domain>/summary.json`
+- Frozen manifest: `experiments/gatemem_suites/rag_naive_v3_full_all_2218_seed20260803.json`
+- Configuration: `configs/rag_naive_v3_openlux_deepseekv4flash_embedding3small_pure.yaml`
