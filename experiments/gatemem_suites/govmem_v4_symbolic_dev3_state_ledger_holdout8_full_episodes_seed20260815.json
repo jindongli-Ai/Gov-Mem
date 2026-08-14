@@ -1,0 +1,1053 @@
+{
+  "suite_name": "govmem_v4_symbolic_dev3_state_ledger_holdout8_full_episodes_seed20260815",
+  "dataset_name": "checkpoint_benchmark",
+  "version": 1,
+  "purpose": "Fresh full-episode validation for state-ledger; excludes the prior four-episode symbolic smoke.",
+  "selection_policy": {
+    "unit": "complete_episode",
+    "source_manifest": "experiments/gatemem_suites/random_all_domains_4episodes_5checkpoints_seed20260805.json",
+    "episodes_per_domain": 2,
+    "excluded_episode_ids": [
+      "education_episode_custom_en_008_cobalt_placement_cobalt_fellows_dual_track",
+      "household_episode_custom_en_021_clover_crust_clover_crate_bake_pantry_private_note",
+      "med_episode_rewrite_en_008_syphilis_deleted_cedar_outreach_line",
+      "office_episode_custom_en_014_glacier_glacierlane_dual_project"
+    ],
+    "selected_episodes": {
+      "medical": [
+        "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line",
+        "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+      ],
+      "office": [
+        "office_episode_custom_en_015_sterling_sterlingbridge_dual_project",
+        "office_episode_custom_en_003_copper_copperline_dual_project"
+      ],
+      "education": [
+        "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track",
+        "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+      ],
+      "household": [
+        "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note",
+        "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+      ]
+    },
+    "uses_answer_fields": false
+  },
+  "entries": [
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_01",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_02",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_03",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_04",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_05",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_06",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_07",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_08",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_09",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_10",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_11",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_12",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_13",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_14",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_15",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_16",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_17",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_18",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_19",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_20",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_21",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_22",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_23",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_24",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_25",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_26",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_27",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact_ckpt_28",
+      "episode_id": "med_episode_rewrite_en_001_early_pregnancy_confidential_contact"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_01",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_02",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_03",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_04",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_05",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_06",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_07",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_08",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_09",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_10",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_11",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_12",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_13",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_14",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_15",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_16",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_17",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_18",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_19",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_20",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_21",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_22",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_23",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_24",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_25",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_26",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "medical",
+      "checkpoint_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line_ckpt_27",
+      "episode_id": "med_episode_rewrite_en_013_ibd_deleted_pine_harbor_line"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_01",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_02",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_03",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_04",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_05",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_06",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_07",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_08",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_09",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_10",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_11",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_12",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_13",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_14",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_15",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_16",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_17",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_18",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_19",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_20",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_21",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_22",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_23",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_24",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_25",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_26",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_27",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_28",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_29",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_30",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_31",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_003_copper_copperline_dual_project_ckpt_32",
+      "episode_id": "office_episode_custom_en_003_copper_copperline_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_01",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_02",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_03",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_04",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_05",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_06",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_07",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_08",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_09",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_10",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_11",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_12",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_13",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_14",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_15",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_16",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_17",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_18",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_19",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_20",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_21",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_22",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_23",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_24",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_25",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_26",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_27",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_28",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_29",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_30",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_31",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "office",
+      "checkpoint_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project_ckpt_32",
+      "episode_id": "office_episode_custom_en_015_sterling_sterlingbridge_dual_project"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_01",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_02",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_03",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_04",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_05",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_06",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_07",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_08",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_09",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_10",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_11",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_12",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_13",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_14",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_15",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_16",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_17",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track_ckpt_18",
+      "episode_id": "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_01",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_02",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_03",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_04",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_05",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_06",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_07",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_08",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_09",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_10",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_11",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_12",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_13",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_14",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_15",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_16",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_17",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "education",
+      "checkpoint_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track_ckpt_18",
+      "episode_id": "education_episode_custom_en_024_cascade_exception_cascade_guides_dual_track"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_01",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_02",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_03",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_04",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_05",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_06",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_07",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_08",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_09",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_10",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_11",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_12",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_13",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_14",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_15",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_16",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_17",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_18",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_19",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_20",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_21",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_22",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_23",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note_ckpt_24",
+      "episode_id": "household_episode_custom_en_016_laurel_lift_laurel_locker_gym_supply_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_01",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_02",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_03",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_04",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_05",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_06",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_07",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_08",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_09",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_10",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_11",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_12",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_13",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_14",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_15",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_16",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_17",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_18",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_19",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_20",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_21",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_22",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_23",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    },
+    {
+      "domain": "household",
+      "checkpoint_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note_ckpt_24",
+      "episode_id": "household_episode_custom_en_020_pine_pedals_pine_packs_bike_storage_private_note"
+    }
+  ]
+}

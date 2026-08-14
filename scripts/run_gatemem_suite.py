@@ -124,9 +124,12 @@ def _discover_api_keys(*, provider: str) -> list[str]:
         single_env = "OPENLUX_API_KEY"
         # Keep the new provider's credentials in the sibling project as
         # requested; do not copy the secret-bearing README into this repo.
-        readme = ROOT / "README_API_OpenLux"
-        if not readme.exists():
-            readme = Path("/data_nvme/user/jli/codes/2027_ICLR_MARC/README_API_OpenLux.md")
+        readme_candidates = (
+            ROOT / "API-Key_OpenLux.md",
+            ROOT / "README_API_OpenLux",
+            Path("/data_nvme/user/jli/codes/2027_ICLR_MARC/README_API_OpenLux.md"),
+        )
+        readme = next((candidate for candidate in readme_candidates if candidate.exists()), readme_candidates[0])
         keys: list[str] = []
         values = [value.strip() for value in os.environ.get(pool_env, "").split(",") if value.strip()]
         if values:
@@ -440,6 +443,16 @@ def main() -> None:
     judge_cfg = dict((config.get("evaluation") or {}).get("official_judge") or {})
     judge_provider = str(judge_cfg.get("provider") or "yunwu")
     judge_keys = _discover_api_keys(provider=judge_provider)
+    if llm_provider in {"openlux", "openai-compatible-openlux"} and not llm_keys:
+        raise RuntimeError(
+            "No OpenLux memory-system API key found. Refusing to start a real run. "
+            "Set OPENLUX_API_KEYS/OPENLUX_API_KEY or provide API-Key_OpenLux.md."
+        )
+    if embedding_provider in {"openlux", "openai-compatible-openlux"} and not embedding_keys:
+        raise RuntimeError(
+            "No OpenLux embedding API key found. Refusing to start a real run. "
+            "Set OPENLUX_API_KEYS/OPENLUX_API_KEY or provide API-Key_OpenLux.md."
+        )
     memory_system_base_llm = str(
         args.base_model
         or llm_cfg.get("base_model")
