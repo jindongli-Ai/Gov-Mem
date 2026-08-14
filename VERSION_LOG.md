@@ -13,6 +13,7 @@ of an earlier benchmark snapshot.
 | `Gov-Mem-v4-Symbolic-dev0` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | First minimal Symbolic step: typed principal-role consistency annotation | Previous development method |
 | `Gov-Mem-v4-Symbolic-dev1` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Lightweight Evidence-Principal provenance graph used as Stage 2 auxiliary context | Previous development method |
 | `Gov-Mem-v4-Symbolic-dev2` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Typed Principal-Entity/Resource relation graph from GateMem `entities.relationships`, used as Stage 2 auxiliary context | Current development method |
+| `Gov-Mem-v4-Symbolic-dev3-state-ledger` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Retrieved-evidence-only source-bound state ledger with typed slot provenance and conflict accounting | Current development method |
 | `Gov-Mem-v4-Symbolic` | The frozen v4 line after dev0 regression and benchmark checks | RAG-Naive foundation plus deterministic/neuro-symbolic role, permission, temporal, and consistency reasoning | Paper method name |
 
 ## 2026-08-14: Structured Provenance Recovery Snapshot
@@ -194,3 +195,26 @@ recoverable through Git history and their backup tags.
   retrieval traces contain `evidence_principal_typed_relation_lifecycle`.
 - This remains an engineering validation snapshot; no U/A/F/MGS performance
   claim is attributed to it yet.
+
+## 2026-08-15 - Gov-Mem-v4-Symbolic-dev3 state-ledger validation
+
+The paper-facing method name remains `Gov-Mem-v4-Symbolic`. This increment adds
+`state-ledger-v1` as a lightweight auxiliary layer over retrieved structured
+records. For query-requested state slots, it keeps the newest source-bound
+candidate by `turn_index`, retains competing values and conflict counts, and
+distinguishes public dates from subject current dates. It reads no hidden
+transcript, makes no permission decision, does not alter retrieval ordering or
+candidate filtering, and adds no LLM call.
+
+The OpenLux validation used `gpt-4o-mini` for the memory system,
+`text-embedding-3-small`, the official `gpt-4o` GateMem judge, 30 isolated API
+keys, and four episode workers with one request in flight per worker. It covered
+the complete selected episodes (101 checkpoints): Medical 27, Office 32,
+Education 18, and Household 24. Official scoring and prompt auditing completed
+for all cases. The weighted result was U=66.67%, A=21.21%, F=0.00%, and
+MGS=52.53%. These numbers are a development diagnostic and are not part of the
+frozen 2,218-checkpoint typed-rerank table.
+
+The machine-readable output is ignored by Git under `outputs/`; the reproducible
+result note is
+`experiments/result/2026-08-15_Gov-Mem-v4-Symbolic-dev3-state-ledger-smoke4_openlux_gpt4omini.md`.

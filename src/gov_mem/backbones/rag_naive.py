@@ -156,6 +156,19 @@ def _format_retrieved_memory(evidence: list[RetrievedEvidence]) -> str:
     if not evidence:
         return "(none)"
     lines = []
+    state_ledger = next(
+        (
+            (row.metadata or {}).get("symbolic_state_ledger")
+            for row in evidence
+            if isinstance((row.metadata or {}).get("symbolic_state_ledger"), dict)
+        ),
+        None,
+    )
+    if state_ledger:
+        lines.append(
+            "[SYMBOLIC_STATE_LEDGER] "
+            + json.dumps(state_ledger, ensure_ascii=False, sort_keys=True)
+        )
     for index, row in enumerate(evidence, 1):
         metadata = dict(row.metadata or {})
         record = metadata.get("structured_record")
@@ -177,6 +190,7 @@ def _format_retrieved_memory(evidence: list[RetrievedEvidence]) -> str:
                 "symbolic_consistency": metadata.get("symbolic_consistency"),
                 "symbolic_permission_claim": metadata.get("symbolic_permission_claim"),
                 "symbolic_lifecycle_claim": metadata.get("symbolic_lifecycle_claim"),
+                "symbolic_state_claims": metadata.get("symbolic_state_claims"),
             }
             lines.append(
                 f"Memory {index} [STRUCTURED_RECORD] "

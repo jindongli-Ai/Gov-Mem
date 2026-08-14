@@ -632,6 +632,7 @@ def _mixed_reasoning_prompt(
                 "graph_context",
                 "symbolic_permission_claim",
                 "symbolic_lifecycle_claim",
+                "symbolic_state_claims",
             )
             if key in metadata
         }

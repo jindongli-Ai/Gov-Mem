@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from gov_mem.backbones.symbolic_evidence import build_symbolic_evidence
 from gov_mem.data.schema import MemoryInstance, RetrievedEvidence
 
@@ -289,3 +291,53 @@ def test_v4_symbolic_lifecycle_does_not_treat_deleted_question_as_assertion():
 
     assert trace["lifecycle_claim_count"] == 0
     assert trace["lifecycle_target_binding"]["status_counts"] == {}
+
+
+def test_v4_symbolic_state_ledger_resolves_latest_retrieved_claim_without_filtering():
+    instance = replace(
+        _instance(),
+        question=(
+            "Give me the current recap: current date, current status, and current blocker."
+        ),
+    )
+    evidence = [
+        _evidence(
+            memory_id="m_old",
+            turn_id="t001",
+            principal_id="nurse_alvarez",
+            role="nurse",
+            text=(
+                "Current case recap: current date July 8, 2026, status pending, "
+                "and current blocker budget review."
+            ),
+            score=0.9,
+        ),
+        _evidence(
+            memory_id="m_new",
+            turn_id="t002",
+            principal_id="nurse_alvarez",
+            role="nurse",
+            text=(
+                "Closure note: the case should now be treated as closed, with "
+                "July 12, 2026 as the settled date and no remaining blocker."
+            ),
+            score=0.7,
+        ),
+    ]
+
+    ranked, trace = build_symbolic_evidence(instance=instance, evidence=evidence)
+
+    ledger = trace["state_ledger"]
+    assert ledger["version"] == "state-ledger-v1"
+    assert ledger["mode"] == "retrieved_evidence_only"
+    assert ledger["fields"]["target_date"]["value"] == "July 12, 2026"
+    assert ledger["fields"]["target_date"]["source_memory_id"] == "m_new"
+    assert ledger["fields"]["status"]["value"] == "closed"
+    assert ledger["fields"]["status"]["source_memory_id"] == "m_new"
+    assert ledger["fields"]["blocker"]["value"] == "no remaining blocker"
+    assert ledger["fields"]["blocker"]["source_memory_id"] == "m_new"
+    assert ledger["fields"]["target_date"]["conflict_count"] == 1
+    assert ledger["enforcement_applied"] is False
+    assert ledger["new_llm_calls"] == 0
+    assert [row.memory_id for row in ranked] == ["m_old", "m_new"]
+    assert ranked[0].metadata["symbolic_state_ledger"] == ledger

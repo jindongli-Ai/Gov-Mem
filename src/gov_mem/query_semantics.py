@@ -10,6 +10,7 @@ CURRENT_STATE_SLOT_ALIASES: dict[str, list[str]] = {
         "closure date",
         "review date",
         "kickoff date",
+        "current date",
     ],
     "public_event_date": [
         "public event date", "public date", "showcase date", "showcase day",
@@ -33,10 +34,12 @@ CURRENT_STATE_SLOT_ALIASES: dict[str, list[str]] = {
         "temporary room", "current room", "active room", "private room",
         "current access room", "current bay", "active bay", "private bay",
         "current private bay", "current suite", "current booth", "active booth",
+        "current site", "active site", "current location",
     ],
     "access_badge": [
         "active badge", "current badge", "active access code",
-        "current access code", "temporary access code",
+        "current access code", "temporary access code", "active credential",
+        "current credential",
     ],
     "access_expiry": [
         "code expiry", "code expiration", "access expiry", "access expiration",
@@ -60,6 +63,7 @@ CURRENT_STATE_SLOT_ALIASES: dict[str, list[str]] = {
     ],
     "coordination_label": ["coordination label", "current label"],
     "access_token": ["access token", "staging token", "active token"],
+    "status": ["current status", "current state", "status", "state"],
 }
 
 SAFE_WORDING_EXPLICIT_ALIASES = [
@@ -252,11 +256,18 @@ def infer_current_state_slots(question: str) -> list[str]:
     ):
         required.append("monthly_stipend")
     if "access_badge" not in required and re.search(
-        r"\b(?:current|active|exact)\s+(?:access\s+)?badge\b",
+        r"\b(?:current|active|exact)(?:\s+(?:current|active|[a-z][a-z0-9_-]*)){0,3}\s+"
+        r"(?:access\s+)?(?:badge|credential)\b",
         text,
         re.IGNORECASE,
     ):
         required.append("access_badge")
+    if "status" not in required and re.search(
+        r"\b(?:current\s+)?(?:status|state)\b",
+        text,
+        re.IGNORECASE,
+    ):
+        required.append("status")
     if "public_room" not in required and re.search(
         r"\b(?:showcase|orientation|public)(?:\s+[a-z][a-z0-9_-]*){0,5}\s+(?:room|hall)\b",
         text,

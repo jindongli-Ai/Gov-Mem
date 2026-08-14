@@ -2,7 +2,7 @@
 
 This workspace uses GateMem as the default benchmark dataset for Gov-Mem.
 
-## Current Research Snapshot (2026-08-11)
+## Current Research Snapshot (2026-08-15)
 
 This section records the current paper-facing Gov-Mem framework and its latest
 full-benchmark results. Treat the commit containing this snapshot as a
@@ -10,39 +10,62 @@ recovery point: later framework changes should be committed separately, so a
 regression can be diagnosed or the previous version can be restored from Git
 history.
 
-### Active development version (2026-08-14)
+### Active development version (2026-08-15)
 
-The current development snapshot is **Gov-Mem-v4-Symbolic-dev2**. It is based on the frozen
+The current development snapshot is **Gov-Mem-v4-Symbolic-dev3-state-ledger**. It is based on the frozen
 `rag_naive_v3_typed_rerank` framework (`Gov-Mem-v3.0`) and preserves the
 complete checkpoint-visible GateMem turn as structured retrieval provenance:
 `turn_id`, timestamp, principal, role, turn kind, original text, checkpoint,
 and the source turn object. Stage 2 receives this data as valid JSON and does
 not need to re-extract these fields from prose.
 
-The current implementation line is **Gov-Mem-v4-Symbolic-dev2**, selected by
-`experiment.mode: govmem_v4_symbolic`. It retains v3 retrieval and adds only
-lightweight typed Symbolic annotations: principal-role consistency, an
-Evidence-Principal-Entity relation graph, and explicit lifecycle-event
-assertions. These are passed to Stage 2 as auxiliary context. Lifecycle
-assertions recognize only explicit language such as `deleted`, `revoked`,
-`superseded`, or `updated from ... to ...`; they do not infer state from
-ordinary words such as `current` or `latest`. The implementation does not
-reorder or filter candidates, make permission decisions, or add LLM calls.
+The current implementation line is **Gov-Mem-v4-Symbolic-dev3-state-ledger**,
+selected by `experiment.mode: govmem_v4_symbolic`. It retains v3 retrieval and
+adds lightweight typed Symbolic annotations: principal-role consistency, an
+Evidence-Principal-Entity relation graph, explicit lifecycle-event assertions,
+and a source-bound current-state ledger. The ledger records requested slots,
+candidate values, source memory/turn provenance, and conflicts from retrieved
+evidence only. It does not recover hidden transcript fields, reorder or filter
+candidates, make permission decisions, or add LLM calls. Lifecycle assertions
+recognize only explicit language such as `deleted`, `revoked`, `superseded`, or
+`updated from ... to ...`; they do not infer state from ordinary words such as
+`current` or `latest`.
 The final paper-facing name is
 **Gov-Mem-v4-Symbolic**, which will be frozen incrementally after each Symbolic
 step passes regression and benchmark checks. The complete naming and
 promotion record is in
 [`VERSION_LOG.md`](VERSION_LOG.md).
 
-The dev2 lifecycle increment was validated on one complete episode per
+The dev3 state-ledger increment was validated on one complete episode per
 domain: Medical 27, Office 32, Education 18, and Household 24 checkpoints
 (101 total). The run used OpenLux, `gpt-4o-mini`,
 `text-embedding-3-small`, a 30-key pool with four concurrently leased keys,
 and four episode workers.
-All 101 retrieval traces contain the lifecycle graph; candidate ordering and
-filtering were unchanged and the added LLM-call count was zero. This is an
-engineering smoke validation, not a paper performance result and must not be
-mixed into the frozen full-benchmark U/A/F/MGS table.
+All 101 prompt audits are complete; 46 state-relevant prompts contain the
+retrieved-evidence-only ledger, while certificate and target-binding shadow
+fields occur in zero prompts. Candidate ordering and filtering were unchanged
+and the added LLM-call count was zero. This is an engineering validation, not a
+2,218-checkpoint paper result and must not be mixed into the frozen full-
+benchmark U/A/F/MGS table.
+
+The official GateMem judge completed all 101 cases for this state-ledger run:
+
+| Domain | Checkpoints | U | A | F | MGS | Action accuracy |
+|---|---:|---:|---:|---:|---:|---:|
+| Medical | 27 | 60.00% | 55.56% | 0.00% | 26.67% | 59.26% |
+| Office | 32 | 55.56% | 0.00% | 0.00% | 55.56% | 78.13% |
+| Education | 18 | 83.33% | 16.67% | 0.00% | 69.44% | 88.89% |
+| Household | 24 | 75.00% | 12.50% | 0.00% | 65.63% | 75.00% |
+| **All scored cases** | **101** | **66.67%** | **21.21%** | **0.00%** | **52.53%** | **74.26%** |
+
+The all-cases row is weighted by the number of GateMem query types (33 utility,
+33 privacy, and 35 safety cases). The four-domain arithmetic mean of domain MGS
+is 54.32%. Relative to the preceding lifecycle smoke on the same 101
+checkpoints, this run is a positive engineering signal (`U` +3.03 points,
+`A` -3.03 points, weighted `MGS` +4.32 points), not a causal ablation because
+the memory-model temperature is 0.2 and the comparison is a single stochastic
+run. The full diagnostic record is in
+[`experiments/result/2026-08-15_Gov-Mem-v4-Symbolic-dev3-state-ledger-smoke4_openlux_gpt4omini.md`](experiments/result/2026-08-15_Gov-Mem-v4-Symbolic-dev3-state-ledger-smoke4_openlux_gpt4omini.md).
 
 The validity-shadow audit adds deterministic `EvidenceValidityCertificate`
 records for explicit lifecycle states. The target-binding v2 increment also

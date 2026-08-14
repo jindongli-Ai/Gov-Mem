@@ -13,6 +13,13 @@ import re
 from typing import Any
 
 from gov_mem.data.schema import MemoryInstance, RetrievedEvidence
+from gov_mem.query_semantics import (
+    extract_state_slots,
+    infer_current_state_slots,
+    infer_household_composite_required_slots,
+    infer_household_delivery_slots,
+    infer_household_slots,
+)
 
 
 def _record(row: RetrievedEvidence) -> dict[str, Any] | None:
@@ -34,6 +41,282 @@ def _episode_entities(instance: MemoryInstance) -> dict[str, Any]:
     episode = dict((instance.metadata.get("raw_sample") or {}).get("episode") or {})
     entities = episode.get("entities") or {}
     return entities if isinstance(entities, dict) else {}
+
+
+_STATE_CURRENT_MARKERS = (
+    "active", "approved", "as of now", "confirmed", "current", "latest",
+    "now", "remains", "settled", "updated", "unchanged",
+)
+_STATE_HISTORICAL_MARKERS = (
+    "archived", "earlier", "former", "historical", "old", "previous",
+    "retired", "stale", "superseded", "deleted", "removed", "no longer",
+)
+_STATUS_RE = re.compile(
+    r"\b(?:status|state)\s*(?:is|was|remains|now|:)?\s*"
+    r"(?P<value>[^,.;!?]{2,80})",
+    re.IGNORECASE,
+)
+_TREATED_STATUS_RE = re.compile(
+    r"\b(?:now\s+)?(?:treated|regarded|considered)\s+as\s+"
+    r"(?P<value>closed|approved|active|open|pending|complete|completed|"
+    r"cancelled|canceled|in[- ]progress|retired|revoked)\b",
+    re.IGNORECASE,
+)
+_CURRENT_RECORD_STATUS_RE = re.compile(
+    r"\bcurrent\s+(?P<value>closed|approved|open|pending|complete|"
+    r"completed|cancelled|canceled|in[- ]progress)\b"
+    r"[^.;!?]{0,60}\b(?:recap|record|summary|case|placement|project)\b",
+    re.IGNORECASE,
+)
+_CLOSED_RECORD_STATUS_RE = re.compile(
+    r"\b(?P<value>closed|approved|active|open|pending)\s*[- ]"
+    r"(?:record|case|placement|summary)\b",
+    re.IGNORECASE,
+)
+
+
+def _requested_state_slots(question: str) -> list[str]:
+    """Infer transferable state fields without using an episode/domain name."""
+
+    slots = [*infer_current_state_slots(question), *infer_household_slots(question)]
+    # Household delivery slots are opt-in by query shape. This prevents a
+    # generic "current summary" from acquiring an unrelated window field.
+    if re.search(
+        r"\b(?:window|arrival|delivery|setup|support|entry|entrance|route|path|"
+        r"areas?|zones?|spaces?|signoff|overflow|fallback|contingency)\b",
+        str(question or ""),
+        re.IGNORECASE,
+    ):
+        slots.extend(infer_household_delivery_slots(question))
+        slots.extend(infer_household_composite_required_slots(question))
+    if re.search(r"\b(?:current\s+)?(?:status|state)\b", str(question or ""), re.IGNORECASE):
+        slots.append("status")
+    # A generic current-date query is a date slot even when it does not use a
+    # benchmark-specific alias such as "review date".
+    if re.search(
+        r"\b(?:current|latest|settled|now|summary)\b[^.!?]{0,40}\bdate\b",
+        str(question or ""),
+        re.IGNORECASE,
+    ):
+        slots.append("target_date")
+    return [slot for slot in dict.fromkeys(slots) if slot != "date"]
+
+
+def _extract_status(text: str) -> str | None:
+    """Extract only explicit status assertions, never a bare status adjective."""
+
+    value = _TREATED_STATUS_RE.search(str(text or ""))
+    if value:
+        return " ".join(value.group("value").split()).strip(" ,:")
+    value = _STATUS_RE.search(str(text or ""))
+    if value:
+        candidate = " ".join(value.group("value").split()).strip(" ,:")
+        # A status sentence may continue with another field. Keep the first
+        # clause, which remains source-bound and avoids copying a full recap.
+        return candidate
+    value = _CURRENT_RECORD_STATUS_RE.search(str(text or ""))
+    if value:
+        return value.group("value").casefold()
+    value = _CLOSED_RECORD_STATUS_RE.search(str(text or ""))
+    if value:
+        return value.group("value").casefold()
+    return None
+
+
+def _state_values(text: str) -> dict[str, str]:
+    values = dict(extract_state_slots(str(text or "")))
+    if str(values.get("access_room") or "").casefold() in {
+        "exact", "confirmation", "refinement posted",
+    }:
+        values.pop("access_room", None)
+    if "target_date" not in values:
+        date_match = re.search(
+            r"\b(?:current|latest|settled|final)\s+date\s*"
+            r"(?:is|was|remains|:)?\s*(?P<value>"
+            r"(?:January|February|March|April|May|June|July|August|September|"
+            r"October|November|December)\s+\d{1,2}(?:,\s*\d{4})?)",
+            str(text or ""),
+            re.IGNORECASE,
+        )
+        if date_match:
+            values["target_date"] = date_match.group("value")
+    if "target_date" not in values and (
+        re.search(r"\b(?:current|latest|settled|final)\s+date\b", str(text or ""), re.IGNORECASE)
+        or re.search(r"\b(?:current|approved)\b[^.;!?]{0,80}\bdate\b", str(text or ""), re.IGNORECASE)
+    ):
+        direct_date = re.search(
+            r"\b(?:current|latest|settled|final)\s+"
+            r"(?P<value>(?:January|February|March|April|May|June|July|August|"
+            r"September|October|November|December)\s+\d{1,2}(?:,\s*\d{4})?)\s+date\b",
+            str(text or ""),
+            re.IGNORECASE,
+        )
+        if direct_date:
+            values["target_date"] = direct_date.group("value")
+        dates = re.findall(
+            r"\b(?:January|February|March|April|May|June|July|August|September|"
+            r"October|November|December)\s+\d{1,2}(?:,\s*\d{4})?\b",
+            str(text or ""),
+            re.IGNORECASE,
+        )
+        if dates and "target_date" not in values:
+            values["target_date"] = dates[-1]
+    if "access_room" not in values:
+        site_match = re.search(
+            r"\b(?:current|active|private)?\s*(?:site|location)\s*"
+            r"(?:is|was|remains|now|:)?\s*(?P<value>"
+            r"[A-Za-z0-9][^.;!?]{1,70}?)(?=,\s*(?:active|current|no|and|safe|support|credential|status)|[.;!?]|$)",
+            str(text or ""),
+            re.IGNORECASE,
+        )
+        if site_match:
+            candidate = site_match.group("value").strip(" ,:")
+            if candidate.casefold() not in {"exact", "confirmation", "refinement posted"}:
+                values["access_room"] = candidate
+    if "access_room" not in values:
+        reverse_site_match = re.search(
+            r",\s*(?P<value>[A-Za-z0-9][^,.;!?]{1,60})\s+(?:site|location)\b",
+            str(text or ""),
+            re.IGNORECASE,
+        )
+        if reverse_site_match:
+            values["access_room"] = reverse_site_match.group("value").strip(" ,:")
+    if "access_badge" not in values:
+        credential_match = re.search(
+            r"\b(?:current|active|temporary|practicum)?\s*"
+            r"(?:credential|badge|access\s+code)\s*"
+            r"(?:is|was|remains|now|issued|posted|:)?[^.;!?]{0,35}?"
+            r"(?P<value>[A-Za-z]{2,}[A-Za-z0-9]*[_-][A-Za-z0-9_-]{3,})\b",
+            str(text or ""),
+            re.IGNORECASE,
+        )
+        if credential_match:
+            values["access_badge"] = credential_match.group("value").strip(" ,:")
+    if "access_expiry" not in values:
+        expiry_match = re.search(
+            r"\b(?:expir(?:es|ing|y|ation)|valid\s+through|active\s+through)\s+"
+            r"(?P<value>(?:January|February|March|April|May|June|July|August|"
+            r"September|October|November|December)\s+\d{1,2}(?:,\s*\d{4})?"
+            r"(?:\s+at\s+\d{1,2}:\d{2})?)",
+            str(text or ""),
+            re.IGNORECASE,
+        )
+        if expiry_match:
+            values["access_expiry"] = expiry_match.group("value")
+    status = _extract_status(text)
+    if status:
+        values["status"] = status
+    return {str(key): str(value).strip() for key, value in values.items() if str(value).strip()}
+
+
+def _state_claim_is_historical(text: str, *, current_query: bool) -> bool:
+    if not current_query:
+        return False
+    lowered = " ".join(str(text or "").casefold().split())
+    return any(marker in lowered for marker in _STATE_HISTORICAL_MARKERS)
+
+
+def _build_state_ledger(
+    *,
+    question: str,
+    evidence: list[RetrievedEvidence],
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    """Build a source-bound current-state ledger from retrieved turns only."""
+
+    requested = _requested_state_slots(question)
+    current_query = bool(re.search(
+        r"\b(?:as of now|current|currently|latest|now|settled|active)\b",
+        str(question or ""),
+        re.IGNORECASE,
+    ))
+    candidates: dict[str, list[dict[str, Any]]] = {slot: [] for slot in requested}
+    claims_by_memory: dict[str, dict[str, Any]] = {}
+    for row in evidence:
+        record = _record(row) or {}
+        text = str(record.get("text") or row.content or "")
+        values = _state_values(text)
+        turn_index = record.get("turn_index")
+        if not isinstance(turn_index, int):
+            turn_index = -1
+        lifecycle = dict((row.metadata or {}).get("symbolic_lifecycle_claim") or {})
+        current_signal = any(marker in text.casefold() for marker in _STATE_CURRENT_MARKERS)
+        if current_query and lifecycle.get("status") in {"deleted", "revoked", "superseded"} and not current_signal:
+            continue
+        if _state_claim_is_historical(text, current_query=current_query) and not current_signal:
+            continue
+        row_claims: dict[str, Any] = {}
+        for slot in requested:
+            if slot == "access_room" and re.search(
+                r"\b(?:not tied|not a proxy|does not (?:alter|update)|should not)\b"
+                r"|\bexact\s+(?:site|location)\b[^.;!?]{0,80}\b(?:restricted|private)\b",
+                text,
+                re.IGNORECASE,
+            ):
+                continue
+            if slot == "target_date" and re.search(
+                r"\bpublic\b[^.;!?]{0,80}\bdate\b",
+                text,
+                re.IGNORECASE,
+            ) and not re.search(
+                r"\b(?:current|approved|settled|review|target)\b[^.;!?]{0,80}\bdate\b",
+                text,
+                re.IGNORECASE,
+            ):
+                # Keep public schedules in public_event_date rather than
+                # allowing them to overwrite the subject's current date.
+                continue
+            value = values.get(slot)
+            if not value:
+                continue
+            candidate = {
+                "slot": slot,
+                "value": value,
+                "memory_id": row.memory_id,
+                "turn_id": str(record.get("turn_id") or record.get("message_id") or ""),
+                "turn_index": turn_index,
+                "quote": text,
+                "current_signal": any(marker in text.casefold() for marker in _STATE_CURRENT_MARKERS),
+            }
+            candidates[slot].append(candidate)
+            row_claims[slot] = {key: candidate[key] for key in ("value", "turn_id", "turn_index")}
+        if row_claims:
+            claims_by_memory[row.memory_id] = row_claims
+
+    fields: dict[str, Any] = {}
+    for slot, slot_candidates in candidates.items():
+        if not slot_candidates:
+            fields[slot] = {"status": "missing", "candidates": []}
+            continue
+        ranked = sorted(
+            slot_candidates,
+            key=lambda item: (int(item["turn_index"]), bool(item["current_signal"]), str(item["memory_id"])),
+            reverse=True,
+        )
+        selected = ranked[0]
+        distinct_values = list(dict.fromkeys(str(item["value"]) for item in ranked))
+        fields[slot] = {
+            "status": "resolved",
+            "value": selected["value"],
+            "source_memory_id": selected["memory_id"],
+            "source_turn_id": selected["turn_id"],
+            "source_turn_index": selected["turn_index"],
+            "quote": selected["quote"],
+            "conflict_count": max(0, len(distinct_values) - 1),
+            "candidate_count": len(ranked),
+            "candidate_values": distinct_values,
+        }
+    ledger = {
+        "version": "state-ledger-v1",
+        "mode": "retrieved_evidence_only",
+        "requested_slots": requested,
+        "fields": fields,
+        "resolved_count": sum(item.get("status") == "resolved" for item in fields.values()),
+        "missing_count": sum(item.get("status") == "missing" for item in fields.values()),
+        "conflict_count": sum(int(item.get("conflict_count") or 0) for item in fields.values()),
+        "enforcement_applied": False,
+        "new_llm_calls": 0,
+    }
+    return ledger, claims_by_memory
 
 
 def _relation_endpoints(
@@ -530,6 +813,21 @@ def build_symbolic_evidence(
         replace(row, metadata={**dict(row.metadata or {}), "symbolic_consistency": consistency})
         for row in annotated
     ]
+    state_ledger, claims_by_memory = _build_state_ledger(
+        question=instance.question,
+        evidence=annotated,
+    )
+    ledger_attached = False
+    ledger_annotated: list[RetrievedEvidence] = []
+    for row in annotated:
+        metadata = dict(row.metadata or {})
+        if row.memory_id in claims_by_memory:
+            metadata["symbolic_state_claims"] = claims_by_memory[row.memory_id]
+        if not ledger_attached:
+            metadata["symbolic_state_ledger"] = state_ledger
+            ledger_attached = True
+        ledger_annotated.append(replace(row, metadata=metadata))
+    annotated = ledger_annotated
     trace = {
         "version": "Gov-Mem-v4-Symbolic-dev2",
         "symbolic_step": "typed_principal_entity_relation_graph_v1",
@@ -556,6 +854,7 @@ def build_symbolic_evidence(
             "candidate_count": len(evidence),
             "enforcement_applied": False,
         },
+        "state_ledger": state_ledger,
         "consistency": {**consistency, "violations": violations},
         "ordering_changed": False,
         "filtering_applied": False,
