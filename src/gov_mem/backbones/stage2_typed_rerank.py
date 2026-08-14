@@ -609,7 +609,9 @@ def _mixed_reasoning_prompt(
     candidate_rows = []
     for rank, row in enumerate(evidence):
         text = str(row.content or "")
-        candidate_rows.append({
+        metadata = dict(row.metadata or {})
+        structured_record = metadata.get("structured_record")
+        candidate = {
             # Dataset checkpoint/message IDs can encode the test domain and
             # attack type. Only process-local aliases may cross this boundary.
             "rank": rank,
@@ -617,7 +619,25 @@ def _mixed_reasoning_prompt(
             "source_ref": f"source_{rank}",
             "retrieval_score": round(float(row.score), 6),
             "text": text[:max_candidate_chars],
-        })
+        }
+        if isinstance(structured_record, dict):
+            # Stage 2 must reason over GateMem's typed provenance directly;
+            # role, principal, time, and turn kind are not text to re-extract.
+            candidate["structured_record"] = structured_record
+        symbolic_annotations = {
+            key: metadata[key]
+            for key in (
+                "symbolic_provenance",
+                "symbolic_consistency",
+                "graph_context",
+                "symbolic_permission_claim",
+                "symbolic_lifecycle_claim",
+            )
+            if key in metadata
+        }
+        if symbolic_annotations:
+            candidate["symbolic_annotations"] = symbolic_annotations
+        candidate_rows.append(candidate)
     user_prompt = (
         "Reason over the already retrieved candidates for this mixed current-state "
         "question. Identify the candidates that best support every requested field, "

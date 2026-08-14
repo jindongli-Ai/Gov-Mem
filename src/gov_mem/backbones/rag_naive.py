@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 import re
 import sys
 from dataclasses import asdict, replace
@@ -7,8 +9,13 @@ from pathlib import Path
 from typing import Any
 
 # Reuse the released GateMem prompt/domain helpers without requiring callers to
-# set PYTHONPATH manually.
-OFFICIAL_BENCH_ROOT = Path(__file__).resolve().parents[3] / "third_party" / "GateMem-official"
+# set PYTHONPATH manually. The suite runner stages this tree separately.
+_configured_bench_root = os.environ.get("GOVMEM_OFFICIAL_BENCHMARK_ROOT", "").strip()
+OFFICIAL_BENCH_ROOT = (
+    Path(_configured_bench_root)
+    if _configured_bench_root
+    else Path(__file__).resolve().parents[3] / "third_party" / "GateMem-official"
+)
 if str(OFFICIAL_BENCH_ROOT) not in sys.path:
     sys.path.insert(0, str(OFFICIAL_BENCH_ROOT))
 
@@ -52,10 +59,46 @@ from gov_mem.backbones.stage2_typed_rerank import (
     _CURRENT_TERMS,
     _contains_marker,
 )
+from gov_mem.backbones.symbolic_evidence import build_symbolic_evidence
 from bench.domains import format_relationship_fact, get_domain_label, get_query_policy_block
 
 
 OFFICIAL_QUERY_PROMPT = OFFICIAL_BENCH_ROOT / "bench" / "prompts" / "query_prompt.txt"
+
+
+def _structured_message_record(
+    *,
+    instance: MemoryInstance,
+    message: dict[str, Any],
+    turn_index: int,
+) -> dict[str, Any]:
+    """Preserve the observable GateMem message as typed retrieval metadata."""
+    speaker_id = str(message.get("speaker_id") or "") or None
+    speaker_role = str(message.get("speaker_role") or "") or None
+    message_id = str(message.get("message_id") or "")
+    turn_id = str(message.get("turn_id") or message_id)
+    return {
+        "record_type": "message",
+        # Keep both Gov-Mem's normalized name and GateMem's original name.
+        "message_id": message_id,
+        "turn_id": turn_id,
+        "turn_index": int(turn_index),
+        "timestamp": message.get("timestamp"),
+        "speaker": {
+            "principal_id": speaker_id,
+            "role": speaker_role,
+        },
+        "turn_kind": message.get("turn_kind"),
+        "text": str(message.get("text") or ""),
+        "checkpoint": {
+            "as_of_turn_id": str(
+                (instance.metadata.get("observable") or {}).get("as_of_turn_id") or ""
+            ),
+        },
+        # The adapter keeps the visible source turn verbatim. This prevents
+        # future GateMem fields from being lost at the RAG boundary.
+        "source_turn": dict(message.get("source_turn") or {}),
+    }
 
 
 def _build_turn_chunks(instance: MemoryInstance) -> list[RAGChunk]:
@@ -78,7 +121,14 @@ def _build_turn_chunks(instance: MemoryInstance) -> list[RAGChunk]:
                 source_message_ids=[str(message.get("message_id") or "")],
                 speaker_ids=[speaker_id],
                 timestamp_range=(message.get("timestamp"), message.get("timestamp")),
-                metadata={"chunk_type": "turn"},
+                metadata={
+                    "chunk_type": "turn",
+                    "structured_record": _structured_message_record(
+                        instance=instance,
+                        message=message,
+                        turn_index=index,
+                    ),
+                },
             )
         )
     return chunks
@@ -107,8 +157,34 @@ def _format_retrieved_memory(evidence: list[RetrievedEvidence]) -> str:
         return "(none)"
     lines = []
     for index, row in enumerate(evidence, 1):
-        speaker = str(row.metadata.get("speaker_id") or row.user_id or "unknown")
-        lines.append(f"Memory {index} (speaker={speaker}): {row.content}")
+        metadata = dict(row.metadata or {})
+        record = metadata.get("structured_record")
+        if isinstance(record, dict):
+            # Keep the typed provenance visible to Stage 2 without asking it
+            # to recover identity, role, or time from natural language.
+            typed = {
+                "record_type": record.get("record_type"),
+                "message_id": record.get("message_id"),
+                "turn_id": record.get("turn_id"),
+                "turn_index": record.get("turn_index"),
+                "timestamp": record.get("timestamp"),
+                "speaker": record.get("speaker"),
+                "turn_kind": record.get("turn_kind"),
+                "checkpoint": record.get("checkpoint"),
+                "text": record.get("text"),
+                "source_turn": record.get("source_turn"),
+                "symbolic_provenance": metadata.get("symbolic_provenance"),
+                "symbolic_consistency": metadata.get("symbolic_consistency"),
+                "symbolic_permission_claim": metadata.get("symbolic_permission_claim"),
+                "symbolic_lifecycle_claim": metadata.get("symbolic_lifecycle_claim"),
+            }
+            lines.append(
+                f"Memory {index} [STRUCTURED_RECORD] "
+                f"{json.dumps(typed, ensure_ascii=False, sort_keys=True)}"
+            )
+        else:
+            speaker = str(metadata.get("speaker_id") or row.user_id or "unknown")
+            lines.append(f"Memory {index} (speaker={speaker}): {row.content}")
     return "\n".join(lines)
 
 
@@ -790,15 +866,29 @@ class RAGNaiveBackbone:
                 user_id=memory_by_id[memory_id].user_id,
                 memory_type="chunk",
                 source_message_ids=memory_by_id[memory_id].source_message_ids,
+                time=memory_by_id[memory_id].time,
                 metadata={
+                    **dict(memory_by_id[memory_id].metadata or {}),
                     "chunk_type": "turn",
                     "speaker_id": memory_by_id[memory_id].user_id,
+                    "speaker_role": (
+                        ((memory_by_id[memory_id].metadata.get("structured_record") or {})
+                         .get("speaker") or {})
+                        .get("role")
+                    ),
+                    "source_timestamp": memory_by_id[memory_id].time,
                 },
             )
             for memory_id, score in rows
             if memory_id in memory_by_id
         ]
         stage2_before = list(evidence)
+        symbolic_trace: dict[str, Any] = {}
+        if self._symbolic_v4_enabled():
+            evidence, symbolic_trace = build_symbolic_evidence(
+                instance=instance,
+                evidence=evidence,
+            )
         stage2_prompt_audit = None
         stage2_decision = Stage2Decision(
             route="baseline",
@@ -1024,6 +1114,7 @@ class RAGNaiveBackbone:
                 for row in evidence
             ],
             "stage2_decision": stage2_decision.to_dict(),
+            "symbolic_trace": symbolic_trace,
             "atomic_memories": [],
             "retrieved_atomic_memories": [],
             "policy_decisions": [],
@@ -1059,6 +1150,7 @@ class RAGNaiveBackbone:
             "index_backend": index.backend,
             "embedding_model": str(self.config["embedding"]["model"]),
             "embedding_fallback_reason": index.fallback_reason,
+            "symbolic_trace": symbolic_trace,
         }
         return BackboneRunResult(
             query_plan=plan,
@@ -1073,4 +1165,7 @@ class RAGNaiveBackbone:
         return str((self.config.get("experiment") or {}).get("mode") or "rag_naive")
 
     def _stage2_typed_rerank_enabled(self) -> bool:
-        return self._experiment_mode() == "rag_naive_v3_typed_rerank"
+        return self._experiment_mode() in {"rag_naive_v3_typed_rerank", "govmem_v4_symbolic"}
+
+    def _symbolic_v4_enabled(self) -> bool:
+        return self._experiment_mode() == "govmem_v4_symbolic"

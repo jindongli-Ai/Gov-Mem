@@ -188,6 +188,11 @@ class CheckpointBenchmarkAdapter(BaseDatasetAdapter):
             speaker = turn.get("speaker") or {}
             visible.append(
                 {
+                    # Retain the checkpoint-visible GateMem turn verbatim so
+                    # downstream retrieval can expose future source fields
+                    # without reconstructing them from natural language.
+                    "source_turn": dict(turn),
+                    "turn_id": str(turn.get("turn_id")),
                     "message_id": str(turn.get("turn_id")),
                     "speaker_id": speaker.get("principal_id"),
                     "speaker_role": speaker.get("role"),

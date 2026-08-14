@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import fcntl
 from hashlib import sha256
 import json
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -65,6 +67,10 @@ class GovMemRunner:
         self.dataset_name = dataset_name
         self.data_path = Path(data_path)
         self.output_dir = Path(output_dir)
+        from gov_mem.utils.storage import configure_local_environment, require_local_path
+
+        require_local_path(self.output_dir, label="output_dir")
+        configure_local_environment(self.output_dir / ".runtime")
         self.config = config
         self.stage = stage
         self.max_instances = max_instances
@@ -73,6 +79,8 @@ class GovMemRunner:
         self.resume = resume
         self.run_official_benchmark_eval = run_official_benchmark_eval
         self.experiment_mode = experiment_mode
+        self._run_lock_handle = None
+        self._acquire_run_lock()
         self._validate_experiment_contract()
 
         log_dir = ensure_dir(self.output_dir / "logs")
@@ -108,6 +116,20 @@ class GovMemRunner:
         )
         self.llm_client = LLMClient(llm_cfg)
         self.embedding_client = LLMClient(embed_cfg)
+        from gov_mem.utils.storage import filesystem_type
+        if filesystem_type(self.data_path).startswith("nfs") and self.llm_client.is_available():
+            raise RuntimeError(
+                f"Refusing live Gov-Mem run with dataset on NFS: {self.data_path}. "
+                "Use run_gatemem_suite.py to stage the dataset under /tmp."
+            )
+        configured_cache = self.config["embedding"].get("cache_dir")
+        if configured_cache:
+            from gov_mem.utils.storage import require_local_path
+            require_local_path(configured_cache, label="embedding_cache_dir")
+        annotation_cache = (self.config.get("memory") or {}).get("semantic_annotation_cache_dir")
+        if annotation_cache:
+            from gov_mem.utils.storage import require_local_path
+            require_local_path(annotation_cache, label="semantic_annotation_cache_dir")
         self.resolved_llm_settings = build_resolved_llm_settings(self.config)
         self._log_llm_mode()
 
@@ -137,6 +159,19 @@ class GovMemRunner:
         self._backbone = None
         self._save_run_metadata()
 
+    def _acquire_run_lock(self) -> None:
+        """Prevent overlapping processes from corrupting one output directory."""
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        handle = (self.output_dir / "run.lock").open("a+", encoding="utf-8")
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            handle.close()
+            raise RuntimeError(
+                f"Another Gov-Mem process is already using output_dir: {self.output_dir}"
+            ) from exc
+        self._run_lock_handle = handle
+
     def _validate_experiment_contract(self) -> None:
         """Reject accidental full-transcript access in formal Gov-Mem runs."""
         stage2 = dict(self.config.get("stage2") or {})
@@ -144,7 +179,7 @@ class GovMemRunner:
         evaluation = dict(self.config.get("evaluation") or {})
         allow_ablation = bool(evaluation.get("allow_full_transcript_ablation", False))
         if (
-            self.experiment_mode == "rag_naive_v3_typed_rerank"
+            self.experiment_mode in {"rag_naive_v3_typed_rerank", "govmem_v4_symbolic"}
             and bool(ledger.get("enabled", False))
             and not allow_ablation
         ):
@@ -379,16 +414,17 @@ class GovMemRunner:
 
     @staticmethod
     def _runtime_source_fingerprint() -> str:
-        """Fingerprint runtime code so interrupted outputs cannot mix revisions."""
-        root = Path(__file__).resolve().parents[2]
-        paths = [root / "run_govmem.py", *sorted((root / "src" / "gov_mem").rglob("*.py"))]
-        digest = sha256()
-        for path in paths:
-            if not path.exists():
-                continue
-            digest.update(str(path.relative_to(root)).encode("utf-8"))
-            digest.update(path.read_bytes())
-        return digest.hexdigest()
+        """Use the parent-provided fingerprint; never scan source at runtime."""
+        configured = os.environ.get("GOVMEM_RUNTIME_FINGERPRINT", "").strip()
+        if configured:
+            return configured
+        result = subprocess.run(
+            ["git", "-C", str(Path(__file__).resolve().parents[2]), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.strip() or "unverified-runtime"
 
     @staticmethod
     def _load_completed_prediction_ids(path: Path) -> set[str]:
@@ -449,7 +485,7 @@ class GovMemRunner:
             from gov_mem.backbones.stateful_policy import StatefulPolicyBackbone
 
             self._backbone = StatefulPolicyBackbone(**kwargs)
-        elif self.experiment_mode in {"rag_naive", "rag_naive_v3_typed_rerank"}:
+        elif self.experiment_mode in {"rag_naive", "rag_naive_v3_typed_rerank", "govmem_v4_symbolic"}:
             from gov_mem.backbones.rag_naive import RAGNaiveBackbone
 
             self._backbone = RAGNaiveBackbone(**kwargs)

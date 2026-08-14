@@ -3,11 +3,13 @@ from __future__ import annotations
 from gov_mem.backbones.rag_naive import (
     _append_missing_verified_safe_wording,
     _build_turn_chunks,
+    _format_retrieved_memory,
     _direct_answer,
 )
 from gov_mem.memory.dense_index import DenseMemoryIndex
 from gov_mem.llm.client import LLMClientUnavailableError
 from gov_mem.backbones.stage2_typed_rerank import Stage2Decision
+from gov_mem.backbones.stage2_typed_rerank import _mixed_reasoning_prompt
 from gov_mem.data.schema import MemoryInstance, RetrievedEvidence
 
 
@@ -28,11 +30,21 @@ def _instance() -> MemoryInstance:
         conversation_id="episode_01",
         messages=[
             {
+                "turn_id": "t001",
                 "message_id": "t001",
                 "speaker_id": "student_lina",
                 "speaker_role": "student",
                 "text": "The current date is May 12, 2026.",
                 "timestamp": "2026-05-01T09:00",
+                "turn_kind": "dialogue",
+                "source_turn": {
+                    "turn_id": "t001",
+                    "timestamp": "2026-05-01T09:00",
+                    "speaker": {"principal_id": "student_lina", "role": "student"},
+                    "turn_kind": "dialogue",
+                    "text": "The current date is May 12, 2026.",
+                    "record_refs": ["date_record"],
+                },
             },
             {
                 "message_id": "t002",
@@ -46,7 +58,10 @@ def _instance() -> MemoryInstance:
         asking_user_id="student_lina",
         choices=None,
         answer=None,
-        metadata={"requester": {"principal_id": "student_lina", "role": "student"}},
+        metadata={
+            "requester": {"principal_id": "student_lina", "role": "student"},
+            "observable": {"as_of_turn_id": "t002"},
+        },
     )
 
 
@@ -60,6 +75,145 @@ def test_rag_naive_uses_one_turn_chunk_per_message():
     assert [chunk.metadata["chunk_type"] for chunk in chunks] == ["turn", "turn"]
     assert chunks[0].text == "[student:student_lina] The current date is May 12, 2026."
     assert chunks[0].source_message_ids == ["t001"]
+
+
+def test_rag_naive_retrieval_record_restores_gate_mem_typed_fields():
+    record = _build_turn_chunks(_instance())[0].metadata["structured_record"]
+
+    assert record["message_id"] == "t001"
+    assert record["turn_id"] == "t001"
+    assert record["turn_index"] == 0
+    assert record["timestamp"] == "2026-05-01T09:00"
+    assert record["speaker"] == {
+        "principal_id": "student_lina",
+        "role": "student",
+    }
+    assert record["turn_kind"] == "dialogue"
+    assert record["text"] == "The current date is May 12, 2026."
+    assert record["checkpoint"] == {"as_of_turn_id": "t002"}
+    assert record["source_turn"]["record_refs"] == ["date_record"]
+
+
+def test_rag_naive_stage2_context_uses_valid_json_structured_record():
+    chunk = _build_turn_chunks(_instance())[0]
+    evidence = [
+        RetrievedEvidence(
+            memory_id=chunk.chunk_id,
+            content=chunk.text,
+            score=1.0,
+            retrieval_source="dense",
+            reason="test",
+            user_id="student_lina",
+            source_message_ids=["t001"],
+            time="2026-05-01T09:00",
+            metadata=chunk.metadata,
+        )
+    ]
+
+    context = _format_retrieved_memory(evidence)
+
+    structured_json = context.split("[STRUCTURED_RECORD] ", 1)[1]
+    import json
+    parsed = json.loads(structured_json)
+    assert parsed["speaker"]["role"] == "student"
+    assert parsed["speaker"]["principal_id"] == "student_lina"
+    assert parsed["timestamp"] == "2026-05-01T09:00"
+    assert parsed["source_turn"]["record_refs"] == ["date_record"]
+
+
+def test_stage2_reasoning_prompt_receives_typed_provenance_without_reextraction():
+    chunk = _build_turn_chunks(_instance())[0]
+    evidence = [
+        RetrievedEvidence(
+            memory_id=chunk.chunk_id,
+            content=chunk.text,
+            score=1.0,
+            retrieval_source="dense",
+            reason="test",
+            user_id="student_lina",
+            source_message_ids=["t001"],
+            time="2026-05-01T09:00",
+            metadata=chunk.metadata,
+        )
+    ]
+
+    _, prompt = _mixed_reasoning_prompt(
+        question="What is the current date?",
+        requested_slots=["date"],
+        evidence=evidence,
+        max_candidate_chars=2400,
+    )
+
+    assert '"structured_record"' in prompt
+    assert '"role": "student"' in prompt
+    assert '"principal_id": "student_lina"' in prompt
+    assert '"timestamp": "2026-05-01T09:00"' in prompt
+    assert '"turn_kind": "dialogue"' in prompt
+
+
+def test_stage2_reasoning_prompt_receives_v4_symbolic_annotations():
+    chunk = _build_turn_chunks(_instance())[0]
+    metadata = dict(chunk.metadata)
+    metadata["symbolic_provenance"] = {
+        "record_complete": True,
+        "role_consistent_with_roster": True,
+        "checkpoint_consistent": True,
+    }
+    metadata["symbolic_consistency"] = {
+        "passed": False,
+        "violation_count": 1,
+        "violation_kinds": ["principal_role_conflict"],
+    }
+    evidence = [
+        RetrievedEvidence(
+            memory_id=chunk.chunk_id,
+            content=chunk.text,
+            score=1.0,
+            retrieval_source="dense",
+            reason="test",
+            metadata=metadata,
+        )
+    ]
+
+    _, prompt = _mixed_reasoning_prompt(
+        question="What is the current date?",
+        requested_slots=["date"],
+        evidence=evidence,
+        max_candidate_chars=2400,
+    )
+
+    assert '"symbolic_annotations"' in prompt
+    assert '"principal_role_conflict"' in prompt
+
+
+def test_stage2_reasoning_prompt_keeps_validity_certificate_internal():
+    chunk = _build_turn_chunks(_instance())[0]
+    metadata = dict(chunk.metadata)
+    metadata["symbolic_validity_certificate"] = {
+        "mode": "shadow",
+        "state": "explicit_inactive",
+        "current_answer_eligibility": "blocked_in_enforced_mode",
+    }
+    evidence = [
+        RetrievedEvidence(
+            memory_id=chunk.chunk_id,
+            content=chunk.text,
+            score=1.0,
+            retrieval_source="dense",
+            reason="test",
+            metadata=metadata,
+        )
+    ]
+
+    _, prompt = _mixed_reasoning_prompt(
+        question="What is the current date?",
+        requested_slots=["date"],
+        evidence=evidence,
+        max_candidate_chars=2400,
+    )
+
+    assert "symbolic_validity_certificate" not in prompt
+    assert "blocked_in_enforced_mode" not in prompt
 
 
 def test_stage1_embedding_input_can_match_raw_gate_mem_turn_text():

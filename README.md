@@ -10,6 +10,66 @@ recovery point: later framework changes should be committed separately, so a
 regression can be diagnosed or the previous version can be restored from Git
 history.
 
+### Active development version (2026-08-14)
+
+The current development snapshot is **Gov-Mem-v4-Symbolic-dev2**. It is based on the frozen
+`rag_naive_v3_typed_rerank` framework (`Gov-Mem-v3.0`) and preserves the
+complete checkpoint-visible GateMem turn as structured retrieval provenance:
+`turn_id`, timestamp, principal, role, turn kind, original text, checkpoint,
+and the source turn object. Stage 2 receives this data as valid JSON and does
+not need to re-extract these fields from prose.
+
+The current implementation line is **Gov-Mem-v4-Symbolic-dev2**, selected by
+`experiment.mode: govmem_v4_symbolic`. It retains v3 retrieval and adds only
+lightweight typed Symbolic annotations: principal-role consistency, an
+Evidence-Principal-Entity relation graph, and explicit lifecycle-event
+assertions. These are passed to Stage 2 as auxiliary context. Lifecycle
+assertions recognize only explicit language such as `deleted`, `revoked`,
+`superseded`, or `updated from ... to ...`; they do not infer state from
+ordinary words such as `current` or `latest`. The implementation does not
+reorder or filter candidates, make permission decisions, or add LLM calls.
+The final paper-facing name is
+**Gov-Mem-v4-Symbolic**, which will be frozen incrementally after each Symbolic
+step passes regression and benchmark checks. The complete naming and
+promotion record is in
+[`VERSION_LOG.md`](VERSION_LOG.md).
+
+The dev2 lifecycle increment was validated on one complete episode per
+domain: Medical 27, Office 32, Education 18, and Household 24 checkpoints
+(101 total). The run used OpenLux, `gpt-4o-mini`,
+`text-embedding-3-small`, a 30-key pool with four concurrently leased keys,
+and four episode workers.
+All 101 retrieval traces contain the lifecycle graph; candidate ordering and
+filtering were unchanged and the added LLM-call count was zero. This is an
+engineering smoke validation, not a paper performance result and must not be
+mixed into the frozen full-benchmark U/A/F/MGS table.
+
+The validity-shadow audit adds deterministic `EvidenceValidityCertificate`
+records for explicit lifecycle states. The target-binding v2 increment also
+links a lifecycle claim to an earlier retrieved target only when the match is
+unique and temporally valid; ambiguous and unbound cases are retained as
+explicit audit states. These records remain internal diagnostic metadata and
+are deliberately excluded from Stage 2 and answer prompts, so shadow mode
+does not change the LLM-visible evidence contract. Across the validated
+101-checkpoint run, all answer and Stage 2 prompt audits contained zero
+certificate and target-binding fields while internal records were retained.
+The official judge completed all 101 cases:
+
+| Domain | Checkpoints | U | A | F | MGS |
+|---|---:|---:|---:|---:|---:|
+| Medical | 27 | 70.00% | 66.67% | 0.00% | 23.33% |
+| Office | 32 | 55.56% | 0.00% | 0.00% | 55.56% |
+| Education | 18 | 0.00% | 16.67% | 0.00% | 0.00% |
+| Household | 24 | 62.50% | 12.50% | 0.00% | 54.69% |
+| **All scored cases** | **101** | **51.52%** | **24.24%** | **0.00%** | **39.03%** |
+
+This is an engineering diagnostic rather than a paper performance result:
+it uses one episode per domain, Education has only six utility cases, and the
+memory-model temperature is 0.2. It must not be mixed into the frozen
+2,218-checkpoint typed-rerank table. Enforcement is not enabled. The complete
+score is recorded in
+`outputs/2026-08-14_Gov-Mem-v4-Symbolic-dev2-target-binding-shadow-v2_gpt4omini_embedding3small_smoke4/official_score.json`.
+
 ### Canonical symbolic experiment method
 
 The canonical symbolic method is **Gov-Mem-Symbolic**, selected by the

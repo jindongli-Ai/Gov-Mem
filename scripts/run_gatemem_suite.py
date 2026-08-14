@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
 import os
 import re
-from queue import Queue
+import shutil
+import time
+from queue import Empty, Queue
 import subprocess
 import sys
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[1] / "src"
@@ -18,11 +20,20 @@ if str(SRC) not in sys.path:
 from gov_mem.eval.benchmark_official import load_and_validate_predictions, run_official_scorer
 from gov_mem.llm.model_registry import resolve_llm_model
 from gov_mem.utils.config import load_yaml_config
+from gov_mem.utils.storage import (
+    configure_local_environment,
+    runtime_root,
+    stage_explicit_dataset,
+    stage_runtime_code,
+    stage_tracked_tree,
+    storage_audit,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN_GOVMEM = ROOT / "run_govmem.py"
 DEFAULT_DATA_ROOT = ROOT / "dataset" / "GateMem" / "gatemem" / "data"
+MAX_SAFE_EPISODE_WORKERS = 4
 
 
 def _load_manifest(path: Path) -> dict:
@@ -325,6 +336,16 @@ def _write_paper_metrics(out_dir: Path) -> dict:
     return metrics
 
 
+def _publish_tree(source: Path, target: Path) -> None:
+    """Publish only after completion; source is local scratch, target may be NFS."""
+    for root, dirs, files in os.walk(source):
+        relative = Path(root).relative_to(source)
+        destination = target / relative
+        destination.mkdir(parents=True, exist_ok=True)
+        for name in files:
+            shutil.copy2(Path(root) / name, destination / name)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run a fixed checkpoint benchmark suite across all domains.")
     parser.add_argument("--suite_manifest", required=True)
@@ -345,17 +366,65 @@ def main() -> None:
         help="Override the configured embedding model for every domain subprocess.",
     )
     parser.add_argument("--resume", action="store_true", help="Strictly resume compatible interrupted domain runs.")
-    parser.add_argument("--parallel_domains", type=int, default=4, help="Number of domain subprocesses to run concurrently.")
+    parser.add_argument(
+        "--parallel_domains",
+        type=int,
+        default=4,
+        help="Legacy domain scheduling setting; episode workers are globally bounded.",
+    )
     parser.add_argument(
         "--parallel_episodes",
         type=int,
         default=4,
-        help="Run episode shards concurrently with one stable Yunwu key per episode.",
+        help="Global number of episode subprocesses to run concurrently.",
     )
     args = parser.parse_args()
 
-    suite_manifest = Path(args.suite_manifest)
-    output_dir = Path(args.output_dir)
+    requested_episode_workers = max(1, int(args.parallel_episodes))
+    if requested_episode_workers > MAX_SAFE_EPISODE_WORKERS:
+        raise ValueError(
+            "Refusing unsafe episode concurrency: "
+            f"requested={requested_episode_workers}, "
+            f"maximum={MAX_SAFE_EPISODE_WORKERS}. "
+            "A larger API-key pool does not justify more active workers."
+        )
+
+    suite_manifest = Path(args.suite_manifest).resolve()
+    remote_output_dir = Path(args.output_dir).resolve()
+    run_id = f"{suite_manifest.stem}-{remote_output_dir}"
+    local_root = runtime_root(run_id)
+    configure_local_environment(local_root)
+    output_dir = local_root / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    source_data_root = Path(args.data_root).resolve()
+    local_data_root = stage_explicit_dataset(
+        source_data_root,
+        local_root / "dataset",
+        ("education", "household", "medical", "office"),
+    )
+    local_code_root = stage_runtime_code(ROOT, local_root / "code")
+    local_run_govmem = local_code_root / "run_govmem.py"
+    local_official_root = stage_tracked_tree(
+        ROOT / "third_party" / "GateMem-official", local_root / "official"
+    )
+    os.environ["GOVMEM_OFFICIAL_BENCHMARK_ROOT"] = str(local_official_root)
+    os.environ["GOVMEM_DATASET_ROOT"] = str(local_data_root)
+    local_config = local_root / "config.yaml"
+    shutil.copy2(Path(args.config).resolve(), local_config)
+    runtime_fingerprint = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip() or "unverified-runtime"
+    storage_audit({
+        "project_dir": ROOT,
+        "dataset_source": source_data_root,
+        "dataset_runtime": local_data_root,
+        "runtime_dir": local_root,
+        "result_dir": output_dir,
+        "final_output_dir": remote_output_dir,
+    })
     payload = _load_manifest(suite_manifest)
     config = load_yaml_config(args.config)
     suite_name = str(payload.get("suite_name") or suite_manifest.stem)
@@ -405,7 +474,10 @@ def main() -> None:
         "version": version,
         "execution": {
             "parallel_domains": max(1, int(args.parallel_domains)),
-            "parallel_episodes": max(1, int(args.parallel_episodes)),
+            "parallel_episodes": requested_episode_workers,
+            "episode_worker_scope": "global",
+            "runtime_storage": "local_scratch",
+            "filesystem_scheduler_threads": 0,
             "memory_system_key_pool_size": len(llm_keys),
             "memory_system_key_isolation": bool(llm_keys),
             "memory_system_provider": llm_provider,
@@ -434,15 +506,15 @@ def main() -> None:
         )
         cmd = [
             sys.executable,
-            str(RUN_GOVMEM),
+            str(local_run_govmem),
             "--dataset_name",
             "checkpoint_benchmark",
             "--data_path",
-            str(Path(args.data_root) / domain),
+            str(local_data_root / domain),
             "--output_dir",
             str(episode_output_dir),
             "--config",
-            args.config,
+            str(local_config),
             "--experiment_mode",
             args.experiment_mode,
             "--stage",
@@ -458,13 +530,34 @@ def main() -> None:
         if args.resume:
             cmd.append("--resume")
         prediction_path = episode_output_dir / "predictions" / "checkpoint_benchmark" / "predictions.jsonl"
-        if args.resume and _prediction_shard_is_complete(
-            entries=entries,
-            predictions_path=prediction_path,
-        ):
-            # The prediction-producing code is unchanged; only the evaluator
-            # may need resuming after a transient judge outage.
-            return episode_output_dir
+        remote_prediction_path = (
+            remote_output_dir
+            / domain
+            / "episodes"
+            / episode_id
+            / "predictions"
+            / "checkpoint_benchmark"
+            / "predictions.jsonl"
+        )
+        if args.resume:
+            # Results are published only after a run completes, while every
+            # resume attempt gets a fresh local scratch tree. Rehydrate the
+            # small prediction shard from the published tree so the
+            # coordinator can merge/evaluate it without starting an empty
+            # child with --resume.
+            source_prediction_path = (
+                prediction_path
+                if prediction_path.exists()
+                else remote_prediction_path
+            )
+            if _prediction_shard_is_complete(
+                entries=entries,
+                predictions_path=source_prediction_path,
+            ):
+                if source_prediction_path != prediction_path:
+                    prediction_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(source_prediction_path, prediction_path)
+                return episode_output_dir
         key_index: int | None = None
         embedding_key_index: int | None = None
         if available_key_indices is not None:
@@ -472,14 +565,25 @@ def main() -> None:
             # guarantees that concurrent episodes never share a Yunwu key;
             # when the pool is smaller than the requested parallelism, later
             # episodes wait and reuse keys only after an earlier episode ends.
-            key_index = available_key_indices.get()
+            try:
+                key_index = available_key_indices.get_nowait()
+            except Empty:
+                return None
         if available_embedding_key_indices is not None:
             if shared_memory_key_leasing:
                 embedding_key_index = key_index
             else:
-                embedding_key_index = available_embedding_key_indices.get()
+                try:
+                    embedding_key_index = available_embedding_key_indices.get_nowait()
+                except Empty:
+                    if key_index is not None:
+                        available_key_indices.put(key_index)
+                    return None
         try:
             child_env = os.environ.copy()
+            child_env["GOVMEM_RUNTIME_FINGERPRINT"] = runtime_fingerprint
+            child_env["GOVMEM_DATASET_ROOT"] = str(local_data_root)
+            child_env["GOVMEM_OFFICIAL_BENCHMARK_ROOT"] = str(local_official_root)
             _set_child_provider_key(
                 child_env, provider_config=llm_cfg, provider=llm_provider,
                 keys=llm_keys, key_index=key_index,
@@ -488,33 +592,17 @@ def main() -> None:
                 child_env, provider_config=embedding_cfg, provider=embedding_provider,
                 keys=embedding_keys, key_index=embedding_key_index,
             )
-            subprocess.run(cmd, check=True, cwd=str(ROOT), env=child_env)
-            return episode_output_dir
-        finally:
+            return subprocess.Popen(cmd, cwd=str(local_code_root), env=child_env), key_index, embedding_key_index, episode_output_dir
+
+        except Exception:
             if key_index is not None:
                 available_key_indices.put(key_index)
-            if embedding_key_index is not None:
-                if not shared_memory_key_leasing:
-                    available_embedding_key_indices.put(embedding_key_index)
+            if embedding_key_index is not None and not shared_memory_key_leasing:
+                available_embedding_key_indices.put(embedding_key_index)
+            raise
 
-    def run_domain(domain: str, entries: list[dict]) -> tuple[str, dict]:
+    def finalize_domain(domain: str, entries: list[dict], episode_dirs: list[Path]) -> tuple[str, dict]:
         domain_output_dir = output_dir / domain
-        episodes = _episode_groups(entries)
-        indexed_episodes = list(sorted(episodes.items()))
-        episode_dirs: list[Path] = []
-        max_workers = max(1, min(int(args.parallel_episodes), len(indexed_episodes)))
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [
-                executor.submit(
-                    run_episode,
-                    domain,
-                    episode_id,
-                    episode_entries,
-                )
-                for episode_id, episode_entries in indexed_episodes
-            ]
-            for future in as_completed(futures):
-                episode_dirs.append(future.result())
         merged_predictions = _merge_episode_predictions(
             domain=domain, episode_dirs=episode_dirs, domain_output_dir=domain_output_dir
         )
@@ -529,7 +617,7 @@ def main() -> None:
                 judge_key = judge_keys[judge_key_index] if judge_key_index is not None else None
                 run_official_scorer(
                     domain=domain,
-                    data_dir=Path(args.data_root) / domain,
+                    data_dir=local_data_root / domain,
                     predictions_path=merged_predictions,
                     out_dir=official_out_dir,
                     use_llm_judge=bool(judge_config.get("enabled", True)),
@@ -549,23 +637,77 @@ def main() -> None:
                     available_judge_key_indices.put(judge_key_index)
         return domain, {
             "n_entries": len(entries),
-            "n_episodes": len(indexed_episodes),
+            "n_episodes": len(episode_dirs),
             "summary": _read_summary(official_out_dir / "summary.json"),
             "paper_metrics": _write_paper_metrics(official_out_dir) if not args.skip_official_eval else {},
         }
 
-    workers = max(1, min(int(args.parallel_domains), len(grouped)))
-    if workers == 1:
-        results = [run_domain(domain, entries) for domain, entries in grouped.items()]
-    else:
-        results = []
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = {
-                executor.submit(run_domain, domain, entries): domain
-                for domain, entries in grouped.items()
-            }
-            for future in as_completed(futures):
-                results.append(future.result())
+    # A single coordinator owns all subprocesses. There are no scheduler
+    # threads: one API key is leased to one child process for its lifetime.
+    episode_jobs = [
+        (domain, episode_id, episode_entries)
+        for domain, entries in grouped.items()
+        for episode_id, episode_entries in sorted(_episode_groups(entries).items())
+    ]
+    episode_dirs_by_domain: dict[str, list[Path]] = defaultdict(list)
+    pending_jobs = list(episode_jobs)
+    active: list[tuple[subprocess.Popen, str, int | None, int | None, Path]] = []
+
+    def stop_active_children() -> None:
+        for process, _domain, _key_index, _embedding_key_index, _episode_dir in active:
+            if process.poll() is None:
+                process.terminate()
+        for process, _domain, _key_index, _embedding_key_index, _episode_dir in active:
+            if process.poll() is None:
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+
+    atexit.register(stop_active_children)
+    while pending_jobs or active:
+        launched = False
+        while pending_jobs and len(active) < requested_episode_workers:
+            domain, episode_id, episode_entries = pending_jobs[0]
+            prepared = run_episode(domain, episode_id, episode_entries)
+            if prepared is None:
+                break
+            if isinstance(prepared, Path):
+                pending_jobs.pop(0)
+                episode_dirs_by_domain[domain].append(prepared)
+                launched = True
+                continue
+            process, key_index, embedding_key_index, episode_dir = prepared
+            pending_jobs.pop(0)
+            active.append((process, domain, key_index, embedding_key_index, episode_dir))
+            launched = True
+
+        still_active: list[tuple[subprocess.Popen, str, int | None, int | None, Path]] = []
+        for process, domain, key_index, embedding_key_index, episode_dir in active:
+            return_code = process.poll()
+            if return_code is None:
+                still_active.append((process, domain, key_index, embedding_key_index, episode_dir))
+                continue
+            if key_index is not None:
+                available_key_indices.put(key_index)
+            if embedding_key_index is not None and not shared_memory_key_leasing:
+                available_embedding_key_indices.put(embedding_key_index)
+            if return_code != 0:
+                raise subprocess.CalledProcessError(return_code, process.args)
+            episode_dirs_by_domain[domain].append(episode_dir)
+        active = still_active
+        if active and not launched:
+            time.sleep(0.2)
+        elif pending_jobs and not active and not launched:
+            raise RuntimeError(
+                "No API key lease is available and no episode is running; "
+                "check the configured provider key pool."
+            )
+
+    results = [
+        finalize_domain(domain, entries, episode_dirs_by_domain.get(domain, []))
+        for domain, entries in grouped.items()
+    ]
     for domain, result in sorted(results):
         suite_summary["domains"][domain] = result
 
@@ -573,6 +715,8 @@ def main() -> None:
         json.dumps(suite_summary, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
+    _publish_tree(output_dir, remote_output_dir)
+    shutil.rmtree(local_root, ignore_errors=True)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Mapping
@@ -13,23 +14,14 @@ DOMAINS = ("education", "household", "medical", "office")
 JsonDict = Dict[str, Any]
 
 
-def _discover_dataset_root() -> Path:
-    dataset_root = PROJECT_ROOT / "dataset"
-    candidates = []
-    if dataset_root.exists():
-        for path in dataset_root.rglob("episodes.jsonl"):
-            parent = path.parent
-            if (parent / "checkpoints.jsonl").exists():
-                candidates.append(parent)
-    domain_dirs = [path for path in candidates if path.name in DOMAINS]
-    if domain_dirs:
-        return domain_dirs[0].parent
-    if candidates:
-        return candidates[0]
-    raise FileNotFoundError("Could not discover checkpoint benchmark dataset root under dataset/.")
+def _dataset_root() -> Path:
+    configured = os.environ.get("GOVMEM_DATASET_ROOT", "").strip()
+    return Path(configured).resolve() if configured else (
+        PROJECT_ROOT / "dataset" / "GateMem" / "gatemem" / "data"
+    )
 
 
-DATASET_ROOT = _discover_dataset_root()
+DATASET_ROOT = _dataset_root()
 
 
 @dataclass(frozen=True)

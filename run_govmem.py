@@ -70,6 +70,7 @@ def main() -> None:
         choices=[
             "rag_naive",
             "rag_naive_v3_typed_rerank",
+            "govmem_v4_symbolic",
             "rag_policy",
             "govmem_symbolic",
             # Legacy name retained so historical configs and outputs remain reproducible.

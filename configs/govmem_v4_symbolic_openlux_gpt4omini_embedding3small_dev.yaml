@@ -1,0 +1,77 @@
+project:
+  name: Gov-Mem-v4-Symbolic-dev2
+  seed: 42
+
+experiment:
+  mode: govmem_v4_symbolic
+
+llm:
+  provider: openlux
+  api_key_env: OPENLUX_API_KEY
+  api_base: https://api.openlux.ai/v1
+  base_model: gpt-4o-mini
+  role_models: {}
+  memory_ingestion_model: gpt-4o-mini
+  query_planner_model: gpt-4o-mini
+  reasoning_model: gpt-4o-mini
+  answering_model: gpt-4o-mini
+  temperature: 0.2
+  max_output_tokens: 4096
+  max_retries: 3
+  request_timeout: 120
+  retry_backoff_seconds: 5.0
+  max_retry_backoff_seconds: 30.0
+  allow_fallback: false
+
+embedding:
+  provider: openlux
+  api_key_env: OPENLUX_API_KEY
+  api_base: https://api.openlux.ai/v1
+  model: text-embedding-3-small
+  request_timeout: 30
+  retry_backoff_seconds: 3.0
+  max_retry_backoff_seconds: 30.0
+  cache_dir: /tmp/govmem_v4_symbolic_text_embedding_3_small_gpt4omini
+  allow_fallback: false
+
+pipeline:
+  use_asking_user_id: true
+  save_intermediate: true
+
+self_evolving:
+  enable_experience: false
+  enable_skill_update: false
+  update_every_n_failures: 20
+
+rag:
+  naive_top_k: 20
+
+stage2:
+  llm_reasoning_rerank:
+    enabled: true
+    max_candidates: 20
+    max_candidate_chars: 2400
+  long_context_field_ledger:
+    enabled: false
+    max_context_chars: 120000
+
+evaluation:
+  clean_benchmark: true
+  allow_gold_feedback: false
+  protocol: gatemem_paper_main
+  official_judge:
+    enabled: true
+    provider: openlux
+    api_base: https://api.openlux.ai/v1
+    api_key_env: OPENLUX_API_KEY
+    model: gpt-4o
+    temperature: 0.0
+    max_output_tokens: 4096
+    concurrency: 1
+    gate_by_action: false
+
+runner:
+  dataset_name: checkpoint_benchmark
+  data_root: dataset/GateMem/gatemem/data
+  stage: all
+  experiment_mode: govmem_v4_symbolic

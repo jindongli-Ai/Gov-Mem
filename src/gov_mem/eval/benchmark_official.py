@@ -12,18 +12,18 @@ from gov_mem.data.checkpoint_benchmark import DOMAINS, PROJECT_ROOT
 ALLOWED_ACTIONS = {"answer", "answer_redacted", "refuse", "no_memory"}
 
 
-def _discover_official_benchmark_root() -> Path:
-    third_party_root = PROJECT_ROOT / "third_party"
-    if not third_party_root.exists():
-        raise FileNotFoundError("Missing third_party directory for official benchmark scorer discovery.")
-    for score_script in third_party_root.rglob("score_predictions.py"):
-        if score_script.parent.name == "scripts" and score_script.parent.parent.name == "bench":
-            return score_script.parents[2]
-    raise FileNotFoundError("Could not discover official benchmark scorer root under third_party/.")
+def _official_benchmark_root() -> Path:
+    configured = os.environ.get("GOVMEM_OFFICIAL_BENCHMARK_ROOT", "").strip()
+    return Path(configured).resolve() if configured else PROJECT_ROOT / "third_party" / "GateMem-official"
 
 
-OFFICIAL_BENCHMARK_ROOT = _discover_official_benchmark_root()
+OFFICIAL_BENCHMARK_ROOT = _official_benchmark_root()
 OFFICIAL_SCORE_SCRIPT = OFFICIAL_BENCHMARK_ROOT / "bench" / "scripts" / "score_predictions.py"
+
+
+def _official_score_script() -> tuple[Path, Path]:
+    root = _official_benchmark_root()
+    return root, root / "bench" / "scripts" / "score_predictions.py"
 
 
 def dataset_dir_for_domain(domain: str, *, data_root: Path | None = None) -> Path:
@@ -182,12 +182,13 @@ def run_official_scorer(
     gate_by_action: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     resolved_data_dir = dataset_dir_for_domain(domain, data_root=data_dir.parent if data_dir is not None and data_dir.name == domain else data_dir)
-    if not OFFICIAL_SCORE_SCRIPT.exists():
-        raise FileNotFoundError(f"Official benchmark scoring script not found: {OFFICIAL_SCORE_SCRIPT}")
+    official_root, official_score_script = _official_score_script()
+    if not official_score_script.exists():
+        raise FileNotFoundError(f"Official benchmark scoring script not found: {official_score_script}")
 
     cmd = [
         sys.executable,
-        str(OFFICIAL_SCORE_SCRIPT),
+        str(official_score_script),
         "--data_dir",
         str(resolved_data_dir),
         "--predictions",
@@ -220,7 +221,7 @@ def run_official_scorer(
     out_dir.mkdir(parents=True, exist_ok=True)
     env = os.environ.copy()
     # Let the scorer use the system Python environment so it can resolve native deps like numpy.
-    pythonpath_parts = [str(OFFICIAL_BENCHMARK_ROOT)]
+    pythonpath_parts = [str(official_root)]
     existing_pythonpath = env.get('PYTHONPATH')
     if existing_pythonpath:
         pythonpath_parts.append(existing_pythonpath)
