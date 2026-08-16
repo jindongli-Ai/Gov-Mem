@@ -33,7 +33,9 @@ from gov_mem.utils.storage import (
 ROOT = Path(__file__).resolve().parents[1]
 RUN_GOVMEM = ROOT / "run_govmem.py"
 DEFAULT_DATA_ROOT = ROOT / "dataset" / "GateMem" / "gatemem" / "data"
-MAX_SAFE_EPISODE_WORKERS = 4
+# Keep one request in flight per episode worker; five is the approved bounded
+# validation level for the current OpenLux experiments.
+MAX_SAFE_EPISODE_WORKERS = 5
 
 
 def _load_manifest(path: Path) -> dict:
@@ -137,7 +139,12 @@ def _discover_api_keys(*, provider: str) -> list[str]:
         if readme.exists():
             keys.extend(re.findall(r"sk-[A-Za-z0-9]+", readme.read_text(encoding="utf-8")))
         if keys:
-            return list(dict.fromkeys(keys))
+            unique_keys = list(dict.fromkeys(keys))
+            offset = int(os.environ.get("OPENLUX_API_KEY_START_INDEX", "0") or 0)
+            if unique_keys:
+                offset %= len(unique_keys)
+                unique_keys = unique_keys[offset:] + unique_keys[:offset]
+            return unique_keys
         single_key = os.environ.get(single_env, "").strip()
         return [single_key] if single_key else []
     else:
@@ -510,6 +517,7 @@ def main() -> None:
     def run_episode(domain: str, episode_id: str, entries: list[dict]) -> Path:
         domain_output_dir = output_dir / domain
         episode_output_dir = domain_output_dir / "episodes" / episode_id
+        resume_existing_run = args.resume and (episode_output_dir / "run_metadata.json").exists()
         episode_manifest = _write_manifest(
             suite_name=suite_name,
             version=version,
@@ -540,7 +548,7 @@ def main() -> None:
             cmd.extend(["--base_model", args.base_model])
         if args.embedding_model:
             cmd.extend(["--embedding_model", args.embedding_model])
-        if args.resume:
+        if resume_existing_run:
             cmd.append("--resume")
         prediction_path = episode_output_dir / "predictions" / "checkpoint_benchmark" / "predictions.jsonl"
         remote_prediction_path = (

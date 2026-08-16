@@ -633,6 +633,10 @@ def _mixed_reasoning_prompt(
                 "symbolic_permission_claim",
                 "symbolic_lifecycle_claim",
                 "symbolic_state_claims",
+                "symbolic_policy_facts",
+                "symbolic_policy_certificate",
+                "symbolic_temporal_authorization_events",
+                "symbolic_temporal_authorization_certificate",
             )
             if key in metadata
         }
@@ -650,7 +654,9 @@ def _mixed_reasoning_prompt(
         "If field_support is included, use integer indexes into REQUESTED_FIELDS "
         "as keys (for example, {\"0\":[1]}), never natural-language field names. "
         "Do not invent field names or answer the user. This is relevance and conflict "
-        "resolution, not authorization.\n\n"
+        "resolution, not final authorization. Treat SYMBOLIC_POLICY_CERTIFICATE as "
+        "structured consistency evidence: do not invent facts or override an explicit "
+        "deny/allow claim, but keep the decision unknown when the certificate is unknown.\n\n"
         f"QUESTION: {question}\n"
         f"REQUESTED_FIELDS: {json.dumps(requested_slots, ensure_ascii=True)}\n\n"
         "Return exactly one JSON object with this shape:\n"

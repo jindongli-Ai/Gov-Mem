@@ -1,6 +1,9 @@
 from dataclasses import replace
 
-from gov_mem.backbones.symbolic_evidence import build_symbolic_evidence
+from gov_mem.backbones.symbolic_evidence import (
+    build_symbolic_evidence,
+    extract_authorization_assertions,
+)
 from gov_mem.data.schema import MemoryInstance, RetrievedEvidence
 
 
@@ -55,7 +58,24 @@ def _instance() -> MemoryInstance:
     )
 
 
-def _evidence(*, memory_id: str, turn_id: str, principal_id: str, role: str, text: str, score: float):
+def _evidence(
+    *, memory_id: str, turn_id: str, principal_id: str, role: str, text: str,
+    score: float, extra_metadata: dict | None = None,
+):
+    metadata = {
+        "structured_record": {
+            "record_type": "message",
+            "message_id": turn_id,
+            "turn_id": turn_id,
+            "turn_index": int(turn_id.removeprefix("t")) - 1,
+            "timestamp": f"2026-03-03T08:{int(turn_id.removeprefix('t')) - 1:02d}",
+            "speaker": {"principal_id": principal_id, "role": role},
+            "turn_kind": "dialogue",
+            "text": text,
+            "checkpoint": {"as_of_turn_id": "t002"},
+        }
+    }
+    metadata.update(extra_metadata or {})
     return RetrievedEvidence(
         memory_id=memory_id,
         content=f"[{role}:{principal_id}] {text}",
@@ -65,19 +85,7 @@ def _evidence(*, memory_id: str, turn_id: str, principal_id: str, role: str, tex
         user_id=principal_id,
         source_message_ids=[turn_id],
         time="2026-03-03T08:00",
-        metadata={
-            "structured_record": {
-                "record_type": "message",
-                "message_id": turn_id,
-                "turn_id": turn_id,
-                "turn_index": int(turn_id.removeprefix("t")) - 1,
-                "timestamp": f"2026-03-03T08:{int(turn_id.removeprefix('t')) - 1:02d}",
-                "speaker": {"principal_id": principal_id, "role": role},
-                "turn_kind": "dialogue",
-                "text": text,
-                "checkpoint": {"as_of_turn_id": "t002"},
-            }
-        },
+        metadata=metadata,
     )
 
 
@@ -123,6 +131,70 @@ def test_v4_symbolic_layer_preserves_all_candidates_and_adds_typed_trace():
     assert ranked[0].metadata["symbolic_validity_certificate"]["state"] == "unknown"
     assert ranked[0].metadata["symbolic_validity_certificate"]["mode"] == "shadow"
     assert trace["validity_projection"]["enforcement_applied"] is False
+
+
+def test_dev4_policy_certificate_denies_sensitive_scope_for_logistics_only_policy():
+    instance = replace(_instance(), question="What clinical result is current?")
+    evidence = [
+        _evidence(
+            memory_id="policy",
+            turn_id="t001",
+            principal_id="patient_elena",
+            role="patient",
+            text="Only logistics may be shared with Linda; clinical results and medications remain restricted.",
+            score=0.9,
+        )
+    ]
+
+    ranked, trace = build_symbolic_evidence(
+        instance=instance,
+        evidence=evidence,
+        policy_consistency_enabled=True,
+    )
+
+    certificate = trace["policy_consistency"]
+    assert certificate["decision"] == "deny"
+    assert certificate["scope_decisions"]["clinical"] == "deny"
+    assert certificate["enforcement_applied"] is False
+    assert ranked[0].metadata["symbolic_policy_certificate"] == certificate
+    assert ranked[0].metadata["symbolic_policy_facts"]
+
+
+def test_dev4_policy_certificate_uses_latest_explicit_policy_fact():
+    instance = replace(_instance(), question="What clinical result is current?")
+    evidence = [
+        _evidence(
+            memory_id="old_policy",
+            turn_id="t001",
+            principal_id="patient_elena",
+            role="patient",
+            text="Clinical results remain restricted to Elena.",
+            score=0.9,
+        ),
+        _evidence(
+            memory_id="new_policy",
+            turn_id="t002",
+            principal_id="patient_elena",
+            role="patient",
+            text="Linda may receive the current clinical results.",
+            score=0.8,
+        ),
+    ]
+
+    _, trace = build_symbolic_evidence(
+        instance=instance,
+        evidence=evidence,
+        policy_consistency_enabled=True,
+    )
+
+    assert trace["policy_consistency"]["decision"] == "allow"
+    assert trace["policy_consistency"]["supporting_evidence_ids"] == ["new_policy"]
+
+
+def test_dev4_policy_consistency_is_disabled_by_default():
+    _, trace = build_symbolic_evidence(instance=_instance(), evidence=[])
+
+    assert trace["policy_consistency"]["enabled"] is False
 
 
 def test_v4_symbolic_layer_detects_role_and_checkpoint_conflicts():
@@ -341,3 +413,226 @@ def test_v4_symbolic_state_ledger_resolves_latest_retrieved_claim_without_filter
     assert ledger["new_llm_calls"] == 0
     assert [row.memory_id for row in ranked] == ["m_old", "m_new"]
     assert ranked[0].metadata["symbolic_state_ledger"] == ledger
+
+
+def test_v4_symbolic_state_ledger_reuses_clinical_plan_and_typed_frame_slots():
+    instance = replace(
+        _instance(),
+        question="What allergy is documented for me?",
+    )
+    evidence = [
+        _evidence(
+            memory_id="m_allergy",
+            turn_id="t002",
+            principal_id="nurse_alvarez",
+            role="nurse",
+            text="The allergy on file is a sulfa antibiotic rash.",
+            score=0.9,
+        ),
+    ]
+
+    ranked, trace = build_symbolic_evidence(
+        instance=instance,
+        evidence=evidence,
+        required_slot_plan={"required_slots": ["substance", "reaction"]},
+    )
+
+    ledger = trace["state_ledger"]
+    assert ledger["requested_slots"] == ["substance", "reaction"]
+    assert ledger["fields"]["substance"]["value"] == "sulfa antibiotic"
+    assert ledger["fields"]["reaction"]["value"] == "rash"
+    assert ledger["resolved_count"] == 2
+    assert ranked[0].metadata["symbolic_state_ledger"] == ledger
+
+
+def _auth_event(effect: str, principal: str = "nurse_alvarez", resource: str = "clinical records"):
+    return {
+        "effect": effect,
+        "principal_id": principal,
+        "resource": resource,
+    }
+
+
+def test_temporal_authorization_graph_applies_allow_then_revoke():
+    instance = replace(_instance(), question="What access does nurse_alvarez have to clinical records?")
+    evidence = [
+        _evidence(
+            memory_id="grant", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
+            text="A policy grants access.", score=0.9,
+            extra_metadata={"authorization_events": [_auth_event("allow")]},
+        ),
+        _evidence(
+            memory_id="revoke", turn_id="t002", principal_id="nurse_alvarez", role="nurse",
+            text="A policy revokes access.", score=0.8,
+            extra_metadata={"authorization_events": [_auth_event("revoke")]},
+        ),
+    ]
+
+    ranked, trace = build_symbolic_evidence(
+        instance=instance, evidence=evidence, temporal_authorization_enabled=True,
+    )
+
+    certificate = trace["temporal_authorization"]
+    assert certificate["version"] == "temporal-authorization-v1"
+    assert certificate["decision"] == "deny"
+    assert certificate["current_authorization"][0]["decision"] == "deny"
+    assert certificate["current_authorization"][0]["supporting_evidence_ids"] == ["grant", "revoke"]
+    assert any(edge["edge_type"] == "revokes" for edge in certificate["graph_edges"])
+    assert ranked[0].metadata["symbolic_temporal_authorization_certificate"] == certificate
+    assert certificate["enforcement_applied"] is False
+    assert certificate["new_llm_calls"] == 0
+
+
+def test_temporal_authorization_graph_later_allow_supersedes_older_deny():
+    instance = replace(_instance(), question="What access does nurse_alvarez have to clinical records?")
+    evidence = [
+        _evidence(
+            memory_id="old", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
+            text="A policy denies access.", score=0.9,
+            extra_metadata={"authorization_events": [_auth_event("deny")]},
+        ),
+        _evidence(
+            memory_id="new", turn_id="t002", principal_id="nurse_alvarez", role="nurse",
+            text="A new policy allows access.", score=0.8,
+            extra_metadata={"authorization_events": [{**_auth_event("allow"), "event_kind": "supersedes"}]},
+        ),
+    ]
+
+    _, trace = build_symbolic_evidence(
+        instance=instance, evidence=evidence, temporal_authorization_enabled=True,
+    )
+
+    certificate = trace["temporal_authorization"]
+    assert certificate["decision"] == "allow"
+    assert certificate["conflict_count"] == 0
+    assert any(edge["edge_type"] == "supersedes" for edge in certificate["graph_edges"])
+
+
+def test_temporal_authorization_graph_marks_same_time_allow_deny_unknown():
+    instance = replace(_instance(), question="What access does nurse_alvarez have to clinical records?")
+    evidence = [
+        _evidence(
+            memory_id="allow", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
+            text="A policy allows access.", score=0.9,
+            extra_metadata={"authorization_events": [_auth_event("allow")]},
+        ),
+        _evidence(
+            memory_id="deny", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
+            text="A policy denies access.", score=0.8,
+            extra_metadata={"authorization_events": [_auth_event("deny")]},
+        ),
+    ]
+
+    _, trace = build_symbolic_evidence(
+        instance=instance, evidence=evidence, temporal_authorization_enabled=True,
+    )
+
+    certificate = trace["temporal_authorization"]
+    assert certificate["decision"] == "unknown"
+    assert certificate["conflict_count"] == 1
+    assert certificate["current_authorization"][0]["conflict"] is True
+
+
+def test_temporal_authorization_graph_ignores_future_event_at_checkpoint():
+    instance = replace(_instance(), question="What access does nurse_alvarez have to clinical records?")
+    evidence = [
+        _evidence(
+            memory_id="future", turn_id="t003", principal_id="nurse_alvarez", role="nurse",
+            text="A future policy allows access.", score=0.9,
+            extra_metadata={"authorization_events": [_auth_event("allow")]},
+        ),
+    ]
+
+    _, trace = build_symbolic_evidence(
+        instance=instance, evidence=evidence, temporal_authorization_enabled=True,
+    )
+
+    certificate = trace["temporal_authorization"]
+    assert certificate["event_count"] == 0
+    assert certificate["ignored_future_event_count"] == 1
+    assert certificate["decision"] == "unknown"
+
+
+def test_temporal_authorization_graph_is_conservative_without_temporal_source():
+    instance = replace(_instance(), question="What access does nurse_alvarez have to clinical records?")
+    row = _evidence(
+        memory_id="untimed", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
+        text="A policy allows access.", score=0.9,
+        extra_metadata={"authorization_events": [_auth_event("allow")]},
+    )
+    record = dict(row.metadata["structured_record"])
+    record.pop("turn_index")
+    record.pop("timestamp")
+    row = replace(row, metadata={**row.metadata, "structured_record": record})
+
+    _, trace = build_symbolic_evidence(
+        instance=instance, evidence=[row], temporal_authorization_enabled=True,
+    )
+
+    certificate = trace["temporal_authorization"]
+    assert certificate["event_count"] == 0
+    assert certificate["unknown_event_count"] == 1
+    assert certificate["decision"] == "unknown"
+
+
+def test_authorization_assertion_is_structured_without_domain_vocabulary():
+    assertions = extract_authorization_assertions(
+        "Linda Park may receive scheduling details only; clinical results remain restricted."
+    )
+
+    assert assertions
+    assert assertions[0]["effect"] == "allow"
+    assert assertions[0]["subject"] == "Linda Park"
+    assert "scheduling details" in assertions[0]["resource"]
+    assert assertions[0]["source"] == "ingestion_text_grammar"
+    assert assertions[0]["source_span"][0] == 0
+
+
+def test_temporal_authorization_consumes_ingestion_annotation_and_resolves_roster_name():
+    metadata = dict(_instance().metadata)
+    metadata["raw_sample"] = {
+        "episode": {
+            "entities": {
+                "principals": [
+                    {"principal_id": "family_linda", "role": "family_member", "display_name": "Linda Park"},
+                    {"principal_id": "patient_elena", "role": "patient", "display_name": "Elena Park"},
+                ],
+                "relationships": [],
+            }
+        },
+    }
+    instance = replace(
+        _instance(),
+        question="What access does Linda Park have to scheduling details?",
+        metadata=metadata,
+    )
+    row = _evidence(
+        memory_id="policy",
+        turn_id="t001",
+        principal_id="patient_elena",
+        role="patient",
+        text="Linda Park may receive scheduling details only.",
+        score=0.9,
+    )
+    record = dict(row.metadata["structured_record"])
+    record["authorization_assertions"] = extract_authorization_assertions(
+        record["text"]
+    )
+    row = replace(row, metadata={**row.metadata, "structured_record": record})
+
+    _, trace = build_symbolic_evidence(
+        instance=instance,
+        evidence=[row],
+        temporal_authorization_enabled=True,
+    )
+
+    certificate = trace["temporal_authorization"]
+    assert certificate["event_count"] == 1
+    assert certificate["decision"] == "allow"
+    assert certificate["current_authorization"][0]["principal"] == "family_linda"
+    assert certificate["graph_edges"][0]["edge_type"] == "has_role"
+    assert any(
+        event.get("source") == "ingestion_text_grammar"
+        for event in certificate["graph_nodes"]
+        if event.get("node_type") == "PolicyEvent"
+    )

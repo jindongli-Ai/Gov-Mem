@@ -33,6 +33,7 @@ from gov_mem.data.schema import (
     QueryPlan,
     RetrievedEvidence,
 )
+from gov_mem.data.timestamps import normalize_message_timestamp, normalize_timestamp
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
 from gov_mem.llm.model_registry import resolve_llm_model
 from gov_mem.reasoning.operators import build_required_slot_plan
@@ -59,7 +60,10 @@ from gov_mem.backbones.stage2_typed_rerank import (
     _CURRENT_TERMS,
     _contains_marker,
 )
-from gov_mem.backbones.symbolic_evidence import build_symbolic_evidence
+from gov_mem.backbones.symbolic_evidence import (
+    build_symbolic_evidence,
+    extract_authorization_assertions,
+)
 from bench.domains import format_relationship_fact, get_domain_label, get_query_policy_block
 
 
@@ -73,6 +77,7 @@ def _structured_message_record(
     turn_index: int,
 ) -> dict[str, Any]:
     """Preserve the observable GateMem message as typed retrieval metadata."""
+    message = normalize_message_timestamp(message)
     speaker_id = str(message.get("speaker_id") or "") or None
     speaker_role = str(message.get("speaker_role") or "") or None
     message_id = str(message.get("message_id") or "")
@@ -83,12 +88,18 @@ def _structured_message_record(
         "message_id": message_id,
         "turn_id": turn_id,
         "turn_index": int(turn_index),
-        "timestamp": message.get("timestamp"),
+        "timestamp": normalize_timestamp(message.get("timestamp")),
         "speaker": {
             "principal_id": speaker_id,
             "role": speaker_role,
         },
         "turn_kind": message.get("turn_kind"),
+        # Preserve explicit authorization language as a typed, source-bound
+        # annotation. The grammar is provider-neutral; roster resolution is
+        # deferred until the episode context is available.
+        "authorization_assertions": extract_authorization_assertions(
+            str(message.get("text") or "")
+        ),
         "text": str(message.get("text") or ""),
         "checkpoint": {
             "as_of_turn_id": str(
@@ -105,6 +116,7 @@ def _build_turn_chunks(instance: MemoryInstance) -> list[RAGChunk]:
     """Match GateMem's RAG-Naive V0: one retrievable chunk per visible turn."""
     chunks: list[RAGChunk] = []
     for index, message in enumerate(instance.messages):
+        message = normalize_message_timestamp(message)
         speaker_id = str(message.get("speaker_id") or "unknown")
         role = str(message.get("speaker_role") or "")
         message_id = str(message.get("message_id") or "")
@@ -120,7 +132,10 @@ def _build_turn_chunks(instance: MemoryInstance) -> list[RAGChunk]:
                 text=f"{prefix} {text}".strip(),
                 source_message_ids=[str(message.get("message_id") or "")],
                 speaker_ids=[speaker_id],
-                timestamp_range=(message.get("timestamp"), message.get("timestamp")),
+                timestamp_range=(
+                    normalize_timestamp(message.get("timestamp")),
+                    normalize_timestamp(message.get("timestamp")),
+                ),
                 metadata={
                     "chunk_type": "turn",
                     "structured_record": _structured_message_record(
@@ -169,6 +184,32 @@ def _format_retrieved_memory(evidence: list[RetrievedEvidence]) -> str:
             "[SYMBOLIC_STATE_LEDGER] "
             + json.dumps(state_ledger, ensure_ascii=False, sort_keys=True)
         )
+    policy_certificate = next(
+        (
+            (row.metadata or {}).get("symbolic_policy_certificate")
+            for row in evidence
+            if isinstance((row.metadata or {}).get("symbolic_policy_certificate"), dict)
+        ),
+        None,
+    )
+    if policy_certificate:
+        lines.append(
+            "[SYMBOLIC_POLICY_CERTIFICATE] "
+            + json.dumps(policy_certificate, ensure_ascii=False, sort_keys=True)
+        )
+    temporal_authorization_certificate = next(
+        (
+            (row.metadata or {}).get("symbolic_temporal_authorization_certificate")
+            for row in evidence
+            if isinstance((row.metadata or {}).get("symbolic_temporal_authorization_certificate"), dict)
+        ),
+        None,
+    )
+    if temporal_authorization_certificate:
+        lines.append(
+            "[SYMBOLIC_TEMPORAL_AUTHORIZATION_CERTIFICATE] "
+            + json.dumps(temporal_authorization_certificate, ensure_ascii=False, sort_keys=True)
+        )
     for index, row in enumerate(evidence, 1):
         metadata = dict(row.metadata or {})
         record = metadata.get("structured_record")
@@ -184,6 +225,7 @@ def _format_retrieved_memory(evidence: list[RetrievedEvidence]) -> str:
                 "speaker": record.get("speaker"),
                 "turn_kind": record.get("turn_kind"),
                 "checkpoint": record.get("checkpoint"),
+                "authorization_assertions": record.get("authorization_assertions"),
                 "text": record.get("text"),
                 "source_turn": record.get("source_turn"),
                 "symbolic_provenance": metadata.get("symbolic_provenance"),
@@ -191,6 +233,10 @@ def _format_retrieved_memory(evidence: list[RetrievedEvidence]) -> str:
                 "symbolic_permission_claim": metadata.get("symbolic_permission_claim"),
                 "symbolic_lifecycle_claim": metadata.get("symbolic_lifecycle_claim"),
                 "symbolic_state_claims": metadata.get("symbolic_state_claims"),
+                "symbolic_policy_facts": metadata.get("symbolic_policy_facts"),
+                "symbolic_policy_certificate": metadata.get("symbolic_policy_certificate"),
+                "symbolic_temporal_authorization_events": metadata.get("symbolic_temporal_authorization_events"),
+                "symbolic_temporal_authorization_certificate": metadata.get("symbolic_temporal_authorization_certificate"),
             }
             lines.append(
                 f"Memory {index} [STRUCTURED_RECORD] "
@@ -897,11 +943,27 @@ class RAGNaiveBackbone:
             if memory_id in memory_by_id
         ]
         stage2_before = list(evidence)
+        plan = QueryPlan(
+            query_type="utility",
+            target_users=[instance.asking_user_id] if instance.asking_user_id else [],
+            target_entities=[],
+            required_memory_types=["chunk"],
+            symbolic_filters={},
+            dense_queries=[instance.question],
+            reasoning_ops=[],
+        )
+        required_slot_plan = build_required_slot_plan(instance.question, plan)
         symbolic_trace: dict[str, Any] = {}
         if self._symbolic_v4_enabled():
+            symbolic_cfg = dict(self.config.get("symbolic") or {})
+            policy_cfg = dict(symbolic_cfg.get("policy_consistency") or {})
+            temporal_auth_cfg = dict(symbolic_cfg.get("temporal_authorization") or {})
             evidence, symbolic_trace = build_symbolic_evidence(
                 instance=instance,
                 evidence=evidence,
+                required_slot_plan=required_slot_plan,
+                policy_consistency_enabled=bool(policy_cfg.get("enabled", False)),
+                temporal_authorization_enabled=bool(temporal_auth_cfg.get("enabled", False)),
             )
         stage2_prompt_audit = None
         stage2_decision = Stage2Decision(
@@ -932,15 +994,6 @@ class RAGNaiveBackbone:
                 policy_gate_reason=deletion_reason,
                 long_context_reason="historical/deleted query is excluded",
             )
-        plan = QueryPlan(
-            query_type="utility",
-            target_users=[instance.asking_user_id] if instance.asking_user_id else [],
-            target_entities=[],
-            required_memory_types=["chunk"],
-            symbolic_filters={},
-            dense_queries=[instance.question],
-            reasoning_ops=[],
-        )
         if deletion_reason:
             answer_result = AnswerResult(
                 prediction="The requested information has been deleted and is not available.",
@@ -1105,7 +1158,7 @@ class RAGNaiveBackbone:
                 f"official-compatible rag_naive selected {len(evidence)} turn chunks with one query.",
             ],
             selected_frames=[],
-            required_slot_plan=build_required_slot_plan(instance.question, plan),
+            required_slot_plan=required_slot_plan,
         )
         action_decision = GovernedActionDecision(
             action=answer_result.action,

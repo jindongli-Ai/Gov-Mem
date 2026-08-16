@@ -20,6 +20,7 @@ from gov_mem.data.schema import (
     RetrievedEvidence,
     to_serializable,
 )
+from gov_mem.data.timestamps import normalize_message_timestamp, normalize_timestamp
 from gov_mem.governance_runtime.evidence_frames import compile_evidence_frame
 from gov_mem.governance_runtime.leakage_guard import assert_runtime_payload_safe
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
@@ -83,7 +84,7 @@ def build_default_query_plan(instance: MemoryInstance) -> QueryPlan:
 def build_rag_chunks(instance: MemoryInstance, config: dict[str, Any]) -> list[RAGChunk]:
     rag_cfg = config.get("rag") or {}
     chunks: list[RAGChunk] = []
-    messages = list(instance.messages)
+    messages = [normalize_message_timestamp(message) for message in instance.messages]
     for idx, message in enumerate(messages):
         chunks.append(
             RAGChunk(
@@ -92,7 +93,10 @@ def build_rag_chunks(instance: MemoryInstance, config: dict[str, Any]) -> list[R
                 text=_format_message(message),
                 source_message_ids=[str(message.get("message_id"))],
                 speaker_ids=[str(message.get("speaker_id") or "")],
-                timestamp_range=(message.get("timestamp"), message.get("timestamp")),
+                timestamp_range=(
+                    normalize_timestamp(message.get("timestamp")),
+                    normalize_timestamp(message.get("timestamp")),
+                ),
                 metadata={"chunk_type": "message"},
             )
         )
@@ -104,10 +108,13 @@ def build_rag_chunks(instance: MemoryInstance, config: dict[str, Any]) -> list[R
                     RAGChunk(
                         chunk_id=f"{instance.instance_id}_sentence_{idx:04d}_{sentence_idx:02d}",
                         instance_id=instance.instance_id,
-                        text=f"[{message.get('speaker_id') or 'unknown'}] [{message.get('timestamp') or 'unknown_time'}] {sentence_text}",
+                        text=f"[{message.get('speaker_id') or 'unknown'}] [{normalize_timestamp(message.get('timestamp')) or 'unknown_time'}] {sentence_text}",
                         source_message_ids=[str(message.get("message_id"))],
                         speaker_ids=[str(message.get("speaker_id") or "")],
-                        timestamp_range=(message.get("timestamp"), message.get("timestamp")),
+                        timestamp_range=(
+                            normalize_timestamp(message.get("timestamp")),
+                            normalize_timestamp(message.get("timestamp")),
+                        ),
                         metadata={"chunk_type": "sentence"},
                     )
                 )
@@ -410,12 +417,16 @@ def _build_window_chunk(instance: MemoryInstance, window: list[dict], *, chunk_t
         text=text,
         source_message_ids=[str(message.get("message_id")) for message in window],
         speaker_ids=[str(message.get("speaker_id") or "") for message in window],
-        timestamp_range=(window[0].get("timestamp"), window[-1].get("timestamp")),
+        timestamp_range=(
+            normalize_timestamp(window[0].get("timestamp")),
+            normalize_timestamp(window[-1].get("timestamp")),
+        ),
         metadata={"chunk_type": chunk_type},
     )
 
 
 def _build_utility_event_chunks(instance: MemoryInstance, message: dict[str, Any], *, idx: int) -> list[RAGChunk]:
+    message = normalize_message_timestamp(message)
     speaker = str(message.get("speaker_id") or "")
     timestamp = message.get("timestamp")
     segments = _extract_utility_event_segments(str(message.get("text") or ""))
@@ -440,7 +451,8 @@ def _build_utility_event_chunks(instance: MemoryInstance, message: dict[str, Any
 
 
 def _format_message(message: dict) -> str:
-    return f"[{message.get('speaker_id') or 'unknown'}] [{message.get('timestamp') or 'unknown_time'}] {str(message.get('text') or '').strip()}"
+    timestamp = normalize_timestamp(message.get("timestamp"))
+    return f"[{message.get('speaker_id') or 'unknown'}] [{timestamp or 'unknown_time'}] {str(message.get('text') or '').strip()}"
 
 
 def _chunk_to_memory_item(chunk: RAGChunk) -> MemoryItem:
@@ -4150,7 +4162,9 @@ def _attach_row_source_context(*, line_meta: dict[str, Any], row: RetrievedEvide
             local_timestamp = re.search(r"\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?)\]", source_line)
             if local_timestamp is not None:
                 break
-    line_meta["source_time"] = str(local_timestamp.group(1) if local_timestamp else row.time or "")
+    line_meta["source_time"] = normalize_timestamp(
+        local_timestamp.group(1) if local_timestamp else row.time
+    ) or ""
     lowered = source_text.lower()
     if any(
         token in lowered

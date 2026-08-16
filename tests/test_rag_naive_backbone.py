@@ -83,7 +83,7 @@ def test_rag_naive_retrieval_record_restores_gate_mem_typed_fields():
     assert record["message_id"] == "t001"
     assert record["turn_id"] == "t001"
     assert record["turn_index"] == 0
-    assert record["timestamp"] == "2026-05-01T09:00"
+    assert record["timestamp"] == "2026-05-01T09:00:00"
     assert record["speaker"] == {
         "principal_id": "student_lina",
         "role": "student",
@@ -117,7 +117,7 @@ def test_rag_naive_stage2_context_uses_valid_json_structured_record():
     parsed = json.loads(structured_json)
     assert parsed["speaker"]["role"] == "student"
     assert parsed["speaker"]["principal_id"] == "student_lina"
-    assert parsed["timestamp"] == "2026-05-01T09:00"
+    assert parsed["timestamp"] == "2026-05-01T09:00:00"
     assert parsed["source_turn"]["record_refs"] == ["date_record"]
 
 
@@ -147,7 +147,7 @@ def test_stage2_reasoning_prompt_receives_typed_provenance_without_reextraction(
     assert '"structured_record"' in prompt
     assert '"role": "student"' in prompt
     assert '"principal_id": "student_lina"' in prompt
-    assert '"timestamp": "2026-05-01T09:00"' in prompt
+    assert '"timestamp": "2026-05-01T09:00:00"' in prompt
     assert '"turn_kind": "dialogue"' in prompt
 
 

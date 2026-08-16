@@ -14,7 +14,158 @@ of an earlier benchmark snapshot.
 | `Gov-Mem-v4-Symbolic-dev1` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Lightweight Evidence-Principal provenance graph used as Stage 2 auxiliary context | Previous development method |
 | `Gov-Mem-v4-Symbolic-dev2` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Typed Principal-Entity/Resource relation graph from GateMem `entities.relationships`, used as Stage 2 auxiliary context | Current development method |
 | `Gov-Mem-v4-Symbolic-dev3-state-ledger` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Retrieved-evidence-only source-bound state ledger with typed slot provenance and conflict accounting | Current development method |
+| `Gov-Mem-v4-Symbolic-dev5-temporal-authorization` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Shadow temporal authorization state graph over Principal/Role/Resource/PolicyEvent nodes; provenance-grounded allow/deny/revoke/supersedes transitions | Validation candidate; not paper-frozen |
+| `Gov-Mem-v4-Symbolic-dev6-authorization-contract` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Ingestion-time, provider-neutral authorization assertions with source spans; retrieval consumes the typed contract before temporal graph resolution | Exploratory validation; not paper-frozen |
 | `Gov-Mem-v4-Symbolic` | The frozen v4 line after dev0 regression and benchmark checks | RAG-Naive foundation plus deterministic/neuro-symbolic role, permission, temporal, and consistency reasoning | Paper method name |
+
+## 2026-08-16: Gov-Mem-v4-Symbolic-dev4 policy consistency diagnostic
+
+The opt-in `symbolic.policy_consistency` layer was tested on two complete
+Medical episodes (56 checkpoints) using OpenLux `gpt-4o-mini`,
+`text-embedding-3-small`, and the official OpenLux `gpt-4o` judge. The run used
+two episode workers with one request in flight per worker; judge coverage was
+56/56 with zero parse failures.
+
+| Scope | Dev3 MGS | Dev4 MGS | Delta |
+|---|---:|---:|---:|
+| Medical 002 cardiology | 11.11% | 6.67% | -4.44 pp |
+| Medical 003 hepatitis C | 70.00% | 70.00% | +0.00 pp |
+| Two-episode aggregate | 36.67% | 36.11% | -0.56 pp |
+
+This is a small stochastic diagnostic, not a causal ablation. Since it did not
+show a positive effect, dev4 is not promoted: the canonical development line
+remains `Gov-Mem-v4-Symbolic-dev3-state-ledger`. The policy consistency code is
+retained as an explicit opt-in experiment with enforcement disabled by default
+for future redesign and testing. Detailed metrics are recorded in
+`experiments/result/2026-08-16_Gov-Mem-v4-Symbolic-dev4-policy-consistency_medical_2_retry.md`.
+
+## 2026-08-16: Gov-Mem-v4-Symbolic-dev5 temporal authorization state graph
+
+The next lightweight Symbolic increment is an opt-in shadow graph over typed
+`Principal`, `Role`, `Resource`, and `PolicyEvent` nodes. It consumes provider-
+neutral structured authorization events when available and otherwise accepts
+only conservative generic authorization sentence patterns. Events require a
+retrieved source and a `turn_index` or timestamp; missing temporal provenance
+is recorded as `unknown`. Events after the checkpoint are ignored, later
+allow/deny/revoke events update the same principal-resource state, and
+same-time opposing events produce `unknown` rather than an arbitrary winner.
+
+The certificate is passed to Stage 2 only as auxiliary structured context.
+Candidate order, retrieval filtering, answer authorization, and LLM call count
+are unchanged; `enforcement=false` is mandatory in this development step.
+Focused synthetic coverage is recorded in `tests/test_symbolic_evidence.py`.
+The real-episode validation must be treated as a development diagnostic until
+the complete four-domain framework rerun is finished.
+
+## 2026-08-17: Gov-Mem-v4-Symbolic-dev5 four-episode Medical validation
+
+Four complete Medical episodes (108 checkpoints) were evaluated with OpenLux
+`gpt-4o-mini`, `text-embedding-3-small`, and the official OpenLux `gpt-4o`
+judge. Four bounded episode workers were used, one request in flight per
+worker. One transient embedding failure was recovered by strict resume; all
+108 predictions and official judge cases completed, with zero judge parse
+failures.
+
+| System | U | A | F | MGS |
+|---|---:|---:|---:|---:|
+| Dev5 temporal authorization | 82.05% | 32.43% | 12.50% | **48.51%** |
+| Earlier dev3 diagnostic on the same four episodes | 71.79% | 37.84% | 12.50% | 39.05% |
+
+This is a positive but non-causal subset signal. The runs are separate
+stochastic executions. Context-level privacy and deletion leakage remained
+51.35% and 28.13%, respectively, so the certificate remains shadow-only and
+dev5 is not promoted to the paper-frozen method. The next review point is
+authorization-event coverage and provider-neutral structured ingestion, not
+another enforcement rule. Full record:
+`experiments/result/2026-08-17_Gov-Mem-v4-Symbolic-dev5-temporal-authorization_medical_selected4.md`.
+
+## 2026-08-17: Gov-Mem-v4-Symbolic-dev6 authorization contract validation
+
+Dev6 adds only an ingestion-time, provider-neutral authorization contract.
+Each visible turn preserves conservative `authorization_assertions` with an
+effect, original subject/resource wording, and source span. Roster resolution
+and temporal state updates happen after retrieval. If an assertion is present
+but cannot be resolved, the implementation keeps it unknown instead of
+falling back to a broader second text parse. Dense retrieval order, candidate
+filtering, enforcement, and LLM call count are unchanged.
+
+The first `text-embedding-3-small` attempt was incomplete because of repeated
+OpenLux embedding read timeouts and produced no valid score. A separate
+exploratory rerun used `text-embedding-3-large`; it completed 108/108
+predictions and 108/108 official judge scores with zero parse failures. The
+official metrics were:
+
+| System | Embedding | U | A | F | MGS |
+|---|---|---:|---:|---:|---:|
+| Dev6 authorization contract | `text-embedding-3-large` | 87.18% | 35.14% | 9.38% | **51.25%** |
+
+Compared with the separate dev5 run (`48.51%` MGS), this is `+2.74 pp`, but
+the difference is not causal because the embedding model and stochastic LLM
+execution changed. Runtime prompt audit found 23 retrieved structured records
+carrying 23 authorization assertions; temporal certificates had positive
+event counts in 11 of 66 certificate-bearing checkpoints. The certificate
+therefore remains shadow-only, and dev6 is not paper-frozen. Full record:
+`experiments/result/2026-08-17-Gov-Mem-v4-Symbolic-dev6-authorization-contract_medical_selected4_embedding3large.md`.
+
+## 2026-08-16: Gov-Mem-v4-Symbolic-dev4 half-Medical validation
+
+The opt-in policy consistency layer was evaluated on 11 additional complete
+Medical episodes (302 checkpoints), bringing the current dev4 diagnostic
+coverage to 13/21 Medical episodes when combined with the earlier 002/003
+probe. The run used OpenLux `gpt-4o-mini`,
+`text-embedding-3-small`, the official OpenLux `gpt-4o` judge, five global
+episode workers, and one request in flight per worker. The key pool contained
+10 keys; at most five were leased concurrently. Official scoring covered
+302/302 checkpoints with zero parse failures.
+
+| Scope | U | A | F | MGS |
+|---|---:|---:|---:|---:|
+| New 11-episode dev4 aggregate | 50.93% | 40.00% | 4.26% | 29.26% |
+| Dev4 aggregate including prior 002/003 | 53.13% | 38.14% | 3.57% | 31.69% |
+
+The result is heterogeneous and does not produce a positive aggregate signal;
+the nine-episode overlap with the earlier dev3 diagnostics is approximately
+33.96% MGS for dev4 versus 34.93% for dev3, with stochastic and embedding-run
+differences. The promotion decision is unchanged: keep
+`Gov-Mem-v4-Symbolic-dev3-state-ledger` as canonical, and retain policy
+consistency only as an explicit opt-in design under revision. Detailed results
+are in
+`experiments/result/2026-08-16_Gov-Mem-v4-Symbolic-dev4-policy-consistency_medical_11.md`.
+
+## 2026-08-16: Gov-Mem-v4-Symbolic-dev4 full Medical conclusion
+
+The complete 21-episode Medical set was evaluated (579/579 checkpoints) with
+the same OpenLux `gpt-4o-mini` memory model and
+`text-embedding-3-small` embedding. Five bounded episode workers were used,
+with one request in flight per worker. The official OpenLux `gpt-4o` judge
+scored every checkpoint with zero parse failures.
+
+| System | U | A | F | MGS |
+|---|---:|---:|---:|---:|
+| Frozen `rag_naive_v3_typed_rerank` | 64.29% | 43.75% | 9.04% | 32.89% |
+| Dev4 policy consistency | 55.71% | 33.33% | 5.65% | **35.04%** |
+| Delta | -8.58 pp | -10.42 pp | -3.39 pp | **+2.15 pp** |
+
+The earlier small-sample negative signals were not representative of the full
+Medical distribution. On the official Medical MGS objective, policy
+consistency is positive by 2.15 percentage points. The utility drop and the
+privacy/deletion leakage reductions must both be reported; this is not a
+causal ablation because the runs are separate stochastic executions. Dev4 is
+now a positive Medical-domain candidate, but final promotion still requires a
+complete four-domain rerun. Full record:
+`experiments/result/2026-08-16_Gov-Mem-v4-Symbolic-dev4-policy-consistency_medical_full579.md`.
+
+## 2026-08-16: Medical exploratory completion
+
+The current canonical development identity remains
+`Gov-Mem-v4-Symbolic-dev3-state-ledger`; the version name is unchanged. The
+remaining 15 Medical episodes (416 checkpoints) completed official GateMem
+evaluation with OpenLux `gpt-4o-mini` as the memory-system LLM and `gpt-4o` as
+judge. Because `text-embedding-3-small` intermittently timed out, the run was
+continued with `text-embedding-3-large` after the partial small-embedding
+phase. This is explicitly an exploratory mixed-embedding result and is not a
+paper-table or clean ablation result. See
+`experiments/result/2026-08-16_Gov-Mem-v4-Symbolic-dev3-state-ledger_medical_remaining15_exploratory_mixed_embedding.md`.
 
 ## 2026-08-14: Structured Provenance Recovery Snapshot
 
@@ -218,3 +369,93 @@ frozen 2,218-checkpoint typed-rerank table.
 The machine-readable output is ignored by Git under `outputs/`; the reproducible
 result note is
 `experiments/result/2026-08-15_Gov-Mem-v4-Symbolic-dev3-state-ledger-smoke4_openlux_gpt4omini.md`.
+
+## 2026-08-15 - Gov-Mem-v4-Symbolic-dev3 paired eight-episode holdout
+
+The current state-ledger implementation and the frozen
+`rag_naive_v3_typed_rerank` baseline were evaluated on the same eight complete
+episodes and 203 checkpoints with OpenLux `gpt-4o-mini`,
+`text-embedding-3-small`, and the official `gpt-4o` judge. Both runs used four
+episode workers, one leased local key per worker, and no worker-internal
+parallelism. All official judge cases completed with zero parse failures.
+
+| Run | U | A | F | Aggregate MGS | Four-domain mean MGS |
+|---|---:|---:|---:|---:|---:|
+| Frozen typed-rerank baseline | 42.42% | 27.27% | 7.04% | 28.68% | 25.07% |
+| Gov-Mem-v4-Symbolic-dev3 | 45.45% | 28.79% | 5.63% | 30.55% | 30.17% |
+
+The Symbolic version improves aggregate MGS by 1.86 percentage points and the
+four-domain mean by 5.10 points. The effect is heterogeneous: Medical is
+negative while Office, Education, and Household are positive. Because the
+memory-model temperature is 0.2, this remains a matched engineering
+diagnostic rather than a deterministic causal ablation. The full record is
+`experiments/result/2026-08-15_Gov-Mem-v4-Symbolic-dev3-state-ledger_holdout8_paired_gpt4omini.md`.
+This result must not be merged into the frozen 2,218-checkpoint paper table.
+
+## 2026-08-15 - Timestamp precision normalization
+
+All message timestamps entering the adapters and RAG chunk builders now use
+explicit second precision in ISO-like form, such as
+`2026-05-01T09:00:00`. Minute-only source timestamps receive `:00`; existing
+seconds, fractional seconds, timezone suffixes, and source-turn fields are
+preserved. Missing timestamps remain missing.
+
+## 2026-08-15 - Medical state-ledger audit and typed-plan integration
+
+The saved 55-checkpoint Medical holdout was audited offline. The root cause of
+the empty Medical ledger was that `build_symbolic_evidence()` did not receive
+the existing `required_slot_plan`; all 55 checkpoints therefore had an empty
+`requested_slots` list even when retrieval had structured clinical evidence.
+The Symbolic ledger now reuses the typed evidence-frame compiler for planned
+clinical fields and recognizes GateMem's `allergy on file is ...` phrasing.
+No LLM calls, retrieval ordering, filtering, or enforcement were added. The
+offline replay produced 27 non-empty ledgers and 15 ledgers with at least one
+resolved field. This is a diagnostic only; no paper performance table was
+updated.
+
+## 2026-08-15 - Medical state-ledger official probe 2
+
+After the typed-plan integration, two complete Medical episodes (55
+checkpoints) were rerun with OpenLux `gpt-4o-mini`,
+`text-embedding-3-small`, and the official OpenLux `gpt-4o` GateMem judge.
+The run used two episode workers, one leased API key per worker, no
+worker-internal parallelism, zero added Symbolic LLM calls, complete prompt
+auditing, and zero judge parse failures.
+
+| Run | U | A | F | MGS | Checkpoints |
+|---|---:|---:|---:|---:|---:|
+| Gov-Mem-v4-Symbolic-dev3 state-ledger probe 2 | 55.00% | 61.11% | 5.88% | 20.13% | 55 |
+| Matching frozen `rag_naive_v3_typed_rerank` output | 55.00% | 55.56% | 5.88% | 23.01% | 55 |
+
+The exact official prompt audit found non-empty requested-slot ledgers in
+20/55 cases and at least one resolved slot in 13/55 cases; no Medical safety
+query used a non-empty ledger. The Symbolic run also increased the answer
+prompt by about 3,897 characters per checkpoint on average, while action
+predictions were unchanged. This is a diagnostic regression signal, not a
+paper claim or a causal ablation. The result note is
+`experiments/result/2026-08-15_Gov-Mem-v4-Symbolic-dev3-state-ledger_medical_probe2_openlux_gpt4omini.md`.
+
+## 2026-08-16 - Four additional Medical episodes with rotated OpenLux keys
+
+Four previously unvalidated complete Medical episodes (108 checkpoints) were
+evaluated with the same `Gov-Mem-v4-Symbolic-dev3-state-ledger` method,
+OpenLux `gpt-4o-mini`, `text-embedding-3-small`, and the official OpenLux
+`gpt-4o` judge. The run used two episode workers, one request in flight per
+worker, a separate key ordering, complete prompt auditing, and zero judge
+parse failures.
+
+| Episode | U | A | F | MGS |
+|---|---:|---:|---:|---:|
+| Medical 005 | 70.00% | 55.56% | 11.11% | 27.65% |
+| Medical 009 | 88.89% | 11.11% | 12.50% | 69.14% |
+| Medical 012 | 70.00% | 22.22% | 0.00% | 54.44% |
+| Medical 020 | 60.00% | 60.00% | 28.57% | 17.14% |
+| **Aggregate, 108 checkpoints** | **71.79%** | **37.84%** | **12.50%** | **39.05%** |
+
+The result confirms substantial episode heterogeneity. The earlier low result
+was not limited to episodes 001 and 013: episode 020 is also weak, while 009
+and 012 are strong. Combining all six validated Medical episodes gives
+U=66.10%, A=45.45%, F=10.20%, and MGS=32.38% over 163 checkpoints. These are
+development diagnostics only and must not be merged into the frozen
+2,218-checkpoint paper table. The detailed record is
+`experiments/result/2026-08-16_Gov-Mem-v4-Symbolic-dev3-state-ledger_medical_selected4_openlux_gpt4omini.md`.

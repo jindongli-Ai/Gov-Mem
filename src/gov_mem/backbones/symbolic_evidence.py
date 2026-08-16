@@ -13,6 +13,7 @@ import re
 from typing import Any
 
 from gov_mem.data.schema import MemoryInstance, RetrievedEvidence
+from gov_mem.governance_runtime.evidence_frames import compile_evidence_frame
 from gov_mem.query_semantics import (
     extract_state_slots,
     infer_current_state_slots,
@@ -75,10 +76,17 @@ _CLOSED_RECORD_STATUS_RE = re.compile(
 )
 
 
-def _requested_state_slots(question: str) -> list[str]:
+def _requested_state_slots(
+    question: str,
+    required_slot_plan: dict[str, Any] | None = None,
+) -> list[str]:
     """Infer transferable state fields without using an episode/domain name."""
 
     slots = [*infer_current_state_slots(question), *infer_household_slots(question)]
+    # Reuse the existing typed query contract for clinical and other plans
+    # whose vocabulary is intentionally outside the generic state aliases.
+    planned_slots = list((required_slot_plan or {}).get("required_slots") or [])
+    slots.extend(str(slot) for slot in planned_slots if str(slot).strip())
     # Household delivery slots are opt-in by query shape. This prevents a
     # generic "current summary" from acquiring an unrelated window field.
     if re.search(
@@ -99,6 +107,8 @@ def _requested_state_slots(question: str) -> list[str]:
         re.IGNORECASE,
     ):
         slots.append("target_date")
+    if planned_slots:
+        return list(dict.fromkeys(slots))
     return [slot for slot in dict.fromkeys(slots) if slot != "date"]
 
 
@@ -220,10 +230,11 @@ def _build_state_ledger(
     *,
     question: str,
     evidence: list[RetrievedEvidence],
+    required_slot_plan: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
     """Build a source-bound current-state ledger from retrieved turns only."""
 
-    requested = _requested_state_slots(question)
+    requested = _requested_state_slots(question, required_slot_plan)
     current_query = bool(re.search(
         r"\b(?:as of now|current|currently|latest|now|settled|active)\b",
         str(question or ""),
@@ -235,6 +246,14 @@ def _build_state_ledger(
         record = _record(row) or {}
         text = str(record.get("text") or row.content or "")
         values = _state_values(text)
+        # The typed frame compiler already extracts clinical fields such as
+        # allergy substance/reaction, medication, date, provider, and
+        # procedure. Reuse those source-bound values instead of duplicating
+        # domain-specific regular expressions in the ledger.
+        frame = compile_evidence_frame(row)
+        for key, value in frame.slots.items():
+            if value not in (None, "", []):
+                values.setdefault(str(key), str(value))
         turn_index = record.get("turn_index")
         if not isinstance(turn_index, int):
             turn_index = -1
@@ -441,6 +460,653 @@ def _validity_certificate(lifecycle_claim: dict[str, Any] | None) -> dict[str, A
     }
 
 
+_POLICY_SCOPE_ALIASES: dict[str, tuple[str, ...]] = {
+    "logistics": (
+        "logistics", "appointment", "appointments", "scheduling", "schedule",
+        "parking", "arrival", "ride", "procedure time", "location",
+    ),
+    "clinical": (
+        "clinical", "symptom", "symptoms", "diagnosis", "diagnoses", "result",
+        "results", "lab", "labs", "assessment", "chart detail", "chart details",
+        "chart note", "chart notes", "follow-up interpretation",
+    ),
+    "medication": (
+        "medication", "medications", "medicine", "medicines", "prescription",
+        "prescriptions", "dose", "doses", "treatment", "treatments",
+    ),
+    "contact": (
+        "callback", "callbacks", "contact", "contacts", "phone", "voicemail",
+    ),
+    "sensitive_status": (
+        "sensitive status", "behavioral program", "recovery program", "shelter",
+        "pregnancy", "miscarriage", "housing",
+    ),
+}
+
+_POLICY_ALLOW_CUES = re.compile(
+    r"\b(?:may|can|allowed|authorized|authorised|approved|permitted|"
+    r"release|share|receive|access|grant(?:ed)?)\b",
+    re.IGNORECASE,
+)
+_POLICY_DENY_CUES = re.compile(
+    r"\b(?:not|no|never|cannot|can't|must\s+not|do\s+not|does\s+not|"
+    r"should\s+not|remain(?:s)?\s+restricted|restricted|revoked|removed|"
+    r"no\s+longer|without)\b",
+    re.IGNORECASE,
+)
+
+
+def _policy_target_role(text: str, instance: MemoryInstance) -> str:
+    lowered = str(text or "").casefold()
+    principals = list(
+        ((dict((instance.metadata.get("raw_sample") or {}).get("episode") or {}).get("entities") or {}).get("principals") or [])
+    )
+    for principal in principals:
+        if not isinstance(principal, dict):
+            continue
+        role = str(principal.get("role") or "").strip()
+        aliases = {
+            str(principal.get("principal_id") or "").casefold(),
+            *re.findall(r"[a-z0-9]+", str(principal.get("display_name") or "").casefold()),
+        }
+        if any(alias and len(alias) >= 3 and re.search(rf"\b{re.escape(alias)}\b", lowered) for alias in aliases):
+            return role or "any"
+    if re.search(r"\b(?:family|mother|father|parent|caller|relative)\b", lowered):
+        return "family_member"
+    if re.search(r"\b(?:care\s+team|clinician|doctor|nurse|pharmacist)\b", lowered):
+        return "clinical_staff"
+    if re.search(r"\b(?:scheduler|reception|front\s+desk|billing)\b", lowered):
+        return "operations_staff"
+    return "any"
+
+
+def _policy_scope_hits(text: str) -> list[str]:
+    lowered = " ".join(str(text or "").casefold().split())
+    return [
+        scope
+        for scope, aliases in _POLICY_SCOPE_ALIASES.items()
+        if any(alias in lowered for alias in aliases)
+    ]
+
+
+def _policy_effect(text: str, scope: str) -> str | None:
+    lowered = " ".join(str(text or "").casefold().split())
+    aliases = _POLICY_SCOPE_ALIASES[scope]
+    if not any(alias in lowered for alias in aliases):
+        return None
+    # A local clause is deliberately used here. It prevents a permission
+    # statement about logistics from being attached to unrelated medication
+    # or diagnosis text elsewhere in a long turn.
+    clauses = [part.strip() for part in re.split(r"[.;!?]", lowered) if part.strip()]
+    for clause in clauses:
+        if not any(alias in clause for alias in aliases):
+            continue
+        if _POLICY_DENY_CUES.search(clause):
+            return "deny"
+        if _POLICY_ALLOW_CUES.search(clause):
+            return "allow"
+    return None
+
+
+def _query_policy_scopes(question: str) -> list[str]:
+    scopes = _policy_scope_hits(question)
+    if scopes:
+        return scopes
+    if re.search(r"\b(?:yes|no|whether|confirm|is .* currently|program|status)\b", question, re.IGNORECASE):
+        return ["sensitive_status"]
+    return ["clinical"]
+
+
+def _requester_role(instance: MemoryInstance) -> str:
+    return str((instance.metadata.get("requester") or {}).get("role") or "").strip()
+
+
+def _policy_target_matches(target_role: str, requester_role: str) -> bool:
+    if target_role == "any" or not requester_role:
+        return True
+    if target_role == requester_role:
+        return True
+    role_groups = {
+        "family_member": {"family_member"},
+        "clinical_staff": {"clinician", "nurse", "pharmacist", "lab_tech"},
+        "operations_staff": {"scheduler", "reception", "billing"},
+    }
+    return requester_role in role_groups.get(target_role, set())
+
+
+def _build_policy_consistency(
+    *,
+    instance: MemoryInstance,
+    evidence: list[RetrievedEvidence],
+) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]]]:
+    """Compile retrieved permission language into a conservative certificate."""
+
+    requester_role = _requester_role(instance)
+    requested_scopes = _query_policy_scopes(instance.question)
+    facts_by_memory: dict[str, list[dict[str, Any]]] = {}
+    facts: list[dict[str, Any]] = []
+    for row in evidence:
+        record = _record(row) or {}
+        text = str(record.get("text") or row.content or "")
+        turn_index = record.get("turn_index") if isinstance(record.get("turn_index"), int) else -1
+        target_role = _policy_target_role(text, instance)
+        row_facts: list[dict[str, Any]] = []
+        hits = _policy_scope_hits(text)
+        # "only logistics" is an explicit closed-world restriction for the
+        # broad clinical scopes, while still leaving unrelated scope unknown.
+        only_logistics = bool(
+            re.search(r"\b(?:only|logistics[- ]only|logistical\s+details\s+only)\b", text, re.IGNORECASE)
+            and "logistics" in hits
+        )
+        for scope in _POLICY_SCOPE_ALIASES:
+            effect = _policy_effect(text, scope)
+            if only_logistics and scope in {"clinical", "medication", "sensitive_status"}:
+                effect = "deny"
+            if effect is None:
+                continue
+            fact = {
+                "memory_id": row.memory_id,
+                "turn_id": str(record.get("turn_id") or record.get("message_id") or ""),
+                "turn_index": turn_index,
+                "target_role": target_role,
+                "requester_role": requester_role,
+                "scope": scope,
+                "effect": effect,
+                "explicit": True,
+                "source_text": text,
+            }
+            facts.append(fact)
+            row_facts.append(fact)
+        if row_facts:
+            facts_by_memory[row.memory_id] = row_facts
+
+    relevant = [
+        fact for fact in facts
+        if _policy_target_matches(str(fact["target_role"]), requester_role)
+    ]
+    decisions: dict[str, str] = {}
+    conflicts: list[str] = []
+    supporting_ids: set[str] = set()
+    for scope in requested_scopes:
+        scoped = [fact for fact in relevant if fact["scope"] == scope]
+        if not scoped:
+            decisions[scope] = "unknown"
+            continue
+        latest_index = max(int(fact["turn_index"]) for fact in scoped)
+        latest = [fact for fact in scoped if int(fact["turn_index"]) == latest_index]
+        effects = {str(fact["effect"]) for fact in latest}
+        if len(effects) != 1:
+            decisions[scope] = "unknown"
+            conflicts.append(scope)
+        else:
+            decisions[scope] = next(iter(effects))
+            supporting_ids.update(str(fact["memory_id"]) for fact in latest)
+
+    decision_values = set(decisions.values())
+    if conflicts or len(decision_values - {"unknown"}) > 1:
+        decision = "unknown"
+    elif decision_values == {"allow"}:
+        decision = "allow"
+    elif decision_values == {"deny"}:
+        decision = "deny"
+    else:
+        decision = "unknown"
+    certificate = {
+        "version": "policy-consistency-v1",
+        "mode": "retrieved_evidence_only",
+        "decision": decision,
+        "requester": {
+            "principal_id": instance.asking_user_id,
+            "role": requester_role,
+        },
+        "requested_scopes": requested_scopes,
+        "scope_decisions": decisions,
+        "fact_count": len(relevant),
+        "supporting_evidence_ids": sorted(supporting_ids),
+        "conflict_scopes": sorted(conflicts),
+        "enforcement_applied": False,
+        "new_llm_calls": 0,
+    }
+    return certificate, facts_by_memory
+
+
+_AUTH_ALLOW_RE = re.compile(
+    r"(?P<subject>[^,;:.]{1,80}?)\s+"
+    r"(?:may|can|is\s+allowed\s+to|is\s+authorized\s+to|"
+    r"is\s+authorised\s+to|has\s+permission\s+to|was\s+granted)\s+"
+    r"(?:access|read|view|receive|use|share)\s+"
+    r"(?P<resource>[^,;:.]{2,120})",
+    re.IGNORECASE,
+)
+_AUTH_ALLOW_REVERSE = re.compile(
+    r"(?P<resource>[^,;:.]{2,120})\s+"
+    r"(?:may|can)\s+be\s+(?:shared|released|provided)\s+with\s+"
+    r"(?P<subject>[^,;:.]{1,80})",
+    re.IGNORECASE,
+)
+_AUTH_DENY_RE = re.compile(
+    r"(?P<subject>[^,;:.]{1,80}?)\s+"
+    r"(?:may\s+not|cannot|can't|is\s+not\s+allowed\s+to|"
+    r"is\s+unauthorized\s+to|is\s+unauthorised\s+to|"
+    r"must\s+not)\s+"
+    r"(?:access|read|view|receive|use|share)\s+"
+    r"(?P<resource>[^,;:.]{2,120})",
+    re.IGNORECASE,
+)
+_AUTH_REVOKE_RE = re.compile(
+    r"(?:revoke|revoked|revokes|withdraw|withdrawn|removed|expired)\s+"
+    r"(?:access|permission|authorization|authorisation)\s+"
+    r"(?:for|from)\s+(?P<subject>[^,;:.]{1,80})"
+    r"(?:\s+(?:to|for)\s+(?P<resource>[^,;:.]{2,120}))?",
+    re.IGNORECASE,
+)
+_AUTH_RESTRICTED_RE = re.compile(
+    r"(?P<resource>[^,;:.]{2,120})\s+"
+    r"(?:remains?|is|stays?)\s+(?:restricted|private|confidential)"
+    r"(?:\s+(?:for|from)\s+(?P<subject>[^,;:.]{1,80}))?",
+    re.IGNORECASE,
+)
+_AUTH_QUESTION_RE = re.compile(
+    r"^(?:what|when|where|who|which|is|are|can|could|does|did|was|were|"
+    r"should|please|tell|would)\b|\?",
+    re.IGNORECASE,
+)
+_AUTH_NOISE = {
+    "a", "an", "and", "as", "by", "current", "for", "from", "in", "is",
+    "it", "may", "now", "of", "on", "only", "the", "to", "with",
+}
+
+_AUTH_SUBJECT_CLAUSE_MARKERS = {
+    "although", "because", "could", "did", "does", "if", "unless",
+    "when", "where", "which", "who", "while", "would",
+}
+
+
+def extract_authorization_assertions(text: str) -> list[dict[str, Any]]:
+    """Extract provider-neutral authorization assertions at ingestion time.
+
+    The output keeps the original subject/resource wording and source span.
+    Principal resolution is deliberately deferred until the episode roster is
+    available, so this grammar does not depend on a dataset's names or roles.
+    Questions and hypothetical requests are excluded; an unrecognized claim
+    remains ordinary text rather than becoming a policy fact.
+    """
+    # Keep original character offsets truthful. The downstream field cleaners
+    # normalize captured phrases, so the grammar does not need whitespace
+    # normalization before matching.
+    normalized = str(text or "")
+    if not normalized or _AUTH_QUESTION_RE.search(normalized):
+        return []
+    matches: list[tuple[str, re.Match[str]]] = []
+    for effect, pattern in (
+        ("allow", _AUTH_ALLOW_RE),
+        ("allow", _AUTH_ALLOW_REVERSE),
+        ("deny", _AUTH_DENY_RE),
+        ("revoke", _AUTH_REVOKE_RE),
+        ("deny", _AUTH_RESTRICTED_RE),
+    ):
+        for match in pattern.finditer(normalized):
+            matches.append((effect, match))
+
+    assertions: list[dict[str, Any]] = []
+    for effect, match in matches:
+        subject = _clean_auth_phrase(match.groupdict().get("subject"))
+        subject_tokens = set(re.findall(r"[a-z0-9]+", subject.casefold()))
+        if subject_tokens.intersection(_AUTH_SUBJECT_CLAUSE_MARKERS):
+            continue
+        if len(subject_tokens) > 8:
+            continue
+        resource = _clean_auth_phrase(match.groupdict().get("resource"))
+        if not resource:
+            resource = _clean_auth_phrase(normalized[: match.start()])
+        if not resource or len(_auth_tokens(resource)) == 0:
+            continue
+        event_kind = "revocation" if effect == "revoke" else "policy_assertion"
+        if re.search(r"\b(?:supersed(?:e|ed|es|ing)|replac(?:e|ed|es|ing))\b", normalized, re.IGNORECASE):
+            event_kind = "supersedes"
+        assertions.append({
+            "effect": effect,
+            "subject": subject,
+            "resource": resource,
+            "event_kind": event_kind,
+            "explicit": True,
+            "source": "ingestion_text_grammar",
+            "source_span": [int(match.start()), int(match.end())],
+        })
+    return assertions
+
+
+def _clean_auth_phrase(value: Any) -> str:
+    text = " ".join(str(value or "").split()).strip(" ,:()-")
+    text = re.sub(r"^(?:the|an?|this|that)\s+", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s+(?:currently|now|today)$", "", text, flags=re.IGNORECASE)
+    return text
+
+
+def _auth_tokens(value: str) -> set[str]:
+    return {
+        token.casefold()
+        for token in re.findall(r"[a-z0-9]+(?:[-_][a-z0-9]+)*", str(value or ""))
+        if token.casefold() not in _AUTH_NOISE and len(token) > 1
+    }
+
+
+def _resolve_roster_principal(value: str, roster: list[dict[str, Any]]) -> str | None:
+    """Resolve only an explicit roster id/name/role; never invent an actor."""
+    candidate = _clean_auth_phrase(value)
+    if not candidate:
+        return None
+    lowered = candidate.casefold()
+    for item in roster:
+        principal_id = str(item.get("principal_id") or "").strip()
+        display_name = str(item.get("display_name") or "").strip()
+        role = str(item.get("role") or "").strip()
+        aliases = [principal_id, display_name, role]
+        if any(alias and lowered == alias.casefold() for alias in aliases):
+            return principal_id or None
+    candidate_tokens = _auth_tokens(candidate)
+    matches: list[str] = []
+    for item in roster:
+        principal_id = str(item.get("principal_id") or "").strip()
+        aliases = [
+            str(item.get("display_name") or ""),
+            str(item.get("principal_id") or ""),
+        ]
+        alias_tokens = set().union(*(_auth_tokens(alias) for alias in aliases))
+        if candidate_tokens and candidate_tokens.issubset(alias_tokens):
+            matches.append(principal_id)
+    return matches[0] if len(matches) == 1 else None
+
+
+def _authorization_roster(instance: MemoryInstance) -> list[dict[str, Any]]:
+    episode = dict((instance.metadata.get("raw_sample") or {}).get("episode") or {})
+    principals = (episode.get("entities") or {}).get("principals") or []
+    return [item for item in principals if isinstance(item, dict) and item.get("principal_id")]
+
+
+def _structured_authorization_events(
+    *, record: dict[str, Any], metadata: dict[str, Any], row: RetrievedEvidence,
+    roster: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Read an optional provider-neutral authorization event contract."""
+    candidates: list[Any] = []
+    for container in (record, metadata, dict(metadata.get("semantic_tags") or {})):
+        for key in (
+            "authorization_events", "permission_events", "authorization_event",
+            "authorization_assertions",
+        ):
+            value = container.get(key)
+            if isinstance(value, list):
+                candidates.extend(value)
+            elif isinstance(value, dict):
+                candidates.append(value)
+        claim = container.get("permission_claim")
+        if isinstance(claim, dict):
+            candidates.append(claim)
+    events: list[dict[str, Any]] = []
+    for item in candidates:
+        if not isinstance(item, dict):
+            continue
+        effect = str(item.get("effect") or item.get("decision") or item.get("action") or "").casefold()
+        if effect in {"grant", "granted", "allow", "allowed", "permit", "permitted"}:
+            effect = "allow"
+        elif effect in {"deny", "denied", "restricted", "block", "blocked"}:
+            effect = "deny"
+        elif effect in {"revoke", "revoked", "withdraw", "withdrawn", "expire", "expired"}:
+            effect = "revoke"
+        else:
+            continue
+        principal = str(
+            item.get("principal_id") or item.get("subject_principal_id")
+            or item.get("target_principal_id") or item.get("principal") or ""
+        ).strip()
+        if not principal:
+            subject = str(item.get("subject") or item.get("subject_text") or "").strip()
+            if subject.casefold() in {"i", "me", "myself", "we", "us"}:
+                principal = str(
+                    ((record.get("speaker") or {}).get("principal_id")) or ""
+                ).strip()
+            if not principal:
+                principal = _resolve_roster_principal(subject, roster) or ""
+        resource = _clean_auth_phrase(
+            item.get("resource_id") or item.get("resource") or item.get("scope") or item.get("object")
+        )
+        if not principal or not resource:
+            continue
+        events.append({
+            "effect": effect,
+            "principal": principal,
+            "role": str(item.get("role") or "").strip() or None,
+            "subject": str(item.get("subject") or "").strip() or None,
+            "resource": resource,
+            "event_kind": str(item.get("event_kind") or item.get("relation") or "").strip() or "policy_assertion",
+            "source_memory_id": row.memory_id,
+            "source_turn_id": str(record.get("turn_id") or record.get("message_id") or ""),
+            "turn_index": record.get("turn_index"),
+            "timestamp": record.get("timestamp"),
+            "source": str(item.get("source") or "structured_metadata"),
+        })
+    return events
+
+
+def _text_authorization_events(
+    *, text: str, record: dict[str, Any], metadata: dict[str, Any], row: RetrievedEvidence,
+    roster: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    normalized = " ".join(str(text or "").split())
+    assertions = extract_authorization_assertions(normalized)
+    events: list[dict[str, Any]] = []
+    for assertion in assertions:
+        effect = str(assertion.get("effect") or "")
+        subject = _clean_auth_phrase(assertion.get("subject"))
+        resource = _clean_auth_phrase(assertion.get("resource"))
+        principal = _resolve_roster_principal(subject, roster)
+        if not principal and subject.casefold() in {"i", "me", "myself", "we", "us"}:
+            principal = str(
+                ((record.get("speaker") or {}).get("principal_id")) or ""
+            ).strip() or None
+        if not principal:
+            # A missing subject is acceptable only for an explicitly scoped
+            # resource restriction; it remains role/resource-level unknown.
+            principal = "role::unspecified"
+        if not resource:
+            resource = _clean_auth_phrase(normalized[: match.start()])
+        if not resource or len(_auth_tokens(resource)) == 0:
+            continue
+        events.append({
+            "effect": effect,
+            "principal": principal,
+            "role": None,
+            "resource": resource,
+            "event_kind": assertion.get("event_kind") or "policy_assertion",
+            "subject": subject,
+            "source_memory_id": row.memory_id,
+            "source_turn_id": str(record.get("turn_id") or record.get("message_id") or ""),
+            "turn_index": record.get("turn_index"),
+            "timestamp": record.get("timestamp"),
+            "source": "conservative_text_grammar",
+        })
+    return events
+
+
+def _authorization_temporal_key(event: dict[str, Any]) -> tuple[str, Any] | None:
+    turn_index = event.get("turn_index")
+    if isinstance(turn_index, int) and turn_index >= 0:
+        return ("turn_index", turn_index)
+    timestamp = str(event.get("timestamp") or "").strip()
+    if timestamp:
+        return ("timestamp", timestamp)
+    return None
+
+
+def _authorization_contract_present(
+    *, record: dict[str, Any], metadata: dict[str, Any],
+) -> bool:
+    containers = (record, metadata, dict(metadata.get("semantic_tags") or {}))
+    keys = {
+        "authorization_events", "permission_events", "authorization_event",
+        "authorization_assertions", "permission_claim",
+    }
+    return any(any(key in container for key in keys) for container in containers)
+
+
+def _build_temporal_authorization_graph(
+    *, instance: MemoryInstance, evidence: list[RetrievedEvidence],
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    """Build a provenance-grounded authorization state graph in shadow mode."""
+    roster = _authorization_roster(instance)
+    roster_by_id = {str(item["principal_id"]): item for item in roster}
+    events: list[dict[str, Any]] = []
+    events_by_memory: dict[str, dict[str, Any]] = {}
+    unknown_events: list[dict[str, Any]] = []
+    for row in evidence:
+        record = _record(row) or {}
+        metadata = dict(row.metadata or {})
+        structured = _structured_authorization_events(
+            record=record, metadata=metadata, row=row, roster=roster,
+        )
+        parsed = (
+            structured
+            if _authorization_contract_present(record=record, metadata=metadata)
+            else _text_authorization_events(
+                text=str(record.get("text") or row.content or ""),
+                record=record, metadata=metadata, row=row, roster=roster,
+            )
+        )
+        for event in parsed:
+            event["temporal_key"] = _authorization_temporal_key(event)
+            if event["temporal_key"] is None:
+                unknown_events.append({**event, "reason": "missing_temporal_source"})
+                continue
+            events.append(event)
+            events_by_memory[row.memory_id] = {
+                "event_count": len(parsed),
+                "events": parsed,
+            }
+
+    as_of_turn_id = str((instance.metadata.get("observable") or {}).get("as_of_turn_id") or "")
+    as_of_index = None
+    for message in instance.messages:
+        if str(message.get("turn_id") or message.get("message_id") or "") == as_of_turn_id:
+            as_of_index = message.get("turn_index")
+            if not isinstance(as_of_index, int):
+                as_of_index = instance.messages.index(message)
+            break
+    applied: list[dict[str, Any]] = []
+    future_count = 0
+    for event in events:
+        if as_of_index is not None and event["temporal_key"][0] == "turn_index" and int(event["temporal_key"][1]) > int(as_of_index):
+            future_count += 1
+            continue
+        applied.append(event)
+
+    graph_nodes: list[dict[str, Any]] = []
+    graph_edges: list[dict[str, Any]] = []
+    for principal_id, item in roster_by_id.items():
+        principal_node = f"principal::{principal_id}"
+        role = str(item.get("role") or "").strip()
+        graph_nodes.append({"node_id": principal_node, "node_type": "Principal", "principal_id": principal_id})
+        if role:
+            role_node = f"role::{role}"
+            graph_nodes.append({"node_id": role_node, "node_type": "Role", "role": role})
+            graph_edges.append({"edge_type": "has_role", "source": principal_node, "target": role_node})
+
+    event_nodes: dict[int, str] = {}
+    for event_number, event in enumerate(applied):
+        event_node = f"policy_event::{event['source_memory_id']}::{event_number}"
+        event_nodes[event_number] = event_node
+        principal_node = str(event["principal"])
+        if not principal_node.startswith(("principal::", "role::")):
+            principal_node = f"principal::{principal_node}"
+        resource_key = " ".join(str(event["resource"]).casefold().split())
+        resource_node = f"resource::{resource_key}"
+        graph_nodes.extend([
+            {
+                "node_id": event_node,
+                "node_type": "PolicyEvent",
+                "effect": event["effect"],
+                "source": event.get("source"),
+                "source_memory_id": event["source_memory_id"],
+                "turn_index": event.get("turn_index"),
+            },
+            {"node_id": principal_node, "node_type": "Principal" if principal_node.startswith("principal::") else "Role", "value": principal_node.split("::", 1)[1]},
+            {"node_id": resource_node, "node_type": "Resource", "value": event["resource"]},
+        ])
+        graph_edges.append({"edge_type": "allows" if event["effect"] == "allow" else "denies" if event["effect"] == "deny" else "revokes", "source": event_node, "target": principal_node})
+        graph_edges.append({"edge_type": "applies_to", "source": event_node, "target": resource_node})
+        if str(event.get("event_kind") or "").casefold() in {"supersedes", "replaces", "replacement"}:
+            prior_indexes = [
+                index
+                for index, candidate in enumerate(applied[:event_number])
+                if str(candidate.get("principal")) == str(event.get("principal"))
+                and " ".join(str(candidate.get("resource")).casefold().split()) == resource_key
+            ]
+            if prior_indexes:
+                graph_edges.append({
+                    "edge_type": "supersedes",
+                    "source": event_node,
+                    "target": event_nodes[prior_indexes[-1]],
+                })
+
+    state_groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for event in applied:
+        state_groups.setdefault((str(event["principal"]), " ".join(str(event["resource"]).casefold().split())), []).append(event)
+    current_states: list[dict[str, Any]] = []
+    conflict_count = 0
+    for (principal, resource), group in state_groups.items():
+        ordered = sorted(group, key=lambda item: (item["temporal_key"][0], str(item["temporal_key"][1]), str(item["source_memory_id"])))
+        state = None
+        current = None
+        for event in ordered:
+            if current is not None and event["temporal_key"] == current["temporal_key"] and event["effect"] != current["effect"]:
+                state = "unknown"
+                conflict_count += 1
+                current = {**event, "conflict": True}
+                continue
+            state = "deny" if event["effect"] in {"deny", "revoke"} else event["effect"]
+            current = event
+        if current is None:
+            continue
+        current_states.append({
+            "principal": principal,
+            "resource": resource,
+            "decision": state or "unknown",
+            "source_memory_id": current["source_memory_id"],
+            "source_turn_id": current["source_turn_id"],
+            "source_turn_index": current.get("turn_index"),
+            "supporting_evidence_ids": sorted({str(item["source_memory_id"]) for item in group}),
+            "conflict": bool(current.get("conflict") or state == "unknown"),
+        })
+
+    query_tokens = _auth_tokens(instance.question)
+    query_states = [
+        item for item in current_states
+        if (_resolve_roster_principal(instance.question, roster) or str(instance.asking_user_id or "")) == item["principal"]
+        and query_tokens.intersection(_auth_tokens(item["resource"]))
+    ]
+    if not query_states:
+        query_states = [item for item in current_states if query_tokens.intersection(_auth_tokens(item["resource"]))]
+    decisions = {str(item["decision"]) for item in query_states}
+    decision = next(iter(decisions)) if len(decisions) == 1 else "unknown"
+    certificate = {
+        "version": "temporal-authorization-v1",
+        "mode": "retrieved_evidence_only",
+        "decision": decision,
+        "query": {"principal_id": instance.asking_user_id, "as_of_turn_id": as_of_turn_id},
+        "current_authorization": current_states,
+        "event_count": len(applied),
+        "unknown_event_count": len(unknown_events),
+        "ignored_future_event_count": future_count,
+        "conflict_count": conflict_count,
+        "supporting_evidence_ids": sorted({str(item["source_memory_id"]) for item in query_states}),
+        "graph_nodes": graph_nodes,
+        "graph_edges": graph_edges,
+        "enforcement_applied": False,
+        "new_llm_calls": 0,
+    }
+    return certificate, events_by_memory
+
+
 _LIFECYCLE_TARGET_NOISE = {
     "a", "an", "and", "available", "be", "before", "by", "current",
     "delete", "deleted", "does", "earlier", "entry", "from", "has",
@@ -625,6 +1291,9 @@ def build_symbolic_evidence(
     *,
     instance: MemoryInstance,
     evidence: list[RetrievedEvidence],
+    required_slot_plan: dict[str, Any] | None = None,
+    policy_consistency_enabled: bool = False,
+    temporal_authorization_enabled: bool = False,
 ) -> tuple[list[RetrievedEvidence], dict[str, Any]]:
     """Annotate role and typed relation consistency without changing ranking."""
     roster = _roster(instance)
@@ -816,6 +1485,7 @@ def build_symbolic_evidence(
     state_ledger, claims_by_memory = _build_state_ledger(
         question=instance.question,
         evidence=annotated,
+        required_slot_plan=required_slot_plan,
     )
     ledger_attached = False
     ledger_annotated: list[RetrievedEvidence] = []
@@ -828,8 +1498,50 @@ def build_symbolic_evidence(
             ledger_attached = True
         ledger_annotated.append(replace(row, metadata=metadata))
     annotated = ledger_annotated
+    policy_certificate: dict[str, Any] | None = None
+    policy_facts_by_memory: dict[str, list[dict[str, Any]]] = {}
+    if policy_consistency_enabled:
+        policy_certificate, policy_facts_by_memory = _build_policy_consistency(
+            instance=instance,
+            evidence=annotated,
+        )
+        policy_annotated: list[RetrievedEvidence] = []
+        certificate_attached = False
+        for row in annotated:
+            metadata = dict(row.metadata or {})
+            row_facts = policy_facts_by_memory.get(row.memory_id, [])
+            if row_facts:
+                metadata["symbolic_policy_facts"] = row_facts
+            if not certificate_attached:
+                metadata["symbolic_policy_certificate"] = policy_certificate
+                certificate_attached = True
+            policy_annotated.append(replace(row, metadata=metadata))
+        annotated = policy_annotated
+    temporal_authorization_certificate: dict[str, Any] | None = None
+    temporal_events_by_memory: dict[str, dict[str, Any]] = {}
+    if temporal_authorization_enabled:
+        temporal_authorization_certificate, temporal_events_by_memory = _build_temporal_authorization_graph(
+            instance=instance,
+            evidence=annotated,
+        )
+        temporal_annotated: list[RetrievedEvidence] = []
+        certificate_attached = False
+        for row in annotated:
+            metadata = dict(row.metadata or {})
+            event_payload = temporal_events_by_memory.get(row.memory_id)
+            if event_payload:
+                metadata["symbolic_temporal_authorization_events"] = event_payload
+            if not certificate_attached:
+                metadata["symbolic_temporal_authorization_certificate"] = temporal_authorization_certificate
+                certificate_attached = True
+            temporal_annotated.append(replace(row, metadata=metadata))
+        annotated = temporal_annotated
     trace = {
-        "version": "Gov-Mem-v4-Symbolic-dev2",
+        "version": (
+            "Gov-Mem-v4-Symbolic-dev5"
+            if temporal_authorization_enabled
+            else "Gov-Mem-v4-Symbolic-dev2"
+        ),
         "symbolic_step": "typed_principal_entity_relation_graph_v1",
         "candidate_count": len(evidence),
         "structured_record_count": sum(_record(row) is not None for row in evidence),
@@ -855,6 +1567,16 @@ def build_symbolic_evidence(
             "enforcement_applied": False,
         },
         "state_ledger": state_ledger,
+        "policy_consistency": policy_certificate or {
+            "enabled": False,
+            "enforcement_applied": False,
+            "new_llm_calls": 0,
+        },
+        "temporal_authorization": temporal_authorization_certificate or {
+            "enabled": False,
+            "enforcement_applied": False,
+            "new_llm_calls": 0,
+        },
         "consistency": {**consistency, "violations": violations},
         "ordering_changed": False,
         "filtering_applied": False,

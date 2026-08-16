@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import copy
 import fcntl
 from hashlib import sha256
 import json
@@ -282,6 +283,9 @@ class GovMemRunner:
                 "start_index": self.start_index,
                 "checkpoint_ids": self.checkpoint_ids,
                 "resume": self.resume,
+                "embedding_resume_mismatch_allowed": os.environ.get(
+                    "GOVMEM_ALLOW_EMBEDDING_RESUME_MISMATCH", ""
+                ).strip().lower() in {"1", "true", "yes"},
                 "experiment_mode": self.experiment_mode,
                 "runtime_source_fingerprint": self._runtime_source_fingerprint(),
                 "runtime_capabilities": {
@@ -399,15 +403,35 @@ class GovMemRunner:
             previous = json.loads(path.read_text(encoding="utf-8"))
         except Exception as exc:
             raise ValueError("--resume could not read existing run_metadata.json") from exc
+        allow_embedding_mismatch = os.environ.get(
+            "GOVMEM_ALLOW_EMBEDDING_RESUME_MISMATCH", ""
+        ).strip().lower() in {"1", "true", "yes"}
+        previous_config = previous.get("config_snapshot")
+        current_config = self.config
+        if allow_embedding_mismatch:
+            # Exploratory runs may replace only the embedding backend while
+            # resuming a partial suite. Keep every other setting protected.
+            previous_without_embedding = copy.deepcopy(previous_config)
+            current_without_embedding = copy.deepcopy(current_config)
+            if isinstance(previous_without_embedding, dict):
+                previous_without_embedding.pop("embedding", None)
+            if isinstance(current_without_embedding, dict):
+                current_without_embedding.pop("embedding", None)
+            if previous_without_embedding != current_without_embedding:
+                raise ValueError(
+                    "--resume refused: non-embedding config differs while "
+                    "GOVMEM_ALLOW_EMBEDDING_RESUME_MISMATCH is enabled"
+                )
         required = {
             "dataset_name": self.dataset_name,
             "experiment_mode": self.experiment_mode,
-            "config_snapshot": self.config,
             "runtime_source_fingerprint": self._runtime_source_fingerprint(),
         }
         for key, expected in required.items():
             if previous.get(key) != expected:
                 raise ValueError(f"--resume refused: existing run metadata differs for {key}")
+        if not allow_embedding_mismatch and previous_config != current_config:
+            raise ValueError("--resume refused: existing run metadata differs for config_snapshot")
         previous_ids = [str(value) for value in list(previous.get("checkpoint_ids") or [])]
         if previous_ids != [str(value) for value in self.checkpoint_ids]:
             raise ValueError("--resume refused: checkpoint manifest differs from existing run")

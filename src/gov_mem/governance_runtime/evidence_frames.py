@@ -47,7 +47,16 @@ TIME_RE = re.compile(r"\b\d{1,2}:\d{2}\s?(?:AM|PM)\b", re.IGNORECASE)
 ARRIVAL_RE = re.compile(r"(?:arrive by|arrival(?: time)?(?: is)?|please arrive by|check in by|come by|arrive at)\s+(\d{1,2}:\d{2}\s?(?:AM|PM))", re.IGNORECASE)
 LOCATION_RE = re.compile(r"\b(?:(?!(?:AM|PM)\b)[A-Z][A-Za-z0-9&' -]{1,60}\s+(?:Suite|Clinic|Center|Office|Lab|Ward|Desk)\s*[A-Z0-9-]*|front desk)\b")
 PROVIDER_RE = re.compile(r"\bDr\.\s+[A-Z][a-zA-Z]+\b")
-ALLERGY_RE = re.compile(r"\b(allerg(?:y|ic)\s+to|reaction to|allergy documented:)\s*([A-Za-z0-9\-\s]+)", re.IGNORECASE)
+ALLERGY_RE = re.compile(
+    r"\b(?:allerg(?:y|ic)\s+(?:to|on\s+file(?:\s+is)?|"
+    r"documented(?:\s+as)?|listed(?:\s+as)?|recorded(?:\s+as)?)|"
+    r"reaction\s+to|allergy\s+documented:)\s*"
+    r"(?:the\s+|an?\s+)?(?P<substance>[A-Za-z0-9][A-Za-z0-9\-\s]*?)"
+    r"(?=\s+(?:and\s+)?(?:causes?|produces?|triggered?|with)\b|"
+    r"\s+(?:rash|hives|anaphylaxis|nausea|vomiting|itching|swelling)\b|"
+    r"[.;]|$)",
+    re.IGNORECASE,
+)
 REACTION_RE = re.compile(r"\b(rash|hives|anaphylaxis|nausea|vomiting|itching|swelling)\b", re.IGNORECASE)
 MONEY_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\s*USD\b", re.IGNORECASE)
 PERCENT_RE = re.compile(r"\b\d{1,2}(?:\.\d+)?%")
@@ -497,7 +506,7 @@ def _extract_slots(content: str, frame_type: str) -> dict[str, str]:
     if frame_type == "allergy":
         allergy_match = ALLERGY_RE.search(content)
         if allergy_match:
-            slots["substance"] = allergy_match.group(2).strip(" .")
+            slots["substance"] = allergy_match.group("substance").strip(" .")
         reaction_match = REACTION_RE.search(content)
         if reaction_match:
             slots["reaction"] = reaction_match.group(1).strip()

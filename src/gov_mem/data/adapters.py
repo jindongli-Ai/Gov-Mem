@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from gov_mem.data.schema import MemoryInstance
+from gov_mem.data.timestamps import normalize_message_timestamp
 from gov_mem.governance_runtime.leakage_guard import strip_hidden_eval_fields
 from gov_mem.utils.io import read_json, read_jsonl
 
@@ -185,19 +186,21 @@ class CheckpointBenchmarkAdapter(BaseDatasetAdapter):
 
         visible: list[dict] = []
         for turn in turns:
+            normalized_turn = normalize_message_timestamp(dict(turn))
             speaker = turn.get("speaker") or {}
+            source_turn = dict(normalized_turn)
             visible.append(
                 {
-                    # Retain the checkpoint-visible GateMem turn verbatim so
-                    # downstream retrieval can expose future source fields
-                    # without reconstructing them from natural language.
-                    "source_turn": dict(turn),
+                    # Retain the checkpoint-visible GateMem turn, changing
+                    # only timestamp precision so future source fields remain
+                    # available without natural-language reconstruction.
+                    "source_turn": source_turn,
                     "turn_id": str(turn.get("turn_id")),
                     "message_id": str(turn.get("turn_id")),
                     "speaker_id": speaker.get("principal_id"),
                     "speaker_role": speaker.get("role"),
                     "text": str(turn.get("text") or ""),
-                    "timestamp": turn.get("timestamp"),
+                    "timestamp": normalized_turn.get("timestamp"),
                     "turn_kind": turn.get("turn_kind"),
                 }
             )
@@ -239,11 +242,15 @@ class GenericJsonAdapter(BaseDatasetAdapter):
             if idx < start_index:
                 continue
             row = dict(row)
+            messages = [
+                normalize_message_timestamp(dict(message)) if isinstance(message, dict) else message
+                for message in list(row.get(self._field("messages"), []))
+            ]
             instance = MemoryInstance(
                 instance_id=row_id,
                 domain=row.get(self._field("domain")),
                 conversation_id=row.get(self._field("conversation_id")),
-                messages=list(row.get(self._field("messages"), [])),
+                messages=messages,
                 question=str(row.get(self._field("question"), "")),
                 asking_user_id=(
                     row.get(self._field("asking_user_id")) if self.use_asking_user_id else None

@@ -105,7 +105,10 @@ def stage_runtime_code(project_root: Path, target_root: Path) -> Path:
         items.append(str(storage_module.relative_to(project_root)))
     # Keep newly developed runtime modules available before they are committed.
     # This explicit list preserves the no-checkout-walk invariant of staging.
-    for relative in ("src/gov_mem/backbones/symbolic_evidence.py",):
+    for relative in (
+        "src/gov_mem/backbones/symbolic_evidence.py",
+        "src/gov_mem/data/timestamps.py",
+    ):
         candidate = project_root / relative
         if candidate.exists() and relative not in items:
             items.append(relative)
