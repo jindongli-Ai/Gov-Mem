@@ -63,7 +63,7 @@ stage2:
 policy_verifier:
   enabled: true
   claim_provenance_enabled: true
-  # The RAG-Naive adapter first audits model-emitted contracts in shadow mode.
+  # The RAG-Naive adapter records a non-intervention claim-level audit.
   # The stateful executor's field-projection verifier remains fail-closed.
   claim_provenance_enforcement: false
   llm_enabled: true

@@ -923,10 +923,43 @@ def _normalize_claim_contract(
         raw_fields = []
 
     source_aliases: dict[str, str] = {}
+    evidence_by_id: dict[str, RetrievedEvidence] = {}
     for row in evidence:
         source_aliases[row.memory_id] = row.memory_id
+        evidence_by_id[row.memory_id] = row
         for source_id in row.source_message_ids:
             source_aliases[str(source_id)] = row.memory_id
+
+    ledger: dict[str, Any] = {}
+    for row in evidence:
+        candidate = (row.metadata or {}).get("symbolic_state_ledger")
+        if isinstance(candidate, dict):
+            ledger = candidate
+            break
+    ledger_fields = {
+        str(slot): value
+        for slot, value in (ledger.get("fields") or {}).items()
+        if isinstance(value, dict)
+    }
+
+    def ledger_match(label: str, field_id: str) -> tuple[str, dict[str, Any]] | None:
+        label_tokens = {
+            token for token in re.findall(r"[a-z0-9]+", f"{label} {field_id}".casefold())
+            if len(token) >= 4
+        }
+        ranked: list[tuple[int, str, dict[str, Any]]] = []
+        for slot, field in ledger_fields.items():
+            slot_tokens = {
+                token for token in re.findall(r"[a-z0-9]+", slot.casefold())
+                if len(token) >= 4
+            }
+            overlap = len(label_tokens.intersection(slot_tokens))
+            if overlap:
+                ranked.append((overlap, slot, field))
+        if not ranked:
+            return None
+        _, slot, field = max(ranked, key=lambda item: (item[0], item[1]))
+        return slot, field
 
     fields: list[dict[str, Any]] = []
     for index, item in enumerate(raw_fields):
@@ -938,11 +971,17 @@ def _normalize_claim_contract(
         status = str(item.get("status") or "unknown").strip().lower()
         if status not in {"supported", "covered", "unknown", "restricted", "conflict"}:
             status = "unknown"
+        field_id = str(item.get("field_id") or label)
+        matched_ledger = ledger_match(label, field_id)
         source_ids: list[str] = []
         for source_id in item.get("source_memory_ids") or item.get("source_ids") or []:
             canonical = source_aliases.get(str(source_id))
             if canonical and canonical not in source_ids:
                 source_ids.append(canonical)
+        if not source_ids and matched_ledger:
+            ledger_source = source_aliases.get(str(matched_ledger[1].get("source_memory_id") or ""))
+            if ledger_source:
+                source_ids.append(ledger_source)
         values = item.get("selected_values") or item.get("values") or []
         if isinstance(values, str):
             values = [values]
@@ -958,8 +997,27 @@ def _normalize_claim_contract(
                 "memory_id": canonical,
                 "source_span": str(entry.get("source_span") or entry.get("evidence_text") or "").strip(),
             })
+        if not provenance and source_ids:
+            # Preserve one source span per canonical chunk. A ledger slot may
+            # resolve only one value, while a model field can legitimately
+            # cite several retrieved turns (for example, a multi-item plan).
+            provenance = [
+                {
+                    "memory_id": memory_id,
+                    "source_span": str(evidence_by_id[memory_id].content or "").strip(),
+                }
+                for memory_id in source_ids
+                if str(evidence_by_id[memory_id].content or "").strip()
+            ]
+        if not provenance and matched_ledger and source_ids:
+            source_span = str(matched_ledger[1].get("quote") or "").strip()
+            if source_span:
+                provenance = [{
+                    "memory_id": source_ids[0],
+                    "source_span": source_span,
+                }]
         fields.append({
-            "field_id": str(item.get("field_id") or label),
+            "field_id": field_id,
             "label": label,
             "status": status,
             "selected_values": selected_values,

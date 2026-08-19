@@ -5,6 +5,7 @@ from gov_mem.backbones.rag_naive import (
     _build_turn_chunks,
     _format_retrieved_memory,
     _direct_answer,
+    _normalize_claim_contract,
     _run_claim_provenance_verifier,
 )
 from gov_mem.memory.dense_index import DenseMemoryIndex
@@ -411,6 +412,95 @@ def test_rag_naive_claim_verifier_shadow_mode_preserves_answer_on_contract_failu
     assert audit["enforced"] is False
     assert answer.action == "answer"
     assert answer.answer_text == "appointment date: August 4"
+
+
+def test_claim_contract_sources_are_filled_from_typed_state_ledger():
+    row = RetrievedEvidence(
+        memory_id="chunk_date",
+        content="The appointment date is August 4.",
+        score=1.0,
+        retrieval_source="dense",
+        reason="test",
+        source_message_ids=["t001"],
+        metadata={"symbolic_state_ledger": {
+            "fields": {
+                "date": {
+                    "status": "resolved",
+                    "value": "August 4",
+                    "source_memory_id": "chunk_date",
+                    "quote": "The appointment date is August 4.",
+                }
+            }
+        }},
+    )
+
+    contract = _normalize_claim_contract(
+        raw={"claim_contract": {"fields": [{
+            "field_id": "appointment_date",
+            "label": "Appointment Date",
+            "status": "supported",
+            "selected_values": ["August 4"],
+        }]}},
+        answer_text="appointment date: August 4",
+        evidence=[row],
+    )
+
+    field = contract["requested_fields"][0]
+    assert field["source_memory_ids"] == ["chunk_date"]
+    assert field["provenance"] == [{
+        "memory_id": "chunk_date",
+        "source_span": "The appointment date is August 4.",
+    }]
+
+
+def test_claim_contract_keeps_a_span_for_each_retrieved_source_chunk():
+    evidence = [
+        RetrievedEvidence(
+            memory_id="chunk_one",
+            content="Continue apixaban 5 milligrams twice daily.",
+            score=1.0,
+            retrieval_source="dense",
+            reason="test",
+            source_message_ids=["t001"],
+        ),
+        RetrievedEvidence(
+            memory_id="chunk_two",
+            content="Increase metoprolol to 37.5 milligrams twice daily.",
+            score=0.9,
+            retrieval_source="dense",
+            reason="test",
+            source_message_ids=["t002"],
+        ),
+    ]
+
+    contract = _normalize_claim_contract(
+        raw={"claim_contract": {"fields": [{
+            "field_id": "medication_plan",
+            "label": "Medication Plan",
+            "status": "supported",
+            "selected_values": [
+                "Continue apixaban 5 milligrams twice daily.",
+                "Increase metoprolol to 37.5 milligrams twice daily.",
+            ],
+            "source_memory_ids": ["t001", "t002"],
+        }]}},
+        answer_text=(
+            "Continue apixaban 5 milligrams twice daily. "
+            "Increase metoprolol to 37.5 milligrams twice daily."
+        ),
+        evidence=evidence,
+    )
+
+    assert contract["requested_fields"][0]["provenance"] == [
+        {
+            "memory_id": "chunk_one",
+            "source_span": "Continue apixaban 5 milligrams twice daily.",
+        },
+        {
+            "memory_id": "chunk_two",
+            "source_span": "Increase metoprolol to 37.5 milligrams twice daily.",
+        },
+    ]
 
 
 def test_stage2_answer_instruction_preserves_complete_mixed_field_contract():

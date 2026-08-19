@@ -49,12 +49,17 @@ contracts are recorded as `claim_provenance_not_applicable`; they do not create
 synthetic provenance or trigger a new model call. The adapter is a source
 provenance boundary for this RAG-Naive path; the full policy-approved field
 projection remains the authority in the stateful executor path. The RAG-Naive
-adapter is currently shadow-only (`claim_provenance_enforcement: false`):
-contract failures remain visible in the audit but do not replace an answer with
-`no_memory`. This is deliberate because the first real smoke showed that the
-base answer model does not yet emit complete source spans consistently; turning
-on enforcement before that contract quality is validated would confound the
-framework test with an avoidable answer-suppression artifact.
+adapter currently uses non-intervention claim-level provenance auditing
+(`claim_provenance_enforcement: false`): contract failures remain visible in
+the audit but do not replace an answer with `no_memory`. The audit is executed
+on every answer path when the verifier is enabled; it is not a placeholder. If
+a field cites several retrieved chunks, normalization keeps a source span for
+each cited chunk, while the typed state ledger can only fill a missing binding
+from the current retrieved evidence. This is deliberate because the first real
+smoke showed that the base answer model does not yet emit complete source spans
+consistently; enabling answer suppression before that contract quality is
+validated would confound the framework test with an avoidable answer-
+suppression artifact.
 
 ## 2026-08-17: Gov-Mem-v4-Symbolic-dev6 full Medical small-embedding validation
 

@@ -41,10 +41,13 @@ GateMem source-message IDs to retrieved chunk IDs only within the current
 checkpoint, then records the deterministic audit in the official prediction's
 `memory_audit` and in `answer_grounding.policy_privacy_verifier`. A missing
 contract is recorded as `claim_provenance_not_applicable`; no synthetic source
-is created and no additional LLM call is made. The current RAG-Naive adapter is
-shadow-only, so malformed contracts are audited but do not suppress an answer;
-the stateful executor continues to use the full fail-closed field-state
-projection contract.
+is created and no additional LLM call is made. The current RAG-Naive adapter
+uses a non-intervention claim-level provenance audit: every available contract
+is checked and recorded, but a malformed contract does not suppress the
+original answer. The stateful executor continues to use the full fail-closed
+field-state projection contract. When a field cites several retrieved chunks,
+the audit retains one source span for each cited chunk; the typed state ledger
+is used only to complete missing source bindings from the current evidence.
 The first real integration smoke found that the base model's optional claim
 contracts are not yet reliable enough for hard enforcement; this diagnostic is
 recorded in
@@ -62,7 +65,7 @@ domain: Medical 27, Office 32, Education 18, and Household 24 checkpoints
 `text-embedding-3-small`, a 30-key pool with four concurrently leased keys,
 and four episode workers.
 All 101 prompt audits are complete; 46 state-relevant prompts contain the
-retrieved-evidence-only ledger, while certificate and target-binding shadow
+retrieved-evidence-only ledger, while certificate and target-binding internal
 fields occur in zero prompts. Candidate ordering and filtering were unchanged
 and the added LLM-call count was zero. This is an engineering validation, not a
 2,218-checkpoint paper result and must not be mixed into the frozen full-
@@ -87,13 +90,14 @@ the memory-model temperature is 0.2 and the comparison is a single stochastic
 run. The full diagnostic record is in
 [`experiments/result/2026-08-15_Gov-Mem-v4-Symbolic-dev3-state-ledger-smoke4_openlux_gpt4omini.md`](experiments/result/2026-08-15_Gov-Mem-v4-Symbolic-dev3-state-ledger-smoke4_openlux_gpt4omini.md).
 
-The validity-shadow audit adds deterministic `EvidenceValidityCertificate`
+The evidence-validity audit adds deterministic `EvidenceValidityCertificate`
 records for explicit lifecycle states. The target-binding v2 increment also
 links a lifecycle claim to an earlier retrieved target only when the match is
 unique and temporally valid; ambiguous and unbound cases are retained as
 explicit audit states. These records remain internal diagnostic metadata and
-are deliberately excluded from Stage 2 and answer prompts, so shadow mode
-does not change the LLM-visible evidence contract. Across the validated
+are deliberately excluded from Stage 2 and answer prompts, so the
+non-intervention recording mode does not change the LLM-visible evidence
+contract. Across the validated
 101-checkpoint run, all answer and Stage 2 prompt audits contained zero
 certificate and target-binding fields while internal records were retained.
 The official judge completed all 101 cases:
