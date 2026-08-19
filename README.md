@@ -2,7 +2,7 @@
 
 This workspace uses GateMem as the default benchmark dataset for Gov-Mem.
 
-## Current Research Snapshot (2026-08-15)
+## Current Research Snapshot (2026-08-19)
 
 This section records the current paper-facing Gov-Mem framework and its latest
 full-benchmark results. Treat the commit containing this snapshot as a
@@ -10,26 +10,46 @@ recovery point: later framework changes should be committed separately, so a
 regression can be diagnosed or the previous version can be restored from Git
 history.
 
-### Active development version (2026-08-15)
+### Active development version (2026-08-19)
 
-The current development snapshot is **Gov-Mem-v4-Symbolic-dev3-state-ledger**. It is based on the frozen
+The current development snapshot is **Gov-Mem-v4-Symbolic-dev7**. It is based on the frozen
 `rag_naive_v3_typed_rerank` framework (`Gov-Mem-v3.0`) and preserves the
 complete checkpoint-visible GateMem turn as structured retrieval provenance:
 `turn_id`, timestamp, principal, role, turn kind, original text, checkpoint,
 and the source turn object. Stage 2 receives this data as valid JSON and does
 not need to re-extract these fields from prose.
 
-The current implementation line is **Gov-Mem-v4-Symbolic-dev3-state-ledger**,
+The current implementation line is **Gov-Mem-v4-Symbolic-dev7**,
 selected by `experiment.mode: govmem_v4_symbolic`. It retains v3 retrieval and
 adds lightweight typed Symbolic annotations: principal-role consistency, an
 Evidence-Principal-Entity relation graph, explicit lifecycle-event assertions,
-and a source-bound current-state ledger. The ledger records requested slots,
+and a source-bound current-state ledger. Dev7 adds an authorization-aware
+evidence boundary and a deterministic claim-level provenance verifier. The
+ledger records requested slots,
 candidate values, source memory/turn provenance, and conflicts from retrieved
-evidence only. It does not recover hidden transcript fields, reorder or filter
-candidates, make permission decisions, or add LLM calls. Lifecycle assertions
+evidence only. It does not recover hidden transcript fields or make permission
+decisions; dev7 may filter evidence only when the explicit authorization
+boundary denies it. It does not add LLM calls. Lifecycle assertions
 recognize only explicit language such as `deleted`, `revoked`, `superseded`, or
 `updated from ... to ...`; they do not infer state from ordinary words such as
 `current` or `latest`.
+
+Dev7's claim-level provenance verifier is now connected to the actual
+`govmem_v4_symbolic` RAG-Naive path. The answering model may return a
+source-bound `claim_contract` in the same JSON response; the adapter maps
+GateMem source-message IDs to retrieved chunk IDs only within the current
+checkpoint, then records the deterministic audit in the official prediction's
+`memory_audit` and in `answer_grounding.policy_privacy_verifier`. A missing
+contract is recorded as `claim_provenance_not_applicable`; no synthetic source
+is created and no additional LLM call is made. The current RAG-Naive adapter is
+shadow-only, so malformed contracts are audited but do not suppress an answer;
+the stateful executor continues to use the full fail-closed field-state
+projection contract.
+The first real integration smoke found that the base model's optional claim
+contracts are not yet reliable enough for hard enforcement; this diagnostic is
+recorded in
+[`2026-08-19 claim-provenance smoke`](experiments/result/2026-08-19_Gov-Mem-v4-Symbolic-dev7_claim_provenance_smoke.md)
+and is not a paper performance result.
 The final paper-facing name is
 **Gov-Mem-v4-Symbolic**, which will be frozen incrementally after each Symbolic
 step passes regression and benchmark checks. The complete naming and

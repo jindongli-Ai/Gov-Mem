@@ -5,6 +5,7 @@ from gov_mem.backbones.rag_naive import (
     _build_turn_chunks,
     _format_retrieved_memory,
     _direct_answer,
+    _run_claim_provenance_verifier,
 )
 from gov_mem.memory.dense_index import DenseMemoryIndex
 from gov_mem.llm.client import LLMClientUnavailableError
@@ -307,6 +308,109 @@ def test_rag_naive_direct_answer_preserves_official_fields_without_projection():
     assert len(llm.calls) == 1
     assert "[MEMORY PROVIDED]" in llm.calls[0][2]
     assert "The current date is May 12, 2026." in llm.calls[0][2]
+
+
+def test_rag_naive_claim_verifier_maps_source_message_ids_and_records_audit():
+    llm = FakeLLM({
+        "action": "answer",
+        "answer": "appointment date: May 12, 2026",
+        "used_record_ids": ["t001"],
+        "claim_contract": {
+            "fields": [{
+                "field_id": "appointment_date",
+                "label": "appointment date",
+                "status": "supported",
+                "selected_values": ["May 12, 2026"],
+                "source_memory_ids": ["t001"],
+                "provenance": [{
+                    "memory_id": "t001",
+                    "source_span": "current date is May 12, 2026",
+                }],
+            }],
+        },
+    })
+    chunk = _build_turn_chunks(_instance())[0]
+    evidence = [RetrievedEvidence(
+        memory_id=chunk.chunk_id,
+        content=chunk.text,
+        score=1.0,
+        retrieval_source="dense",
+        reason="test",
+        user_id="student_lina",
+        source_message_ids=["t001"],
+        metadata=chunk.metadata,
+    )]
+    answer = _direct_answer(
+        instance=_instance(),
+        evidence=evidence,
+        llm_client=llm,
+        model_name="gpt-4o-mini-2024-07-18",
+    )
+
+    answer, audit = _run_claim_provenance_verifier(
+        instance=_instance(),
+        evidence=evidence,
+        answer_result=answer,
+        raw_answer=answer.raw_response["rag_naive_raw"],
+        config={"policy_verifier": {"enabled": True, "llm_enabled": False}},
+    )
+
+    assert audit["claim_provenance"]["passed"] is True
+    assert "claim_provenance_verified" in audit["symbolic_checks"]
+    contract = answer.raw_response["claim_contract"]
+    assert contract["field_state_projection"]["fields"][0]["source_memory_ids"] == [chunk.chunk_id]
+    assert answer.raw_response["answer_grounding"]["policy_privacy_verifier"] == audit
+    assert len(llm.calls) == 1
+
+
+def test_rag_naive_claim_verifier_shadow_mode_preserves_answer_on_contract_failure():
+    answer = _direct_answer(
+        instance=_instance(),
+        evidence=[RetrievedEvidence(
+            memory_id="room",
+            content="The appointment is in Room 9.",
+            score=1.0,
+            retrieval_source="dense",
+            reason="test",
+            source_message_ids=["t002"],
+        )],
+        llm_client=FakeLLM({
+            "action": "answer",
+            "answer": "appointment date: August 4",
+            "used_record_ids": ["t002"],
+            "claim_contract": {"fields": [{
+                "label": "appointment date",
+                "status": "supported",
+                "selected_values": ["August 4"],
+                "source_memory_ids": ["t002"],
+            }]},
+        }),
+        model_name="gpt-4o-mini-2024-07-18",
+    )
+
+    answer, audit = _run_claim_provenance_verifier(
+        instance=_instance(),
+        evidence=[RetrievedEvidence(
+            memory_id="room",
+            content="The appointment is in Room 9.",
+            score=1.0,
+            retrieval_source="dense",
+            reason="test",
+            source_message_ids=["t002"],
+        )],
+        answer_result=answer,
+        raw_answer=answer.raw_response["rag_naive_raw"],
+        config={"policy_verifier": {
+            "enabled": True,
+            "llm_enabled": False,
+            "claim_provenance_enforcement": False,
+        }},
+    )
+
+    assert audit["passed"] is False
+    assert audit["enforced"] is False
+    assert answer.action == "answer"
+    assert answer.answer_text == "appointment date: August 4"
 
 
 def test_stage2_answer_instruction_preserves_complete_mixed_field_contract():

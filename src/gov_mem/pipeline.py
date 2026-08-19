@@ -780,6 +780,14 @@ class GovMemRunner:
                 if isinstance(item, dict) and "context_text" in item
             ]
             row["memory_audit"] = memory_audit
+        grounding = (getattr(answer_result, "raw_response", {}) or {}).get("answer_grounding")
+        if isinstance(grounding, dict):
+            verifier = grounding.get("policy_privacy_verifier")
+            if isinstance(verifier, dict):
+                row.setdefault("memory_audit", {})["policy_privacy_verifier"] = verifier
+                row["memory_audit"]["claim_contract"] = (
+                    getattr(answer_result, "raw_response", {}) or {}
+                ).get("claim_contract", {})
         append_jsonl(path, row)
 
     def _save_debug_case(

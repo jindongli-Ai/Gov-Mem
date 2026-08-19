@@ -1093,6 +1093,7 @@ def _build_temporal_authorization_graph(
         "mode": "retrieved_evidence_only",
         "decision": decision,
         "query": {"principal_id": instance.asking_user_id, "as_of_turn_id": as_of_turn_id},
+        "query_resource_tokens": sorted(query_tokens),
         "current_authorization": current_states,
         "event_count": len(applied),
         "unknown_event_count": len(unknown_events),
@@ -1105,6 +1106,117 @@ def _build_temporal_authorization_graph(
         "new_llm_calls": 0,
     }
     return certificate, events_by_memory
+
+
+def _authorization_resource_match(*, resource: str, text: str) -> bool:
+    """Match a governed resource to visible evidence without broad keywords."""
+    resource_tokens = _auth_tokens(resource)
+    text_tokens = _auth_tokens(text)
+    if not resource_tokens or not text_tokens:
+        return False
+    overlap = resource_tokens.intersection(text_tokens)
+    # Require the complete short resource phrase, or a strong match for a
+    # longer phrase. A single shared role/name token must never authorize a
+    # field-level evidence release or denial.
+    if resource_tokens.issubset(text_tokens):
+        return True
+    return len(overlap) >= 2 and len(overlap) / len(resource_tokens) >= 0.75
+
+
+def apply_authorization_evidence_boundary(
+    *,
+    evidence: list[RetrievedEvidence],
+    certificate: dict[str, Any],
+) -> tuple[list[RetrievedEvidence], dict[str, Any]]:
+    """Apply a narrow, provenance-grounded answer-evidence boundary.
+
+    Absence of an authorization event is not treated as denial. Enforcement is
+    limited to an explicit deny/revoke or a conflicting current authorization
+    state whose resource is grounded in the retrieved evidence. This keeps the
+    first enforcement step conservative and avoids dataset-specific policy
+    assumptions.
+    """
+    certificate_decision = str(certificate.get("decision") or "unknown").casefold()
+    if certificate_decision not in {"deny", "unknown"}:
+        return list(evidence), {
+            "enabled": True,
+            "enforcement_applied": False,
+            "decision": certificate_decision,
+            "governed_state_count": 0,
+            "filtered_memory_ids": [],
+            "reasons": [],
+        }
+    query_tokens = {
+        str(value).casefold()
+        for value in list(certificate.get("query_resource_tokens") or [])
+        if str(value).strip()
+    }
+    states = [
+        item for item in list(certificate.get("current_authorization") or [])
+        if isinstance(item, dict)
+        and (
+            not query_tokens
+            or _auth_tokens(str(item.get("resource") or "")).intersection(query_tokens)
+        )
+    ]
+    governed_states = [
+        item for item in states
+        if str(item.get("decision") or "").casefold() in {"deny", "unknown"}
+        and (
+            str(item.get("decision") or "").casefold() == "deny"
+            or bool(item.get("conflict"))
+        )
+    ]
+    if not governed_states:
+        return list(evidence), {
+            "enabled": True,
+            "enforcement_applied": False,
+            "decision": str(certificate.get("decision") or "unknown"),
+            "governed_state_count": 0,
+            "filtered_memory_ids": [],
+            "reasons": [],
+        }
+
+    filtered: list[RetrievedEvidence] = []
+    filtered_memory_ids: list[str] = []
+    reasons: list[dict[str, Any]] = []
+    for row in evidence:
+        record = _record(row) or {}
+        visible_text = str(record.get("text") or row.content or "")
+        matched_states: list[dict[str, Any]] = []
+        for state in governed_states:
+            resource = str(state.get("resource") or "").strip()
+            supporting_ids = {
+                str(value) for value in list(state.get("supporting_evidence_ids") or [])
+            }
+            if row.memory_id in supporting_ids or _authorization_resource_match(
+                resource=resource,
+                text=visible_text,
+            ):
+                matched_states.append(state)
+        if not matched_states:
+            filtered.append(row)
+            continue
+        filtered_memory_ids.append(row.memory_id)
+        reasons.append({
+            "memory_id": row.memory_id,
+            "decisions": sorted({str(item.get("decision") or "unknown") for item in matched_states}),
+            "resources": sorted({str(item.get("resource") or "") for item in matched_states}),
+            "supporting_evidence": sorted({
+                str(value)
+                for item in matched_states
+                for value in list(item.get("supporting_evidence_ids") or [])
+            }),
+        })
+
+    return filtered, {
+        "enabled": True,
+        "enforcement_applied": bool(filtered_memory_ids),
+        "decision": str(certificate.get("decision") or "unknown"),
+        "governed_state_count": len(governed_states),
+        "filtered_memory_ids": filtered_memory_ids,
+        "reasons": reasons,
+    }
 
 
 _LIFECYCLE_TARGET_NOISE = {
@@ -1294,6 +1406,7 @@ def build_symbolic_evidence(
     required_slot_plan: dict[str, Any] | None = None,
     policy_consistency_enabled: bool = False,
     temporal_authorization_enabled: bool = False,
+    temporal_authorization_enforcement: bool = False,
 ) -> tuple[list[RetrievedEvidence], dict[str, Any]]:
     """Annotate role and typed relation consistency without changing ranking."""
     roster = _roster(instance)
@@ -1536,9 +1649,33 @@ def build_symbolic_evidence(
                 certificate_attached = True
             temporal_annotated.append(replace(row, metadata=metadata))
         annotated = temporal_annotated
+    authorization_boundary: dict[str, Any] = {
+        "enabled": bool(temporal_authorization_enforcement),
+        "enforcement_applied": False,
+        "decision": str((temporal_authorization_certificate or {}).get("decision") or "unknown"),
+        "governed_state_count": 0,
+        "filtered_memory_ids": [],
+        "reasons": [],
+    }
+    if temporal_authorization_enforcement and temporal_authorization_certificate:
+        annotated, authorization_boundary = apply_authorization_evidence_boundary(
+            evidence=annotated,
+            certificate=temporal_authorization_certificate,
+        )
+        temporal_authorization_certificate = {
+            **temporal_authorization_certificate,
+            "enforcement_applied": bool(authorization_boundary.get("enforcement_applied")),
+        }
+        if annotated:
+            first = annotated[0]
+            first_metadata = dict(first.metadata or {})
+            first_metadata["symbolic_temporal_authorization_certificate"] = temporal_authorization_certificate
+            annotated[0] = replace(first, metadata=first_metadata)
     trace = {
         "version": (
-            "Gov-Mem-v4-Symbolic-dev5"
+            "Gov-Mem-v4-Symbolic-dev7"
+            if temporal_authorization_enforcement
+            else "Gov-Mem-v4-Symbolic-dev5"
             if temporal_authorization_enabled
             else "Gov-Mem-v4-Symbolic-dev2"
         ),
@@ -1577,9 +1714,10 @@ def build_symbolic_evidence(
             "enforcement_applied": False,
             "new_llm_calls": 0,
         },
+        "authorization_evidence_boundary": authorization_boundary,
         "consistency": {**consistency, "violations": violations},
         "ordering_changed": False,
-        "filtering_applied": False,
+        "filtering_applied": bool(authorization_boundary.get("filtered_memory_ids")),
         "new_llm_calls": 0,
     }
     return annotated, trace

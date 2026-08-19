@@ -1,6 +1,7 @@
 from dataclasses import replace
 
 from gov_mem.backbones.symbolic_evidence import (
+    apply_authorization_evidence_boundary,
     build_symbolic_evidence,
     extract_authorization_assertions,
 )
@@ -131,6 +132,96 @@ def test_v4_symbolic_layer_preserves_all_candidates_and_adds_typed_trace():
     assert ranked[0].metadata["symbolic_validity_certificate"]["state"] == "unknown"
     assert ranked[0].metadata["symbolic_validity_certificate"]["mode"] == "shadow"
     assert trace["validity_projection"]["enforcement_applied"] is False
+
+
+def test_authorization_boundary_does_not_treat_missing_policy_as_denial():
+    evidence = [
+        _evidence(
+            memory_id="fact",
+            turn_id="t002",
+            principal_id="nurse_alvarez",
+            role="nurse",
+            text="The current callback number is 415-555-0186.",
+            score=0.8,
+        )
+    ]
+
+    released, audit = apply_authorization_evidence_boundary(
+        evidence=evidence,
+        certificate={
+            "decision": "unknown",
+            "current_authorization": [],
+        },
+    )
+
+    assert [row.memory_id for row in released] == ["fact"]
+    assert audit["enforcement_applied"] is False
+
+
+def test_authorization_boundary_filters_only_grounded_denied_resource():
+    evidence = [
+        _evidence(
+            memory_id="secret",
+            turn_id="t002",
+            principal_id="nurse_alvarez",
+            role="nurse",
+            text="The confidential callback number is 415-555-0186.",
+            score=0.8,
+        ),
+        _evidence(
+            memory_id="ordinary",
+            turn_id="t001",
+            principal_id="patient_elena",
+            role="patient",
+            text="The clinic opens at 08:00.",
+            score=0.7,
+        ),
+    ]
+
+    released, audit = apply_authorization_evidence_boundary(
+        evidence=evidence,
+        certificate={
+            "decision": "deny",
+            "current_authorization": [{
+                "principal": "patient_elena",
+                "resource": "confidential callback number",
+                "decision": "deny",
+                "supporting_evidence_ids": ["policy"],
+            }],
+        },
+    )
+
+    assert [row.memory_id for row in released] == ["ordinary"]
+    assert audit["filtered_memory_ids"] == ["secret"]
+
+
+def test_authorization_boundary_does_not_match_single_shared_token():
+    evidence = [
+        _evidence(
+            memory_id="ordinary",
+            turn_id="t001",
+            principal_id="patient_elena",
+            role="patient",
+            text="The callback desk is open today.",
+            score=0.7,
+        )
+    ]
+
+    released, audit = apply_authorization_evidence_boundary(
+        evidence=evidence,
+        certificate={
+            "decision": "deny",
+            "current_authorization": [{
+                "principal": "patient_elena",
+                "resource": "confidential callback number",
+                "decision": "deny",
+                "supporting_evidence_ids": [],
+            }],
+        },
+    )
+
+    assert [row.memory_id for row in released] == ["ordinary"]
+    assert audit["filtered_memory_ids"] == []
 
 
 def test_dev4_policy_certificate_denies_sensitive_scope_for_logistics_only_policy():
@@ -481,6 +572,38 @@ def test_temporal_authorization_graph_applies_allow_then_revoke():
     assert ranked[0].metadata["symbolic_temporal_authorization_certificate"] == certificate
     assert certificate["enforcement_applied"] is False
     assert certificate["new_llm_calls"] == 0
+
+
+def test_dev7_boundary_filters_a_denied_resource_and_preserves_unrelated_evidence():
+    instance = replace(_instance(), question="What access does nurse_alvarez have to clinical records?")
+    evidence = [
+        _evidence(
+            memory_id="grant", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
+            text="A policy grants access to clinical records.", score=0.9,
+            extra_metadata={"authorization_events": [_auth_event("allow")]},
+        ),
+        _evidence(
+            memory_id="revoke", turn_id="t002", principal_id="nurse_alvarez", role="nurse",
+            text="A policy revokes access to clinical records.", score=0.8,
+            extra_metadata={"authorization_events": [_auth_event("revoke")]},
+        ),
+        _evidence(
+            memory_id="ordinary", turn_id="t001", principal_id="patient_elena", role="patient",
+            text="The clinic opens at 08:00.", score=0.7,
+        ),
+    ]
+
+    ranked, trace = build_symbolic_evidence(
+        instance=instance,
+        evidence=evidence,
+        temporal_authorization_enabled=True,
+        temporal_authorization_enforcement=True,
+    )
+
+    assert trace["version"] == "Gov-Mem-v4-Symbolic-dev7"
+    assert trace["temporal_authorization"]["decision"] == "deny"
+    assert trace["authorization_evidence_boundary"]["enforcement_applied"] is True
+    assert {row.memory_id for row in ranked} == {"ordinary"}
 
 
 def test_temporal_authorization_graph_later_allow_supersedes_older_deny():

@@ -33,6 +33,8 @@ from gov_mem.data.schema import (
     QueryPlan,
     RetrievedEvidence,
 )
+from gov_mem.policy_schema import PolicyAction, PolicyDecision
+from gov_mem.policy_verifier import verify_policy_delivery
 from gov_mem.data.timestamps import normalize_message_timestamp, normalize_timestamp
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
 from gov_mem.llm.model_registry import resolve_llm_model
@@ -765,6 +767,9 @@ def _direct_answer(
     )
     if answer_instruction:
         user_prompt = f"{user_prompt}\n\n{answer_instruction}"
+    user_prompt = (
+        f"{user_prompt}\n\n{_claim_contract_instruction()}"
+    )
     try:
         raw = llm_client.chat_json(
             model=model_name,
@@ -862,6 +867,8 @@ def _direct_answer(
             else "GateMem official-compatible RAG-Naive direct answer."
         ),
         action=action,
+        # The released GateMem export keeps this field empty for RAG-Naive;
+        # the optional symbolic contract is stored in raw_response instead.
         answer_structured={},
         raw_response={
             "rag_naive_raw": raw,
@@ -876,6 +883,183 @@ def _direct_answer(
             },
         },
     )
+
+
+def _claim_contract_instruction() -> str:
+    """Request an optional source-bound contract without adding an LLM call."""
+    return (
+        "For the symbolic provenance audit, optionally include a claim_contract "
+        "object in the same JSON response. It must have fields, where each field "
+        "contains field_id, label, status (supported or unknown), selected_values, "
+        "source_memory_ids, and provenance. Copy selected_values and provenance "
+        "source_span verbatim from the supplied memory text and make each selected "
+        "value also appear verbatim in answer. Use the supplied record/chunk ID in "
+        "source_memory_ids; do not invent IDs. For unknown or refused facts, use "
+        "status unknown and empty selected_values/source_memory_ids. This contract "
+        "is an audit record, not additional answer content."
+    )
+
+
+def _normalize_claim_contract(
+    *,
+    raw: dict[str, Any],
+    answer_text: str,
+    evidence: list[RetrievedEvidence],
+) -> dict[str, Any]:
+    """Normalize an answer model's claim contract to retrieved chunk IDs.
+
+    GateMem's official answer schema uses source message IDs while the RAG
+    backbone internally uses chunk IDs. The verifier must see one canonical
+    namespace, so source-message references are resolved only against the
+    retrieved rows in this checkpoint.
+    """
+    raw_contract = raw.get("claim_contract") or raw.get("answer_contract") or {}
+    if not isinstance(raw_contract, dict):
+        raw_contract = {}
+    raw_fields = raw_contract.get("fields") or raw.get("requested_fields") or []
+    if isinstance(raw_fields, dict):
+        raw_fields = [raw_fields]
+    if not isinstance(raw_fields, list):
+        raw_fields = []
+
+    source_aliases: dict[str, str] = {}
+    for row in evidence:
+        source_aliases[row.memory_id] = row.memory_id
+        for source_id in row.source_message_ids:
+            source_aliases[str(source_id)] = row.memory_id
+
+    fields: list[dict[str, Any]] = []
+    for index, item in enumerate(raw_fields):
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label") or item.get("name") or "").strip()
+        if not label:
+            label = f"claim_{index + 1}"
+        status = str(item.get("status") or "unknown").strip().lower()
+        if status not in {"supported", "covered", "unknown", "restricted", "conflict"}:
+            status = "unknown"
+        source_ids: list[str] = []
+        for source_id in item.get("source_memory_ids") or item.get("source_ids") or []:
+            canonical = source_aliases.get(str(source_id))
+            if canonical and canonical not in source_ids:
+                source_ids.append(canonical)
+        values = item.get("selected_values") or item.get("values") or []
+        if isinstance(values, str):
+            values = [values]
+        selected_values = [str(value).strip() for value in values if str(value).strip()]
+        provenance: list[dict[str, Any]] = []
+        for entry in item.get("provenance") or []:
+            if not isinstance(entry, dict):
+                continue
+            canonical = source_aliases.get(str(entry.get("memory_id") or ""))
+            if not canonical:
+                continue
+            provenance.append({
+                "memory_id": canonical,
+                "source_span": str(entry.get("source_span") or entry.get("evidence_text") or "").strip(),
+            })
+        fields.append({
+            "field_id": str(item.get("field_id") or label),
+            "label": label,
+            "status": status,
+            "selected_values": selected_values,
+            "source_memory_ids": source_ids,
+            "provenance": provenance,
+        })
+    return {
+        "answer_text": answer_text,
+        "requested_fields": fields,
+        "field_state_projection": {"fields": fields} if fields else {},
+        "restricted_fields_omitted": list(raw_contract.get("restricted_fields_omitted") or []),
+    }
+
+
+def _run_claim_provenance_verifier(
+    *,
+    instance: MemoryInstance,
+    evidence: list[RetrievedEvidence],
+    answer_result: AnswerResult,
+    raw_answer: dict[str, Any],
+    config: dict[str, Any],
+) -> tuple[AnswerResult, dict[str, Any]]:
+    """Verify the actual RAG-Naive delivery against its selected evidence."""
+    evidence_payload = [
+        {
+            "memory_id": row.memory_id,
+            "text": row.content,
+            "source_message_ids": list(row.source_message_ids),
+            "source_time": row.time,
+            "source_turn_index": (row.metadata or {}).get("structured_record", {}).get("turn_index"),
+        }
+        for row in evidence
+    ]
+    allowed_ids = tuple(row["memory_id"] for row in evidence_payload)
+    claim_contract = _normalize_claim_contract(
+        raw=raw_answer,
+        answer_text=answer_result.answer_text,
+        evidence=evidence,
+    )
+    decision = PolicyDecision(
+        action=PolicyAction.ALLOW,
+        requester=instance.asking_user_id,
+        target_subject=None,
+        requested_operation="source_grounded_answer",
+        allowed_memory_ids=allowed_ids,
+        state_snapshot={
+            "claim_provenance_scope": "stage2_selected_evidence",
+            "sensitive_authorized": True,
+            "partial_disclosure": False,
+        },
+    )
+    verifier = verify_policy_delivery(
+        question=instance.question,
+        decision=decision,
+        evidence_payload=evidence_payload,
+        answer_contract=claim_contract,
+        answer_text=answer_result.answer_text,
+        delivery_action=answer_result.action,
+        llm_client=None,
+        config=config,
+    )
+    audit = {
+        "passed": verifier.passed,
+        "enforced": bool(
+            (config.get("policy_verifier") or {}).get(
+                "claim_provenance_enforcement", True
+            )
+        ),
+        "delivery_action": verifier.delivery_action,
+        "symbolic_checks": list(verifier.symbolic_checks),
+        "reasons": list(verifier.reasons),
+        "llm_checked": verifier.llm_checked,
+        "llm_passed": verifier.llm_passed,
+        "claim_provenance": verifier.claim_provenance,
+        "scope": "stage2_selected_evidence",
+    }
+    raw_response = dict(answer_result.raw_response or {})
+    raw_response["claim_contract"] = claim_contract
+    raw_response["answer_grounding"] = {
+        **dict(raw_response.get("answer_grounding") or {}),
+        "policy_privacy_verifier": audit,
+    }
+    updated = replace(answer_result, raw_response=raw_response)
+    if audit["enforced"] and not verifier.passed and verifier.delivery_action in {"no_memory", "refuse"}:
+        updated = replace(
+            updated,
+            action=verifier.delivery_action,
+            prediction=(
+                "That information is not available in the current memory state."
+                if verifier.delivery_action == "no_memory"
+                else "I cannot provide that information under the current access policy."
+            ),
+            answer_text=(
+                "That information is not available in the current memory state."
+                if verifier.delivery_action == "no_memory"
+                else "I cannot provide that information under the current access policy."
+            ),
+            used_memory_ids=[],
+        )
+    return updated, audit
 
 
 class RAGNaiveBackbone:
@@ -964,6 +1148,7 @@ class RAGNaiveBackbone:
                 required_slot_plan=required_slot_plan,
                 policy_consistency_enabled=bool(policy_cfg.get("enabled", False)),
                 temporal_authorization_enabled=bool(temporal_auth_cfg.get("enabled", False)),
+                temporal_authorization_enforcement=bool(temporal_auth_cfg.get("enforcement", False)),
             )
         stage2_prompt_audit = None
         stage2_decision = Stage2Decision(
@@ -1152,6 +1337,17 @@ class RAGNaiveBackbone:
                 "stage2_rerank_prompt": stage2_prompt_audit,
             }
             answer_result = replace(answer_result, raw_response=raw_response)
+        claim_audit: dict[str, Any] | None = None
+        verifier_cfg = dict(self.config.get("policy_verifier") or {})
+        if self._symbolic_v4_enabled() and bool(verifier_cfg.get("enabled", True)):
+            raw_answer = dict((answer_result.raw_response or {}).get("rag_naive_raw") or {})
+            answer_result, claim_audit = _run_claim_provenance_verifier(
+                instance=instance,
+                evidence=evidence,
+                answer_result=answer_result,
+                raw_answer=raw_answer,
+                config=self.config,
+            )
         reasoning_state = build_reasoning_state(
             evidence,
             trace=[

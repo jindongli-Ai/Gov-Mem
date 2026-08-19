@@ -367,6 +367,181 @@ class StatefulPolicyTests(unittest.TestCase):
         self.assertTrue(result.passed)
         self.assertEqual(result.delivery_action, "answer")
 
+    def test_claim_provenance_accepts_each_authorized_selected_value(self):
+        decision = PolicyDecision(
+            action=PolicyAction.ALLOW,
+            requester="helper",
+            target_subject="appointment",
+            requested_operation="access",
+            allowed_memory_ids=("date",),
+            state_snapshot={},
+        )
+        result = verify_policy_delivery(
+            question="What is the appointment date?",
+            decision=decision,
+            evidence_payload=[{
+                "memory_id": "date",
+                "text": "The appointment date is August 4.",
+            }],
+            answer_contract={
+                "field_state_projection": {"fields": [{
+                    "field_id": "appointment_date",
+                    "label": "appointment date",
+                    "status": "supported",
+                    "selected_values": ["August 4"],
+                    "source_memory_ids": ["date"],
+                    "provenance": [{"memory_id": "date", "source_span": "appointment date is August 4"}],
+                }]},
+            },
+            answer_text="appointment date: August 4",
+            delivery_action="answer",
+            llm_client=None,
+            config={"policy_verifier": {"llm_enabled": False}},
+        )
+        self.assertTrue(result.passed)
+        self.assertTrue(result.claim_provenance["passed"])
+        self.assertIn("claim_provenance_verified", result.symbolic_checks)
+
+    def test_claim_provenance_rejects_selected_value_not_in_source(self):
+        decision = PolicyDecision(
+            action=PolicyAction.ALLOW,
+            requester="helper",
+            target_subject="appointment",
+            requested_operation="access",
+            allowed_memory_ids=("room",),
+            state_snapshot={},
+        )
+        result = verify_policy_delivery(
+            question="What is the appointment date?",
+            decision=decision,
+            evidence_payload=[{"memory_id": "room", "text": "The appointment is in Room 9."}],
+            answer_contract={"requested_fields": [{
+                "label": "appointment date",
+                "status": "covered",
+                "answer_text": "August 4",
+                "source_memory_ids": ["room"],
+            }]},
+            answer_text="appointment date: August 4",
+            delivery_action="answer",
+            llm_client=None,
+            config={"policy_verifier": {"llm_enabled": False}},
+        )
+        self.assertFalse(result.passed)
+        self.assertTrue(any("claim_value_not_supported_by_source" in reason for reason in result.reasons))
+        self.assertEqual(result.delivery_action, "no_memory")
+
+    def test_claim_provenance_rejects_source_outside_allowed_memory(self):
+        decision = PolicyDecision(
+            action=PolicyAction.ALLOW,
+            requester="helper",
+            target_subject="appointment",
+            requested_operation="access",
+            allowed_memory_ids=("public",),
+            state_snapshot={},
+        )
+        result = verify_policy_delivery(
+            question="What is the appointment date?",
+            decision=decision,
+            evidence_payload=[{"memory_id": "private", "text": "The appointment date is August 4."}],
+            answer_contract={"requested_fields": [{
+                "label": "appointment date",
+                "status": "covered",
+                "answer_text": "August 4",
+                "source_memory_ids": ["private"],
+            }]},
+            answer_text="appointment date: August 4",
+            delivery_action="answer",
+            llm_client=None,
+            config={"policy_verifier": {"llm_enabled": False}},
+        )
+        self.assertFalse(result.passed)
+        self.assertTrue(any("claim_source_outside_allowed_set" in reason for reason in result.reasons))
+
+    def test_claim_provenance_rejects_deterministic_unknown_field(self):
+        decision = PolicyDecision(
+            action=PolicyAction.ALLOW,
+            requester="helper",
+            target_subject="appointment",
+            requested_operation="access",
+            allowed_memory_ids=("public",),
+            state_snapshot={},
+        )
+        result = verify_policy_delivery(
+            question="What is the appointment location?",
+            decision=decision,
+            evidence_payload=[{"memory_id": "public", "text": "The location is not provided."}],
+            answer_contract={"requested_fields": [{
+                "label": "appointment location",
+                "status": "unknown",
+                "source_memory_ids": [],
+            }]},
+            answer_text="appointment location: Harbor Clinic",
+            delivery_action="answer",
+            llm_client=None,
+            config={"policy_verifier": {"llm_enabled": False}},
+        )
+        self.assertFalse(result.passed)
+        self.assertTrue(any("unsupported_field_claim" in reason for reason in result.reasons))
+
+    def test_claim_provenance_rejects_an_extra_factual_sentence(self):
+        decision = PolicyDecision(
+            action=PolicyAction.ALLOW,
+            requester="helper",
+            target_subject="appointment",
+            requested_operation="access",
+            allowed_memory_ids=("date",),
+            state_snapshot={},
+        )
+        result = verify_policy_delivery(
+            question="What is the appointment date?",
+            decision=decision,
+            evidence_payload=[{"memory_id": "date", "text": "The appointment date is August 4."}],
+            answer_contract={"requested_fields": [{
+                "label": "appointment date",
+                "status": "covered",
+                "answer_text": "August 4",
+                "source_memory_ids": ["date"],
+            }]},
+            answer_text="Appointment date: August 4. The room is Room 9.",
+            delivery_action="answer",
+            llm_client=None,
+            config={"policy_verifier": {"llm_enabled": False}},
+        )
+        self.assertFalse(result.passed)
+        self.assertIn("unsupported_answer_claim", result.reasons)
+
+    def test_claim_provenance_accepts_all_values_of_a_list_field(self):
+        decision = PolicyDecision(
+            action=PolicyAction.ALLOW,
+            requester="helper",
+            target_subject="appointment",
+            requested_operation="access",
+            allowed_memory_ids=("instructions",),
+            state_snapshot={},
+        )
+        result = verify_policy_delivery(
+            question="What should I bring and where should I enter?",
+            decision=decision,
+            evidence_payload=[{
+                "memory_id": "instructions",
+                "text": "Use the north entrance and bring the referral form.",
+            }],
+            answer_contract={"field_state_projection": {"fields": [{
+                "field_id": "entry_instructions",
+                "label": "entry instructions",
+                "status": "supported",
+                "selected_values": ["north entrance", "referral form"],
+                "source_memory_ids": ["instructions"],
+                "provenance": [{"memory_id": "instructions", "source_span": "north entrance and referral form"}],
+            }]}},
+            answer_text="entry instructions: north entrance; referral form",
+            delivery_action="answer",
+            llm_client=None,
+            config={"policy_verifier": {"llm_enabled": False}},
+        )
+        self.assertTrue(result.passed)
+        self.assertEqual(result.claim_provenance["checked_claims"], 2)
+
     def test_source_semantic_anchor_rejects_unrelated_value_shaped_sentence(self):
         field = QueryField(
             field_id="heartbeat",

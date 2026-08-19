@@ -16,7 +16,63 @@ of an earlier benchmark snapshot.
 | `Gov-Mem-v4-Symbolic-dev3-state-ledger` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Retrieved-evidence-only source-bound state ledger with typed slot provenance and conflict accounting | Current development method |
 | `Gov-Mem-v4-Symbolic-dev5-temporal-authorization` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Shadow temporal authorization state graph over Principal/Role/Resource/PolicyEvent nodes; provenance-grounded allow/deny/revoke/supersedes transitions | Validation candidate; not paper-frozen |
 | `Gov-Mem-v4-Symbolic-dev6-authorization-contract` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Ingestion-time, provider-neutral authorization assertions with source spans; retrieval consumes the typed contract before temporal graph resolution | Exploratory validation; not paper-frozen |
+| `Gov-Mem-v4-Symbolic-dev7` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Authorization-aware evidence boundary with deterministic claim-level provenance verification at final delivery | Current development method |
 | `Gov-Mem-v4-Symbolic` | The frozen v4 line after dev0 regression and benchmark checks | RAG-Naive foundation plus deterministic/neuro-symbolic role, permission, temporal, and consistency reasoning | Paper method name |
+
+## 2026-08-19: Gov-Mem-v4-Symbolic-dev7 claim-level provenance verifier
+
+The current framework identity remains `Gov-Mem-v4-Symbolic-dev7`; this
+increment does not introduce another version name. The final delivery gate now
+performs a deterministic claim-level provenance audit over the existing field
+state projection. For each supported field it checks that every selected value
+is present in the delivered answer, has a source memory, stays within the
+policy-approved memory set, and is supported by the source text (and any
+provided source span). A deterministic claim attached to an `unknown`,
+`conflict`, or `restricted` field fails closed. The audit is provider-neutral,
+domain-neutral, uses no new LLM call, and is recorded in
+`answer_grounding.policy_privacy_verifier.claim_provenance`.
+
+This is a structural provenance boundary, not a free-form fact extractor: the
+field-state projection remains the single authority for selection and temporal
+resolution. The implementation is covered by the policy, answer projection,
+and stateful projection regression tests. No benchmark result is promoted by
+this code change; the next performance measurement should be run only after
+the framework design is frozen.
+
+On 2026-08-19 this verifier was also integrated into the actual
+`govmem_v4_symbolic` RAG-Naive benchmark path. The path keeps the existing
+Stage 1/Stage 2 retrieval and answer flow, asks the answering model for an
+optional source-bound `claim_contract` in the same JSON response, resolves
+GateMem source-message IDs only against the retrieved chunk rows, and records
+the verifier audit in the official prediction's `memory_audit`. Missing claim
+contracts are recorded as `claim_provenance_not_applicable`; they do not create
+synthetic provenance or trigger a new model call. The adapter is a source
+provenance boundary for this RAG-Naive path; the full policy-approved field
+projection remains the authority in the stateful executor path. The RAG-Naive
+adapter is currently shadow-only (`claim_provenance_enforcement: false`):
+contract failures remain visible in the audit but do not replace an answer with
+`no_memory`. This is deliberate because the first real smoke showed that the
+base answer model does not yet emit complete source spans consistently; turning
+on enforcement before that contract quality is validated would confound the
+framework test with an avoidable answer-suppression artifact.
+
+## 2026-08-17: Gov-Mem-v4-Symbolic-dev6 full Medical small-embedding validation
+
+The complete Medical domain was evaluated across all 21 episodes and 579
+checkpoints with OpenLux `gpt-4o-mini`, OpenLux
+`text-embedding-3-small`, and the official OpenLux `gpt-4o` GateMem judge.
+The run used two bounded episode workers, one request in flight per worker,
+local scratch storage, and a 90-second embedding request timeout to tolerate
+intermittent OpenLux latency. All 579 predictions and all 579 official judge
+scores completed with zero judge parse failures and complete context auditing.
+
+| System | U | A | F | MGS |
+|---|---:|---:|---:|---:|
+| Gov-Mem-v4-Symbolic-dev6 authorization contract | 68.57% | 44.27% | 9.04% | **34.76%** |
+
+This is a complete-domain exploratory development result, not a frozen
+four-domain paper-table value or a paired causal ablation. Full record:
+`experiments/result/2026-08-17_Gov-Mem-v4-Symbolic-dev6-authorization-contract_medical_full579_embedding3small.md`.
 
 ## 2026-08-16: Gov-Mem-v4-Symbolic-dev4 policy consistency diagnostic
 

@@ -2301,6 +2301,7 @@ def _execute_field_state_projection(
                     "reasons": list(verifier.reasons),
                     "llm_checked": verifier.llm_checked,
                     "llm_passed": verifier.llm_passed,
+                    "claim_provenance": verifier.claim_provenance,
                 },
             },
         },
@@ -2848,6 +2849,7 @@ def execute_policy_decision(
         "reasons": list(verifier.reasons),
         "llm_checked": verifier.llm_checked,
         "llm_passed": verifier.llm_passed,
+        "claim_provenance": verifier.claim_provenance,
     }
     trace = (
         f"execution action={action.value}",

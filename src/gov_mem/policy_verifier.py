@@ -35,6 +35,220 @@ class VerificationResult:
     symbolic_checks: tuple[str, ...] = ()
     llm_checked: bool = False
     llm_passed: bool | None = None
+    claim_provenance: dict[str, Any] | None = None
+
+
+_NON_DETERMINISTIC_FIELD_MARKERS = {
+    "unknown", "unclear", "uncertain", "unavailable", "not available",
+    "not found", "not provided", "not specified", "restricted", "redacted",
+    "conflict", "conflicting", "cannot determine", "unable to determine",
+}
+_CLAIM_CONNECTORS = re.compile(
+    r"\b(?:is|are|was|were|will be|has|have|had|at|on|from|until|located|"
+    r"scheduled|available|assigned|uses|needs|requires|starts|ends)\b",
+    re.IGNORECASE,
+)
+_SAFE_NON_CLAIM_PREFIXES = re.compile(
+    r"^(?:i\s+(?:cannot|can't|can only|can provide)|that information|"
+    r"under the current|under current|the requested information)",
+    re.IGNORECASE,
+)
+
+
+def _normalized_tokens(value: object) -> list[str]:
+    """Normalize a value for token-contiguous, punctuation-tolerant matching."""
+    return re.findall(r"[\w]+", str(value or "").casefold(), flags=re.UNICODE)
+
+
+def _phrase_occurs(text: object, phrase: object) -> bool:
+    phrase_tokens = _normalized_tokens(phrase)
+    text_tokens = _normalized_tokens(text)
+    if not phrase_tokens:
+        return False
+    width = len(phrase_tokens)
+    return any(
+        text_tokens[index:index + width] == phrase_tokens
+        for index in range(max(0, len(text_tokens) - width + 1))
+    )
+
+
+def _field_label_occurs(answer_text: str, label: str) -> bool:
+    label_tokens = _normalized_tokens(label)
+    if label.strip() and re.search(
+        rf"(?<!\w){re.escape(label.strip())}\s*:",
+        str(answer_text or ""),
+        re.IGNORECASE,
+    ):
+        return True
+    # Very short labels such as "date" are too common in prose to establish
+    # that a deterministic claim was made. A structured value claim still
+    # passes through the selected-value checks below.
+    return len(label_tokens) >= 2 and _phrase_occurs(answer_text, label)
+
+
+def _field_has_non_deterministic_marker(answer_text: str, label: str) -> bool:
+    if not _field_label_occurs(answer_text, label):
+        return False
+    answer_tokens = _normalized_tokens(answer_text)
+    label_tokens = _normalized_tokens(label)
+    for index in range(len(answer_tokens) - len(label_tokens) + 1):
+        if answer_tokens[index:index + len(label_tokens)] != label_tokens:
+            continue
+        tail = " ".join(answer_tokens[index + len(label_tokens):index + len(label_tokens) + 12])
+        if any(marker in tail for marker in _NON_DETERMINISTIC_FIELD_MARKERS):
+            return True
+    return False
+
+
+def _claim_units(answer_text: str) -> list[str]:
+    return [
+        unit.strip()
+        for unit in re.split(r"[.!?;]+", str(answer_text or ""))
+        if unit.strip()
+    ]
+
+
+def _claim_provenance_check(
+    *,
+    allowed_memory_ids: set[str],
+    evidence_payload: list[dict[str, Any]],
+    answer_contract: dict[str, Any],
+    answer_text: str,
+) -> tuple[bool, dict[str, Any], list[str], list[str]]:
+    """Audit the final answer against the authorized field/value provenance closure.
+
+    This is intentionally a structural verifier. It does not try to discover
+    arbitrary facts in prose; field selection and temporal resolution have
+    already happened upstream. Its hard gate covers every claim that the
+    structured contract declares deliverable and every deterministic claim
+    attached to a non-supported field.
+    """
+    projection = answer_contract.get("field_state_projection") or {}
+    fields = list(projection.get("fields") or [])
+    if not fields:
+        fields = list(answer_contract.get("requested_fields") or [])
+    rows_by_id = {
+        str(row.get("memory_id")): row
+        for row in evidence_payload
+        if str(row.get("memory_id") or "")
+    }
+    audit: dict[str, Any] = {
+        "enabled": bool(fields),
+        "passed": True,
+        "checked_fields": 0,
+        "checked_claims": 0,
+        "supported_claims": [],
+        "unsupported_claims": [],
+        "missing_provenance": [],
+        "out_of_scope_sources": [],
+        "ungrounded_values": [],
+    }
+    if not fields:
+        return True, audit, [], ["claim_provenance_not_applicable"]
+
+    reasons: list[str] = []
+    checks = ["claim_provenance_enabled"]
+    supported_values_all: list[str] = []
+    supported_labels: list[str] = []
+    for field in fields:
+        if not isinstance(field, dict):
+            continue
+        audit["checked_fields"] += 1
+        field_id = str(field.get("field_id") or field.get("label") or "unknown_field")
+        label = str(field.get("label") or field_id)
+        status = str(field.get("status") or "").casefold()
+        supported = status in {"supported", "covered"}
+        selected_values = [
+            str(value).strip()
+            for value in field.get("selected_values") or []
+            if str(value).strip()
+        ]
+        if supported and not selected_values:
+            fallback_value = str(field.get("answer_text") or "").strip()
+            if fallback_value:
+                selected_values = [fallback_value]
+        source_ids = {
+            str(value) for value in field.get("source_memory_ids") or []
+            if str(value)
+        }
+        provenance = [item for item in field.get("provenance") or [] if isinstance(item, dict)]
+        provenance_ids = {
+            str(item.get("memory_id")) for item in provenance
+            if str(item.get("memory_id") or "")
+        }
+
+        if not supported:
+            # An explicit "unknown/restricted" answer is a status report, not
+            # a recovered fact. A concrete label claim on such a field is not.
+            if _field_label_occurs(answer_text, label) and not _field_has_non_deterministic_marker(answer_text, label):
+                audit["unsupported_claims"].append({"field_id": field_id, "label": label})
+                reasons.append(f"unsupported_field_claim:{label}")
+            continue
+
+        audit["checked_claims"] += len(selected_values)
+        claim_record = {
+            "field_id": field_id,
+            "label": label,
+            "values": list(selected_values),
+            "source_memory_ids": sorted(source_ids),
+        }
+        audit["supported_claims"].append(claim_record)
+        supported_values_all.extend(selected_values)
+        supported_labels.append(label)
+        if not source_ids:
+            audit["missing_provenance"].append(field_id)
+            reasons.append(f"claim_missing_source:{label}")
+        if provenance and not source_ids.issuperset(provenance_ids):
+            audit["missing_provenance"].append(field_id)
+            reasons.append(f"claim_provenance_mismatch:{label}")
+        out_of_scope = sorted(source_ids - allowed_memory_ids)
+        if out_of_scope:
+            audit["out_of_scope_sources"].append({"field_id": field_id, "memory_ids": out_of_scope})
+            reasons.append(f"claim_source_outside_allowed_set:{label}")
+
+        for value in selected_values:
+            if not _phrase_occurs(answer_text, value):
+                reasons.append(f"selected_value_missing_from_answer:{label}")
+                continue
+            source_rows = [rows_by_id[memory_id] for memory_id in source_ids if memory_id in rows_by_id]
+            source_supported = any(_phrase_occurs(row.get("text"), value) for row in source_rows)
+            if not source_supported:
+                audit["ungrounded_values"].append({"field_id": field_id, "value": value})
+                reasons.append(f"claim_value_not_supported_by_source:{label}")
+            if provenance:
+                span_supported = any(
+                    _phrase_occurs(item.get("source_span"), value)
+                    for item in provenance
+                    if str(item.get("source_span") or "").strip()
+                )
+                # A missing span is allowed for legacy records, but an
+                # explicitly supplied span must remain consistent with value.
+                if any(str(item.get("source_span") or "").strip() for item in provenance) and not span_supported:
+                    reasons.append(f"claim_value_outside_provenance_span:{label}")
+        if selected_values:
+            checks.append(f"claim_values_grounded:{field_id}")
+
+    # The production projection renderer emits one labeled value fragment per
+    # field. For legacy/free-form callers, catch an additional factual sentence
+    # that is neither a selected value nor a non-deterministic status. This is
+    # deliberately a conservative syntax check, not a domain vocabulary.
+    if supported_values_all:
+        for unit in _claim_units(answer_text):
+            if _SAFE_NON_CLAIM_PREFIXES.search(unit):
+                continue
+            if any(_phrase_occurs(unit, value) for value in supported_values_all):
+                continue
+            if any(_field_label_occurs(unit, label) for label in supported_labels):
+                continue
+            if _CLAIM_CONNECTORS.search(unit):
+                audit["unsupported_claims"].append({"text": unit})
+                reasons.append("unsupported_answer_claim")
+
+    if reasons:
+        audit["passed"] = False
+    else:
+        checks.append("claim_provenance_verified")
+    return not reasons, audit, reasons, checks
 
 
 def _symbolic_checks(
@@ -44,7 +258,8 @@ def _symbolic_checks(
     answer_contract: dict[str, Any],
     delivery_action: str,
     answer_text: str,
-) -> tuple[bool, list[str], list[str]]:
+    config: dict[str, Any],
+) -> tuple[bool, list[str], list[str], dict[str, Any]]:
     allowed = set(decision.allowed_memory_ids)
     blocked = set(decision.blocked_memory_ids)
     accessed = {str(row.get("memory_id") or "") for row in evidence_payload}
@@ -125,6 +340,35 @@ def _symbolic_checks(
     if fields:
         checks.append("field_provenance_is_policy_bounded")
 
+    claim_enabled = bool((config.get("policy_verifier") or {}).get("claim_provenance_enabled", True))
+    if claim_enabled:
+        claim_passed, claim_audit, claim_reasons, claim_checks = _claim_provenance_check(
+            allowed_memory_ids=allowed,
+            evidence_payload=evidence_payload,
+            answer_contract=answer_contract,
+            answer_text=answer_text,
+        )
+    else:
+        claim_passed = True
+        claim_reasons = []
+        claim_checks = ["claim_provenance_disabled_for_control"]
+        claim_audit = {
+            "enabled": False,
+            "passed": True,
+            "checked_fields": 0,
+            "checked_claims": 0,
+            "supported_claims": [],
+            "unsupported_claims": [],
+            "missing_provenance": [],
+            "out_of_scope_sources": [],
+            "ungrounded_values": [],
+            "reason": "explicit_control_configuration",
+        }
+    checks.extend(claim_checks)
+    reasons.extend(claim_reasons)
+    if not claim_passed:
+        passed = False
+
     if delivery_action in {"answer", "answer_redacted"} and not str(answer_text or "").strip():
         passed = False
         reasons.append("empty_delivered_answer")
@@ -152,7 +396,7 @@ def _symbolic_checks(
         ):
             passed = False
             reasons.append("restricted_fields_omitted_but_action_not_redacted")
-    return passed, checks, reasons
+    return passed, checks, reasons, claim_audit
 
 
 def _is_lifecycle_content_query(question: str) -> bool:
@@ -211,12 +455,13 @@ def verify_policy_delivery(
     config: dict[str, Any],
 ) -> VerificationResult:
     """Run a symbolic hard gate and an optional base-LLM second opinion."""
-    symbolic_passed, checks, reasons = _symbolic_checks(
+    symbolic_passed, checks, reasons, claim_audit = _symbolic_checks(
         decision=decision,
         evidence_payload=evidence_payload,
         answer_contract=answer_contract,
         delivery_action=delivery_action,
         answer_text=answer_text,
+        config=config,
     )
     verifier_cfg = dict(config.get("policy_verifier") or {})
     # Keep the verifier's second LLM opinion opt-in for callers that do not
@@ -314,4 +559,5 @@ def verify_policy_delivery(
         symbolic_checks=tuple(checks),
         llm_checked=llm_checked,
         llm_passed=llm_passed,
+        claim_provenance=claim_audit,
     )
