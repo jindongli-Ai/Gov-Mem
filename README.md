@@ -53,6 +53,15 @@ contracts are not yet reliable enough for hard enforcement; this diagnostic is
 recorded in
 [`2026-08-19 claim-provenance smoke`](experiments/result/2026-08-19_Gov-Mem-v4-Symbolic-dev7_claim_provenance_smoke.md)
 and is not a paper performance result.
+
+The follow-up source-span validation reran the same complete Medical episode
+with one OpenLux memory-system key and one episode worker. All 28 predictions
+and all 28 official judge records completed with zero judge parse failures, and
+the non-intervention audit was present in 28/28 predictions. The diagnostic
+metrics were U 30.00%, A 44.44%, F 0.00%, and MGS 16.67%; these values are not
+paper performance results. The verifier added no LLM calls. The full artifact
+is `experiments/smoke/2026-08-19_dev7_claim_provenance_source_completion_medical_episode002`.
+
 The final paper-facing name is
 **Gov-Mem-v4-Symbolic**, which will be frozen incrementally after each Symbolic
 step passes regression and benchmark checks. The complete naming and
