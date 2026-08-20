@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from gov_mem.backbones.rag_naive import (
     _append_missing_verified_safe_wording,
     _build_turn_chunks,
     _format_retrieved_memory,
     _direct_answer,
     _normalize_claim_contract,
+    _build_provenance_explanation,
     _run_claim_provenance_verifier,
 )
 from gov_mem.memory.dense_index import DenseMemoryIndex
@@ -412,6 +415,88 @@ def test_rag_naive_claim_verifier_shadow_mode_preserves_answer_on_contract_failu
     assert audit["enforced"] is False
     assert answer.action == "answer"
     assert answer.answer_text == "appointment date: August 4"
+
+
+def test_provenance_explanation_is_non_intervention_and_source_closed():
+    evidence = [RetrievedEvidence(
+        memory_id="chunk_date",
+        content="[student:student_lina] The current date is May 12, 2026.",
+        score=1.0,
+        retrieval_source="dense",
+        reason="test",
+        user_id="student_lina",
+        time="2026-05-01T09:00:00",
+        source_message_ids=["t001"],
+        metadata={
+            "structured_record": {
+                "turn_id": "t001",
+                "timestamp": "2026-05-01T09:00:00",
+                "speaker": {"principal_id": "student_lina", "role": "student"},
+            }
+        },
+    )]
+    answer = SimpleNamespace(
+        action="answer",
+        answer_text="The date is May 12, 2026.",
+        used_memory_ids=["chunk_date"],
+        raw_response={
+            "claim_contract": {
+                "requested_fields": [{
+                    "field_id": "date",
+                    "label": "date",
+                    "status": "supported",
+                    "selected_values": ["May 12, 2026"],
+                    "source_memory_ids": ["chunk_date"],
+                    "provenance": [{
+                        "memory_id": "chunk_date",
+                        "source_span": "current date is May 12, 2026",
+                    }],
+                }]
+            }
+        },
+    )
+    decision = Stage2Decision(
+        route="typed_scalar",
+        applied=True,
+        original_memory_ids=["chunk_date"],
+        selected_memory_ids=["chunk_date"],
+    )
+    explanation = _build_provenance_explanation(
+        instance=_instance(),
+        evidence=evidence,
+        answer_result=answer,
+        stage2_decision=decision,
+        symbolic_trace={
+            "consistency": {"violations": []},
+            "validity_projection": {"state_counts": {"active": 1}},
+            "temporal_authorization": {
+                "enabled": True,
+                "decision": "allow",
+                "enforcement_applied": True,
+            },
+            "authorization_evidence_boundary": {"filtered_memory_ids": []},
+            "state_ledger": {"fields": {"date": {"status": "resolved"}}, "conflicts": []},
+        },
+        claim_audit={
+            "passed": True,
+            "enforced": False,
+            "reasons": [],
+            "claim_provenance": {
+                "passed": True,
+                "checked_fields": 1,
+                "checked_claims": 1,
+                "supported_claims": [{"field_id": "date", "values": ["May 12, 2026"]}],
+            },
+        },
+    )
+
+    assert explanation["intervention"] is False
+    assert explanation["answer_unchanged"] is True
+    assert explanation["scored_by_gatemem"] is False
+    assert explanation["final_action"] == "answer"
+    assert explanation["selected_evidence"][0]["memory_id"] == "chunk_date"
+    assert explanation["symbolic"]["temporal_authorization"]["decision"] == "allow"
+    assert explanation["claim_level"]["status"] == "verified"
 
 
 def test_claim_contract_sources_are_filled_from_typed_state_ledger():

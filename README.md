@@ -2,7 +2,7 @@
 
 This workspace uses GateMem as the default benchmark dataset for Gov-Mem.
 
-## Current Research Snapshot (2026-08-19)
+## Current Research Snapshot (2026-08-20)
 
 This section records the current paper-facing Gov-Mem framework and its latest
 full-benchmark results. Treat the commit containing this snapshot as a
@@ -10,7 +10,7 @@ recovery point: later framework changes should be committed separately, so a
 regression can be diagnosed or the previous version can be restored from Git
 history.
 
-### Active development version (2026-08-19)
+### Active development version (2026-08-20)
 
 The current development snapshot is **Gov-Mem-v4-Symbolic-dev7**. It is based on the frozen
 `rag_naive_v3_typed_rerank` framework (`Gov-Mem-v3.0`) and preserves the
@@ -34,20 +34,23 @@ recognize only explicit language such as `deleted`, `revoked`, `superseded`, or
 `updated from ... to ...`; they do not infer state from ordinary words such as
 `current` or `latest`.
 
-Dev7's claim-level provenance verifier is now connected to the actual
+Dev7's claim-level provenance explanation module is now connected to the actual
 `govmem_v4_symbolic` RAG-Naive path. The answering model may return a
 source-bound `claim_contract` in the same JSON response; the adapter maps
 GateMem source-message IDs to retrieved chunk IDs only within the current
-checkpoint, then records the deterministic audit in the official prediction's
-`memory_audit` and in `answer_grounding.policy_privacy_verifier`. A missing
-contract is recorded as `claim_provenance_not_applicable`; no synthetic source
-is created and no additional LLM call is made. The current RAG-Naive adapter
-uses a non-intervention claim-level provenance audit: every available contract
-is checked and recorded, but a malformed contract does not suppress the
-original answer. The stateful executor continues to use the full fail-closed
-field-state projection contract. When a field cites several retrieved chunks,
-the audit retains one source span for each cited chunk; the typed state ledger
-is used only to complete missing source bindings from the current evidence.
+checkpoint, then records a source-grounded explanation in the official
+prediction's `memory_audit` and in
+`answer_grounding.provenance_explanation`. The explanation includes the final
+action, selected evidence references, Symbolic consistency/lifecycle/temporal
+reasons, and claim-level support when a contract is available. A missing
+contract is recorded as `claim-level explanation incomplete`; no synthetic
+source is created and no additional LLM call is made. This is a
+non-intervention explanation channel: it never changes the original answer and
+is not scored by GateMem. The stateful executor continues to use the full
+fail-closed field-state projection contract. When a field cites several
+retrieved chunks, the explanation retains one source span for each cited chunk;
+the typed state ledger is used only to complete missing source bindings from
+the current evidence.
 The first real integration smoke found that the base model's optional claim
 contracts are not yet reliable enough for hard enforcement; this diagnostic is
 recorded in
@@ -59,13 +62,42 @@ with one OpenLux memory-system key and one episode worker. All 28 predictions
 and all 28 official judge records completed with zero judge parse failures, and
 the non-intervention audit was present in 28/28 predictions. The diagnostic
 metrics were U 30.00%, A 44.44%, F 0.00%, and MGS 16.67%; these values are not
-paper performance results. The verifier added no LLM calls. The full artifact
+paper performance results. The explanation module added no LLM calls. The full artifact
 is `experiments/smoke/2026-08-19_dev7_claim_provenance_source_completion_medical_episode002`.
 
-The final paper-facing name is
-**Gov-Mem-v4-Symbolic**, which will be frozen incrementally after each Symbolic
-step passes regression and benchmark checks. The complete naming and
-promotion record is in
+### Gov-Mem-v4-Symbolic-dev7 full-benchmark result (2026-08-20)
+
+The complete GateMem benchmark was evaluated with OpenLux `gpt-4o-mini` as the
+memory-system base LLM and OpenLux `text-embedding-3-small`. The official
+GateMem judge was OpenLux `gpt-4o` with `gate_by_action=false`. Gold feedback,
+experience, skill updates, and the long-context ledger were disabled. All
+2,218 predictions and all 2,218 official judge records completed with zero
+judge parse failures.
+
+| Domain | Checkpoints | U | A | F | MGS | Action accuracy | OR |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Medical | 579 | 74.29% | 46.35% | 10.17% | **35.80%** | 70.47% | 10.48% |
+| Office | 547 | 39.61% | 4.09% | 1.80% | **37.30%** | 75.69% | 39.61% |
+| Education | 540 | 40.00% | 18.89% | 7.22% | **30.10%** | 71.85% | 17.78% |
+| Household | 552 | 43.48% | 27.17% | 2.72% | **30.80%** | 70.11% | 19.02% |
+| **Four-domain average / pooled U-A-F** | **2,218** | **49.72%** | **24.47%** | **5.53%** | **33.50%** | | |
+
+The overall MGS is the arithmetic mean of the four domain MGS values; the
+overall U/A/F values are checkpoint-count-weighted pooled values. The detailed
+protocol and artifact paths are in the dated
+[dev7 full-benchmark result](experiments/result/2026-08-20_Gov-Mem-v4-Symbolic-dev7_full_all_2218_openlux_gpt4omini.md).
+This is a complete dev7 measurement, not a causal ablation against the frozen
+v3 typed-rerank table.
+
+The explanation channel was present in 2,218/2,218 official predictions. It
+records selected evidence and Symbolic reasoning facts while keeping
+`answer_unchanged=true` and `scored_by_gatemem=false`; it does not contribute
+to U, A, F, MGS, action accuracy, or OR.
+
+The final paper-facing name is **Gov-Mem-v4-Symbolic**. Dev7 is the current
+paper-facing implementation snapshot; further changes should create a new
+version and a new benchmark record rather than overwrite this result. The
+complete naming and promotion record is in
 [`VERSION_LOG.md`](VERSION_LOG.md).
 
 The dev3 state-ledger increment was validated on one complete episode per
@@ -151,8 +183,8 @@ must not be labeled as Gov-Mem-Symbolic results.
 ### Latest frozen typed-rerank full-benchmark performance
 
 The following table is the frozen `rag_naive_v3_typed_rerank` track, not the
-Gov-Mem-Symbolic track. A new Symbolic full-benchmark table must be generated
-under `govmem_symbolic` after the unified Symbolic configuration is frozen.
+Gov-Mem-Symbolic track. The completed dev7 Symbolic full-benchmark table is
+recorded above and uses `experiment.mode: govmem_v4_symbolic`.
 
 These results cover all 2,218 GateMem checkpoints: Medical 579, Office 547,
 Education 540, and Household 552. All seven runs use the same checkpoint

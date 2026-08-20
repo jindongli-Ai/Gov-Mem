@@ -1120,6 +1120,142 @@ def _run_claim_provenance_verifier(
     return updated, audit
 
 
+def _build_provenance_explanation(
+    *,
+    instance: MemoryInstance,
+    evidence: list[RetrievedEvidence],
+    answer_result: AnswerResult,
+    stage2_decision: Stage2Decision,
+    symbolic_trace: dict[str, Any],
+    claim_audit: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Build a non-intervention explanation from already computed runtime facts.
+
+    This channel explains the delivered answer but never authorizes, rewrites,
+    or rescored it. Keep it closed over selected evidence and deterministic
+    traces; the optional model-produced claim contract is only supplementary.
+    """
+    raw_response = dict(answer_result.raw_response or {})
+    contract = dict(raw_response.get("claim_contract") or {})
+    contract_fields = list(contract.get("requested_fields") or [])
+    claim_payload = dict((claim_audit or {}).get("claim_provenance") or {})
+    checked_fields = int(claim_payload.get("checked_fields") or 0)
+    if contract_fields and bool(claim_payload.get("passed")):
+        claim_status = "verified"
+    elif contract_fields:
+        claim_status = "failed"
+    else:
+        claim_status = "incomplete"
+
+    evidence_refs: list[dict[str, Any]] = []
+    for row in evidence:
+        record = dict((row.metadata or {}).get("structured_record") or {})
+        speaker = dict(record.get("speaker") or {})
+        evidence_refs.append(
+            {
+                "memory_id": row.memory_id,
+                "source_message_ids": list(row.source_message_ids),
+                "turn_id": str(record.get("turn_id") or ""),
+                "timestamp": record.get("timestamp") or row.time,
+                "principal_id": str(speaker.get("principal_id") or row.user_id or ""),
+                "role": str(speaker.get("role") or ""),
+            }
+        )
+
+    claim_fields = []
+    for field in contract_fields:
+        if not isinstance(field, dict):
+            continue
+        claim_fields.append(
+            {
+                "field_id": str(field.get("field_id") or field.get("label") or ""),
+                "label": str(field.get("label") or ""),
+                "status": str(field.get("status") or "unknown"),
+                "selected_values": [str(value) for value in field.get("selected_values") or []],
+                "source_memory_ids": [str(value) for value in field.get("source_memory_ids") or []],
+                "provenance": [
+                    {
+                        "memory_id": str(item.get("memory_id") or ""),
+                        "source_span": str(item.get("source_span") or ""),
+                    }
+                    for item in field.get("provenance") or []
+                    if isinstance(item, dict)
+                ],
+            }
+        )
+
+    consistency = dict(symbolic_trace.get("consistency") or {})
+    authorization = dict(symbolic_trace.get("temporal_authorization") or {})
+    boundary = dict(symbolic_trace.get("authorization_evidence_boundary") or {})
+    validity = dict(symbolic_trace.get("validity_projection") or {})
+    ledger = dict(symbolic_trace.get("state_ledger") or {})
+    ledger_fields = dict(ledger.get("fields") or {})
+    ledger_conflicts = ledger.get("conflicts") or ledger.get("conflict_count") or 0
+
+    return {
+        "schema_version": 1,
+        "module": "claim_level_provenance_explanation",
+        "purpose": "Explain the delivered answer using selected evidence and Symbolic traces.",
+        "intervention": False,
+        "answer_unchanged": True,
+        "scored_by_gatemem": False,
+        "checkpoint_id": instance.instance_id,
+        "final_action": answer_result.action,
+        "answer_memory_ids": list(answer_result.used_memory_ids),
+        "selected_evidence": evidence_refs,
+        "stage2": {
+            "route": stage2_decision.route,
+            "policy_gate_applied": bool(stage2_decision.policy_gate_applied),
+            "policy_gate_reason": stage2_decision.policy_gate_reason,
+            "summary_only_applied": bool(stage2_decision.summary_only_applied),
+            "selected_memory_ids": list(stage2_decision.selected_memory_ids),
+        },
+        "symbolic": {
+            "principal_role_consistency": {
+                "violation_count": len(list(consistency.get("violations") or [])),
+                "passed": not bool(consistency.get("violations")),
+            },
+            "lifecycle": {
+                "validity_state_counts": dict(validity.get("state_counts") or {}),
+                "target_binding": dict(symbolic_trace.get("lifecycle_target_binding") or {}),
+            },
+            "temporal_authorization": {
+                "enabled": bool(authorization.get("enabled")),
+                "decision": authorization.get("decision"),
+                "reason": authorization.get("reason"),
+                "enforcement_applied": bool(authorization.get("enforcement_applied")),
+            },
+            "evidence_boundary": {
+                "filtered_memory_ids": list(boundary.get("filtered_memory_ids") or []),
+                "decision": boundary.get("decision"),
+                "reason": boundary.get("reason"),
+            },
+            "state_ledger": {
+                "field_count": len(ledger_fields),
+                "conflict_count": len(ledger_conflicts) if isinstance(ledger_conflicts, list) else int(ledger_conflicts or 0),
+                "missing_fields": [
+                    str(slot)
+                    for slot, value in ledger_fields.items()
+                    if isinstance(value, dict) and str(value.get("status") or "").lower() in {"missing", "unresolved"}
+                ],
+            },
+        },
+        "claim_level": {
+            "status": claim_status,
+            "contract_present": bool(contract_fields),
+            "checked_fields": checked_fields,
+            "checked_claims": int(claim_payload.get("checked_claims") or 0),
+            "supported_claims": list(claim_payload.get("supported_claims") or []),
+            "unsupported_claims": list(claim_payload.get("unsupported_claims") or []),
+            "missing_provenance": list(claim_payload.get("missing_provenance") or []),
+            "out_of_scope_sources": list(claim_payload.get("out_of_scope_sources") or []),
+            "ungrounded_values": list(claim_payload.get("ungrounded_values") or []),
+            "fields": claim_fields,
+        },
+        "reasons": list((claim_audit or {}).get("reasons") or []),
+    }
+
+
 class RAGNaiveBackbone:
     def __init__(
         self,
@@ -1406,6 +1542,26 @@ class RAGNaiveBackbone:
                 raw_answer=raw_answer,
                 config=self.config,
             )
+        explanation_enabled = bool(verifier_cfg.get("explanation_enabled", True))
+        provenance_explanation = (
+            _build_provenance_explanation(
+                instance=instance,
+                evidence=evidence,
+                answer_result=answer_result,
+                stage2_decision=stage2_decision,
+                symbolic_trace=symbolic_trace,
+                claim_audit=claim_audit,
+            )
+            if self._symbolic_v4_enabled() and explanation_enabled
+            else None
+        )
+        if provenance_explanation is not None:
+            raw_response = dict(answer_result.raw_response or {})
+            raw_response["provenance_explanation"] = provenance_explanation
+            grounding = dict(raw_response.get("answer_grounding") or {})
+            grounding["provenance_explanation"] = provenance_explanation
+            raw_response["answer_grounding"] = grounding
+            answer_result = replace(answer_result, raw_response=raw_response)
         reasoning_state = build_reasoning_state(
             evidence,
             trace=[
@@ -1436,6 +1592,7 @@ class RAGNaiveBackbone:
             ],
             "stage2_decision": stage2_decision.to_dict(),
             "symbolic_trace": symbolic_trace,
+            "provenance_explanation": provenance_explanation,
             "atomic_memories": [],
             "retrieved_atomic_memories": [],
             "policy_decisions": [],

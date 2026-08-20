@@ -16,50 +16,61 @@ of an earlier benchmark snapshot.
 | `Gov-Mem-v4-Symbolic-dev3-state-ledger` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Retrieved-evidence-only source-bound state ledger with typed slot provenance and conflict accounting | Current development method |
 | `Gov-Mem-v4-Symbolic-dev5-temporal-authorization` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Shadow temporal authorization state graph over Principal/Role/Resource/PolicyEvent nodes; provenance-grounded allow/deny/revoke/supersedes transitions | Validation candidate; not paper-frozen |
 | `Gov-Mem-v4-Symbolic-dev6-authorization-contract` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Ingestion-time, provider-neutral authorization assertions with source spans; retrieval consumes the typed contract before temporal graph resolution | Exploratory validation; not paper-frozen |
-| `Gov-Mem-v4-Symbolic-dev7` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Authorization-aware evidence boundary with deterministic claim-level provenance verification at final delivery | Current development method |
+| `Gov-Mem-v4-Symbolic-dev7` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Authorization-aware evidence boundary plus non-intervention claim-level provenance explanation at final delivery | Paper-facing frozen snapshot; full benchmark completed 2026-08-20 |
 | `Gov-Mem-v4-Symbolic` | The frozen v4 line after dev0 regression and benchmark checks | RAG-Naive foundation plus deterministic/neuro-symbolic role, permission, temporal, and consistency reasoning | Paper method name |
 
-## 2026-08-19: Gov-Mem-v4-Symbolic-dev7 claim-level provenance verifier
+## 2026-08-20: Gov-Mem-v4-Symbolic-dev7 claim-level provenance explanation
 
 The current framework identity remains `Gov-Mem-v4-Symbolic-dev7`; this
-increment does not introduce another version name. The final delivery gate now
-performs a deterministic claim-level provenance audit over the existing field
-state projection. For each supported field it checks that every selected value
-is present in the delivered answer, has a source memory, stays within the
-policy-approved memory set, and is supported by the source text (and any
-provided source span). A deterministic claim attached to an `unknown`,
-`conflict`, or `restricted` field fails closed. The audit is provider-neutral,
+increment does not introduce another version name. The final delivery now
+produces a deterministic, non-intervention claim-level provenance explanation
+over the existing field state projection. For each supported field it records
+whether every selected value is present in the delivered answer, has a source
+memory, stays within the policy-approved memory set, and is supported by the
+source text (and any provided source span). A deterministic claim attached to
+an `unknown`, `conflict`, or `restricted` field is recorded as unsupported; it
+does not rewrite the answer. The explanation is provider-neutral,
 domain-neutral, uses no new LLM call, and is recorded in
-`answer_grounding.policy_privacy_verifier.claim_provenance`.
+`answer_grounding.provenance_explanation`.
 
-This is a structural provenance boundary, not a free-form fact extractor: the
+This is a structural explanation channel, not a free-form fact extractor: the
 field-state projection remains the single authority for selection and temporal
-resolution. The implementation is covered by the policy, answer projection,
-and stateful projection regression tests. No benchmark result is promoted by
-this code change; the next performance measurement should be run only after
-the framework design is frozen.
+resolution, and the temporal authorization boundary remains the intervention
+point. The explanation is explicitly excluded from GateMem metrics. The
+implementation is covered by the policy, answer projection, and RAG-Naive
+regression tests. At the time of this code change no benchmark result was
+promoted; the subsequent complete dev7 measurement is recorded below.
 
-On 2026-08-19 this verifier was also integrated into the actual
+On 2026-08-20 this explanation module was also integrated into the actual
 `govmem_v4_symbolic` RAG-Naive benchmark path. The path keeps the existing
 Stage 1/Stage 2 retrieval and answer flow, asks the answering model for an
 optional source-bound `claim_contract` in the same JSON response, resolves
 GateMem source-message IDs only against the retrieved chunk rows, and records
-the verifier audit in the official prediction's `memory_audit`. Missing claim
-contracts are recorded as `claim_provenance_not_applicable`; they do not create
-synthetic provenance or trigger a new model call. The adapter is a source
-provenance boundary for this RAG-Naive path; the full policy-approved field
+the explanation in the official prediction's `memory_audit`. Missing claim
+contracts are recorded as an incomplete claim-level explanation; they do not
+create synthetic provenance or trigger a new model call. The adapter is an
+explanation channel for this RAG-Naive path; the temporal authorization
+boundary remains the intervention point and the full policy-approved field
 projection remains the authority in the stateful executor path. The RAG-Naive
-adapter currently uses non-intervention claim-level provenance auditing
+adapter uses non-intervention explanation
 (`claim_provenance_enforcement: false`): contract failures remain visible in
-the audit but do not replace an answer with `no_memory`. The audit is executed
-on every answer path when the verifier is enabled; it is not a placeholder. If
-a field cites several retrieved chunks, normalization keeps a source span for
-each cited chunk, while the typed state ledger can only fill a missing binding
-from the current retrieved evidence. This is deliberate because the first real
-smoke showed that the base answer model does not yet emit complete source spans
-consistently; enabling answer suppression before that contract quality is
-validated would confound the framework test with an avoidable answer-
-suppression artifact.
+the explanation but do not replace an answer with `no_memory`. The explanation
+is generated on every answer path when enabled. If a field cites several
+retrieved chunks, normalization keeps a source span for each cited chunk,
+while the typed state ledger can fill a missing binding only from current
+retrieved evidence.
+
+## 2026-08-20: Gov-Mem-v4-Symbolic-dev7 full benchmark completed
+
+The complete GateMem benchmark was run with OpenLux `gpt-4o-mini` as the
+memory-system base LLM, OpenLux `text-embedding-3-small`, and OpenLux `gpt-4o`
+as the official judge. The run covered all 91 episodes and 2,218 checkpoints.
+All four domain judge jobs completed with zero parse failures. The final
+paper-facing table is recorded in
+`experiments/result/2026-08-20_Gov-Mem-v4-Symbolic-dev7_full_all_2218_openlux_gpt4omini.md`.
+The explanation channel was present in every official prediction and remained
+non-intervention and excluded from GateMem metrics. Subsequent framework
+changes must use a new version identifier and a new full-benchmark record.
 
 ## 2026-08-17: Gov-Mem-v4-Symbolic-dev6 full Medical small-embedding validation
 

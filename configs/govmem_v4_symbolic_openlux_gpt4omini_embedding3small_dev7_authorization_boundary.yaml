@@ -63,6 +63,9 @@ stage2:
 policy_verifier:
   enabled: true
   claim_provenance_enabled: true
+  # Explanation is a side-channel artifact. It never changes the answer or
+  # contributes to GateMem metrics.
+  explanation_enabled: true
   # The RAG-Naive adapter records a non-intervention claim-level audit.
   # The stateful executor's field-projection verifier remains fail-closed.
   claim_provenance_enforcement: false

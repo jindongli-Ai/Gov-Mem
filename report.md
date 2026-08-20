@@ -1,538 +1,604 @@
-# Gov-Mem: Pipeline Reconstruction and ICLR Contribution-Extraction Brief
+# Gov-Mem Current Pipeline Report
 
-This document is a code-grounded reconstruction of the Gov-Mem project. It is
-intended to be pasted into a web LLM together with the repository context. The
-LLM should use it to identify the defensible ICLR contributions and to design a
-framework figure. Claims below describe the implementation, not yet the final
-paper claims.
+This is a code-grounded handoff document for writing the Gov-Mem ICLR paper.
+It describes the implementation that is active in the repository on 2026-08-19.
+It should be read together with the source files listed at the end. Do not
+silently combine this pipeline with historical `rag_policy_amem` runs or with
+disabled experimental modules.
 
-## 1. Executive Summary
+## 1. Current identity
 
-Gov-Mem is a governed conversational-memory system for checkpointed dialogue.
-The central problem is not only retrieving a relevant memory. For each query,
-the system must jointly preserve:
-
-1. utility: answer the requested facts;
-2. privacy: prevent unauthorized disclosure;
-3. lifecycle correctness: suppress deleted, forgotten, superseded, canceled,
-   or stale values;
-4. temporal and entity correctness: resolve the current state of the right
-   person/object/event;
-5. answer completeness: return all requested typed fields without importing
-   neighboring or hidden facts;
-6. provenance: make every released answer field traceable to observable source
-   evidence.
-
-The codebase contains several research generations. There are two important
-operational tracks:
-
-- **Formal frozen benchmark track:** `rag_naive_v3_typed_rerank`. Stage 1 is
-  GateMem-compatible RAG-Naive turn retrieval (`top_k=20`); Stage 2 is a typed,
-  constrained reranking and answer-boundary layer over only the retrieved
-  evidence. This is the track used by the latest paper-compatible full result
-  in `experiments/result/2026-08-05_Gov-Mem_v3_paper_compatible_2218_openlux_gpt4omini_strict.md`.
-- **Gov-Mem-Symbolic governance track:** `govmem_symbolic`. It adds query semantic
-  contracts, source localization, atomic memory, information-owner and
-  principal-relation ledgers, governed atoms/policy frames, an optional
-  governed graph, dual-channel retrieval, current-state ledgers, slot-level
-  authorization certificates, action decisions, and typed realization. This
-  is the richer architecture represented by `configs/gov_mem_v0_strong.yaml`
-  through `configs/gov_mem_v4_skill_runtime_with_updates.yaml` and the
-  governance-contract configurations. The old `rag_policy_amem` string is
-  retained only as a backward-compatible mode alias.
-
-The first track is experimentally clean and benchmark-comparable. The second
-track is the main candidate for a novel systems contribution, but its claims
-must be supported by controlled ablations and a clearly declared configuration.
-
-## 2. Dataset and Runtime Contract
-
-The default benchmark is GateMem under `dataset/GateMem/gatemem/`. Each domain
-has `episodes.jsonl` and `checkpoints.jsonl`; the supported domains are
-`medical`, `office`, `education`, and `household`.
-
-For a checkpoint, `CheckpointBenchmarkAdapter` in
-`src/gov_mem/data/adapters.py`:
-
-1. joins the checkpoint with its episode;
-2. truncates the episode at the observable `as_of_turn_id`;
-3. exposes only the visible prefix as messages;
-4. provides the asking principal and observable requester role;
-5. keeps evaluation metadata out of the runtime view through
-   `runtime_instance_view` and leakage guards.
-
-The runtime object is a `MemoryInstance`:
+The current development version is:
 
 ```text
-instance_id, domain, conversation_id, visible messages,
-question, asking_user_id, observable requester metadata
+Name:             Gov-Mem-v4-Symbolic-dev7
+Experiment mode:  govmem_v4_symbolic
+Active backbone:  RAGNaiveBackbone
+Foundation:       rag_naive_v3_typed_rerank
+Config:           configs/govmem_v4_symbolic_openlux_gpt4omini_embedding3small_dev7_authorization_boundary.yaml
+Date:             2026-08-19
 ```
 
-The benchmark evaluator separately supplies expected action, query type,
-utility targets, privacy targets, and deletion targets. The runtime must not
-read those hidden fields as evidence or answer labels.
+The paper-facing method name is `Gov-Mem-v4-Symbolic`; `dev7` is the current
+development snapshot. The method is deliberately incremental: it keeps the
+strong and benchmark-compatible RAG-Naive retrieval and typed Stage-2 path,
+then adds lightweight structured and Symbolic evidence reasoning.
 
-The command-line entry point is `run_govmem.py`. It loads YAML, applies command
-line overrides, selects an experiment mode, constructs `GovMemRunner`, and
-supports `all`, `ingest`, `retrieve`, `answer`, and `evaluate` stages.
+Important implementation distinction:
 
-## 3. Runner-Level Control Flow
+- `experiment.mode: govmem_v4_symbolic` dispatches to
+  `src/gov_mem/backbones/rag_naive.py`, class `RAGNaiveBackbone`.
+- The old `govmem_symbolic` and `rag_policy_amem` modes dispatch to
+  `src/gov_mem/backbones/rag_policy_amem.py`. They are historical alternative
+  paths and are not the current dev7 pipeline.
+- Therefore current dev7 must not be described as the `rag_policy_amem`
+  implementation.
 
-`src/gov_mem/pipeline.py` is the top-level orchestrator.
+The core research claim is not that a graph replaces retrieval. The claim is
+that a high-performing neural retrieval pipeline can preserve typed source
+information and use small, source-grounded Symbolic structures to constrain
+valid evidence, lifecycle interpretation, temporal authorization, and answer
+provenance.
 
-```mermaid
-flowchart TD
-    A[run_govmem.py] --> B[Load YAML and CLI overrides]
-    B --> C[GovMemRunner]
-    C --> D[Load observable checkpoint instance]
-    D --> E{experiment mode}
-    E -->|govmem_structured_old| F[Legacy structured path]
-    E -->|rag_naive| G[RAG-Naive baseline]
-    E -->|rag_naive_v3_typed_rerank| H[Formal frozen Gov-Mem v3]
-    E -->|rag_policy| I[RAG-Policy]
-    E -->|govmem_symbolic| J[Gov-Mem-Symbolic]
-    E -->|govmem_rag_policy_incremental| K[Incremental state renderer]
-    E -->|stateful_policy_reasoning| L[State-first policy backbone]
-    F --> M[Save prediction and debug artifacts]
-    G --> M
-    H --> M
-    I --> M
-    J --> M
-    K --> M
-    L --> M
-    M --> N[Local evaluation]
-    N --> O[Official GateMem scorer, when enabled]
-```
+## 2. GateMem data and visibility contract
 
-The current default config, `configs/govmem_default.yaml`, selects
-`govmem_structured_old`; it is not the same as the formal frozen v3 config.
-Therefore every reported experiment must name its `experiment_mode` and config
-file explicitly.
-
-## 4. Formal Frozen Benchmark Pipeline: `rag_naive_v3_typed_rerank`
-
-This is the cleanest current paper-compatible path. It is implemented in
-`src/gov_mem/backbones/rag_naive.py` and selected by
-`configs/rag_naive_v3_openlux_gpt4omini_embedding3small_pure.yaml`.
-
-### Stage 0: observable episode prefix
-
-The adapter provides the visible dialogue turns only. The system does not
-construct a memory database with hidden checkpoint fields.
-
-### Stage 1: frozen RAG-Naive retrieval
-
-`_build_turn_chunks` creates one retrieval chunk per visible turn. The raw turn
-text is embedded with `text-embedding-3-small`; the user question is embedded
-as the single query; the top 20 turns are returned. This keeps the Stage 1
-retrieval interface aligned with the GateMem RAG-Naive baseline.
-
-### Stage 2: typed constrained evidence reasoning
-
-The top-20 retrieved turns form a closed candidate set. Gov-Mem then applies:
-
-- typed scalar evidence reranking for requested fields;
-- current-versus-stale/deleted evidence checks;
-- safe-summary projection for broad wording requests;
-- explicit sensitive-field and deletion gates;
-- LLM reasoning over the candidate set, with validated selection;
-- deterministic fallback projection when the LLM reranker is unavailable or
-  returns an invalid selection;
-- optional long-context field ledger only in separately labeled ablations.
-
-The formal configuration has
-`stage2.long_context_field_ledger.enabled: false`. It must remain disabled for
-retrieved-evidence-only comparisons. A long-context run reads the complete
-visible transcript and is not directly comparable to the paper-compatible
-protocol.
-
-### Stage 3: answer realization
-
-The answerer receives the Stage 2 evidence, not the full transcript. It emits
-an `AnswerResult` with text, action, used record IDs, and structured metadata.
-The possible terminal actions are:
+GateMem is a checkpointed conversational-memory benchmark. Each domain has:
 
 ```text
-answer          direct answer
-answer_redacted answer only the certified safe subset
-refuse          explicit policy refusal
-no_memory       requested value unavailable/deleted/unresolved
+dataset/GateMem/gatemem/data/<domain>/episodes.jsonl
+dataset/GateMem/gatemem/data/<domain>/checkpoints.jsonl
 ```
 
-The answer is written to the prediction file and exported to the official
-scorer. Prompt audits record the actual answer context for leakage analysis.
+The four domains are `medical`, `office`, `education`, and `household`.
+`episodes.jsonl` contains episode turns, speaker information, timestamps,
+entities, and relationships. `checkpoints.jsonl` specifies a query, an asker,
+and an `as_of_turn_id`.
 
-## 5. Gov-Mem-Symbolic Pipeline: `govmem_symbolic`
+For each checkpoint, `CheckpointBenchmarkAdapter`:
 
-The following is the richer architecture in
-`src/gov_mem/backbones/rag_policy_amem.py` (the legacy implementation path).
-The implementation is deliberately
-closed-set: later stages may narrow or reorganize already selected evidence,
-but they should not invent a new source or use hidden evaluation metadata to
-authorize disclosure.
+1. loads the episode and checkpoint;
+2. finds the exact `as_of_turn_id` in the episode;
+3. exposes only the prefix through that turn;
+4. preserves the asking principal and observable requester role;
+5. keeps benchmark answer labels, expected actions, leak targets, and judge
+   specifications outside the model-visible runtime view.
 
-```mermaid
-flowchart LR
-    Q[Question + requester] --> P[Query understanding]
-    T[Observable dialogue prefix] --> R1[Stage 1 coarse retrieval]
-    P --> R1
-    R1 --> L1[Utility source locator]
-    R1 --> L2[Authorization-context locator]
-    L1 --> X[Query-local source closure]
-    L2 --> X
-    X --> AM[Atomic memory extraction]
-    AM --> OWN[Information-owner ledger]
-    AM --> REL[Principal-relation ledger]
-    AM --> AT[Governed memory atoms]
-    AT --> PF[Policy-frame compiler]
-    PF --> GG[Governed graph]
-    P --> SR2[Stage 2 semantic contract]
-    X --> SR2
-    AM --> SR2
-    SR2 --> CA[Closed-set claim adjudication]
-    CA --> AL[Attribute/slot alignment]
-    GG --> AL
-    PF --> DR[Governance retrieval channel]
-    AM --> UR[Utility retrieval channel]
-    DR --> DC[Dual-channel retrieval]
-    UR --> DC
-    DC --> AL
-    AL --> CS[Current-state resolution]
-    CS --> SL[Slot coverage selection]
-    GG --> GC[Graph slot authorization certificate]
-    REL --> GC
-    AL --> GC
-    SL --> GC
-    GC --> AD[Action decision]
-    AD -->|answer| REAL[Typed/source-grounded realization]
-    AD -->|answer_redacted| REAL
-    AD -->|refuse or no_memory| END[Terminal refusal/no-memory]
-    GC --> REAL
-    REAL --> V[Verifier and deterministic renderer]
-    V --> OUT[Answer + provenance + audit trace]
-```
+The adapter refuses unsafe fallbacks. It errors if `as_of_turn_id` is missing,
+unknown, or duplicated rather than exposing the entire episode. This matters
+because the hidden future suffix must never become retrieval evidence.
 
-### 5.1 Query understanding and source localization
+At evaluation time, the scorer separately uses the checkpoint's expected action,
+query type, utility target, privacy target, and deletion target. Those fields
+are for scoring only. They are not allowed to authorize an answer or to become
+evidence for the answering model.
 
-The query planner creates a semantic contract, including abstract requested
-attributes/slots, target entities, query shape, temporal/current-state intent,
-and dense query variants. It must not use dataset answer values as labels.
-
-Two query-local locators then separate evidence roles:
-
-- `locate_utility_source_messages` finds source turns containing facts needed
-  to answer the question;
-- `locate_authorization_context_messages` finds turns containing permissions,
-  revocations, ownership, role, or disclosure constraints.
-
-The locators produce a bounded source closure. A locator is a retrieval proposal
-only; it cannot itself authorize access.
-
-### 5.2 Atomic memory and provenance representation
-
-`AtomicMemoryExtractor` converts selected source turns into atomic memories with
-typed slots, lifecycle status, surface spans, source message IDs, owner hints,
-and semantic/access tags. These are adapted to `GovernedMemoryAtom` records.
-
-The representation separates several concepts that a plain text chunk mixes:
+## 3. End-to-end dev7 flow
 
 ```text
-content/provenance
-owner and subject identity
-typed fields/slots
-assertion and discourse status
-lifecycle: active, superseded, canceled, deleted, historical
-privacy/access tags
-policy state deltas
-surface spans for answer replay
+GateMem checkpoint
+        |
+        v
+Observable episode prefix
+        |
+        v
+Turn-preserving structured records and RAG chunks
+        |
+        v
+Stage 1 dense retrieval: top 20 visible turns
+        |
+        v
+Symbolic evidence annotation
+  - role consistency
+  - typed relation graph
+  - explicit lifecycle claims
+  - retrieved-evidence-only state ledger
+  - temporal authorization graph
+        |
+        v
+Authorization-aware evidence boundary
+        |
+        v
+Stage 2 typed scalar reranking and bounded LLM evidence reranking
+        |
+        v
+Deletion, sensitive-field, summary, and current-state boundaries
+        |
+        v
+Answer model sees only the selected evidence and structured fields
+        |
+        v
+Answer plus optional claim contract
+        |
+        v
+Deterministic claim-level provenance verification and audit record
+        |
+        v
+Official GateMem judge and U/A/F/MGS evaluation
 ```
 
-This is the main substrate for field-level rather than whole-record decisions.
+There is no full-transcript answer prompt in the current paper-facing path.
+The answer model receives the selected evidence set, typed provenance, and
+Symbolic summaries/certificates that were built from that evidence. The model
+does not receive hidden checkpoint evaluation fields.
 
-### 5.3 Owner, relation, and policy compilation
+## 4. Stage 0: preserving the source record
 
-The runtime builds:
-
-1. an information-owner ledger mapping source messages to the information
-   owner;
-2. a principal-relation ledger resolving requester-owner relation from
-   episode-local evidence;
-3. source-role annotations distinguishing factual/utility sources from policy
-   or contextual sources;
-4. governed atoms and policy frames encoding access, revocation, lifecycle,
-   authority, and state-transition information;
-5. an optional governed graph containing typed nodes and edges for principals,
-   records, slots, policies, provenance, and lifecycle relations.
-
-The owner ID or role title is only a candidate/hint until supported by source
-provenance. A role alone must not become an authorization grant.
-
-### 5.4 Stage 2 semantic binding and claim adjudication
-
-Stage 2 receives the union of dense/source-locator candidates and builds a
-single closed set of atomic record candidates. It classifies candidate records
-against the query contract and assigns field-local admission/capability. For
-utility queries, `adjudicate_claims` chooses existing source-grounded values for
-requested attributes and reconciles current versus stale or competing claims.
-For privacy/safety queries, explicit graph authorization is still required;
-utility admission is not a general role grant.
-
-The important boundary is:
+`_build_turn_chunks` creates one chunk per visible GateMem turn. The retrieval
+text follows the compatible RAG-Naive form:
 
 ```text
-retrieval relevance != authorization != answer-field admissibility
+[role:principal_id] original turn text
 ```
 
-Stage 2 can reject irrelevant, non-assertive, stale, or sensitive candidates;
-it can also admit a safe projection while excluding an exact private field.
-Later alignment and certification are restricted to this Stage 2 closure.
-
-### 5.5 Attribute alignment and dual-channel retrieval
-
-Requested natural-language attributes are aligned to typed graph/atom slots.
-The initial alignment is a routing pass. The final alignment is constrained by
-Stage 2-selected atom IDs, source message IDs, and any canonical field map from
-claim adjudication.
-
-When enabled, `DualChannelRetriever` keeps two channels separate:
-
-- utility channel: source-grounded facts/atoms that may answer the requested
-  fields;
-- governance channel: policy atoms, principal relations, deletion records,
-  supersession edges, and graph paths used to decide whether release is valid.
-
-The governance channel can constrain or certify utility evidence, but policy
-text is not answer content by default.
-
-### 5.6 Current-state and slot coverage reasoning
-
-`resolve_current_state` and `build_current_state_ledger` organize selected
-evidence into active, canceled, superseded, and deleted events/slots. The slot
-coverage selector chooses enough evidence to cover every requested field,
-preserve complementary fields, and avoid stale duplicates.
-
-Support completion may add a missing field only from an already authorized,
-query-local source closure. For explicit current-state requests, a canonical
-projection may combine latest authorized typed values, while preserving their
-source IDs and temporal anchors. It is not a free-form summary of the episode.
-
-### 5.7 Graph authorization certificate and action decision
-
-`certify_graph_slot_paths` checks whether every answerable slot has an admissible
-path through the governed graph and evidence closure. Depending on the config,
-the certificate verifies source provenance, owner/relation authorization,
-policy atoms, lifecycle status, attested spans, requested attributes, and
-field-level redaction.
-
-`GovernedActionPredictor` proposes a terminal action. The runtime then applies
-deterministic certificate/runtime corrections and chooses among `answer`,
-`answer_redacted`, `refuse`, and `no_memory`. The action layer is downstream of
-the governance state, not a post-hoc text classification only.
-
-### 5.8 Typed realization, rendering, and verification
-
-The final realization path may use:
-
-- graph-authorized typed-slot rendering;
-- utility claim adjudication plus typed realization;
-- `ActionConstrainedRealizer` when enabled;
-- policy-conditioned utility records and canonical rendering;
-- source surface-span replay and answer-field verification.
-
-The system prefers a complete certified typed projection for utility requests.
-If certification fails, an uncertified direct answer is downgraded to
-`answer_redacted`, `refuse`, or `no_memory` according to the branch. Final
-artifacts retain selected evidence IDs, source spans, slot decisions, action
-corrections, state ledger, graph certificate, and prompt audit.
-
-## 6. What Is Actually Novel, and What Is Infrastructure?
-
-This section is a hypothesis space for contribution analysis, not a claim that
-all items should appear as separate contributions.
-
-### Candidate core contribution A: governed memory as a typed decision pipeline
-
-The system places governance between retrieval and answer realization. It
-separates relevance, authorization, lifecycle state, field alignment, and
-rendering, rather than asking one LLM to retrieve and answer from a mixed
-transcript. The strongest abstraction is a source-grounded, field-level answer
-contract:
+For example:
 
 ```text
-query need -> admitted source record -> typed slot -> authorization path
-           -> lifecycle/current-state check -> rendered answer span
+[nurse:p_042] The medication review is scheduled for Saturday at 09:30.
 ```
 
-The paper must state exactly which module or contract is the algorithmic
-contribution and compare it against a plain RAG answerer and simpler policy
-filters.
+The role and principal prefix is part of the compatible retrieval text. Other
+important fields are not flattened into a prose prefix. They are stored as a
+typed `structured_record` in chunk metadata:
 
-### Candidate core contribution B: field/slot-level disclosure control
+```json
+{
+  "record_type": "message",
+  "message_id": "turn_17",
+  "turn_id": "turn_17",
+  "turn_index": 16,
+  "timestamp": "2026-05-12T09:30:00",
+  "speaker": {
+    "principal_id": "p_042",
+    "role": "nurse"
+  },
+  "turn_kind": "message",
+  "authorization_assertions": [],
+  "text": "The medication review is scheduled for Saturday at 09:30.",
+  "checkpoint": {
+    "as_of_turn_id": "turn_24"
+  },
+  "source_turn": { "...": "original observable GateMem turn" }
+}
+```
 
-The system can answer a multi-field request partially: disclose an authorized
-operational field, redact a sensitive field, and preserve the safe wording or
-surface span. This is more precise than whole-document allow/deny. A credible
-claim requires examples and ablations showing that field-level control improves
-the utility/privacy tradeoff without leaking the omitted field.
+The actual record retains the complete normalized source turn. Timestamps are
+normalized with both date and time precision where the dataset provides them;
+the pipeline must not reduce a timestamp to date-only text. Principal ID, role,
+turn ID, source message ID, turn kind, and original text are therefore
+recoverable after retrieval without asking an LLM to reconstruct them from a
+natural-language chunk.
 
-### Candidate core contribution C: closed-set provenance authorization
+The structured metadata is not appended to the Stage-1 embedding text. This
+preserves the RAG-Naive retrieval comparison. It is exposed to Stage 2 as
+structured JSON after retrieval, where it can be checked deterministically.
 
-The Stage 2 semantic decision is restricted to retrieved/source-local records;
-the graph certificate then checks source IDs, spans, slots, lifecycle, and
-authorization paths before realization. This addresses a common failure mode:
-an LLM sees a relevant private record and treats relevance as permission.
+## 5. Stage 1: compatible neural retrieval
 
-The contribution should be framed as an explicit certificate/contract and
-tested with certificate removal, provenance removal, and unrestricted answer
-context ablations.
-
-### Candidate core contribution D: current-state composition under lifecycle updates
-
-The state ledger and typed support completion resolve multi-turn updates into a
-current answer while retaining complementary fields from earlier records. The
-system distinguishes field-level delta updates from whole-record replacement,
-and suppresses deleted/superseded/canceled values. This should be claimed only
-if the paper provides a formal state-transition definition and controlled tests
-for stale, deleted, canceled, and partial-update cases.
-
-### Candidate supporting contribution: auditable runtime
-
-The implementation emits intermediate memory atoms, retrieval candidates,
-policy decisions, graph paths, certificates, slot coverage, final actions, and
-prompt-context audits. This is valuable for reproducibility and safety analysis,
-but by itself is generally an engineering feature rather than the main ICLR
-algorithmic contribution.
-
-### Candidate supporting contribution: runtime skills/self-evolution
-
-Skill libraries, experience memory, and structural evolution appear in later
-configs, but the formal frozen v3 benchmark disables gold feedback and runtime
-experience. They should be presented as optional adaptation experiments, not
-silently included in the main method. Any self-evolution claim needs strict
-train/validation separation, patch provenance, and a no-feedback baseline.
-
-## 7. Experimental Boundaries and Current Evidence
-
-The latest formal full-set result is:
+The current dev7 configuration uses:
 
 ```text
-2218 checkpoints: Medical 579, Office 547, Education 540, Household 552
-formal frozen v3, OpenLux gpt-4o-mini, text-embedding-3-small
-Stage 1 raw-turn top-20 retrieval
-Stage 2 retrieved-evidence-only typed rerank
-long-context transcript disabled
-gold feedback disabled
-official GateMem judge: OpenLux gpt-4o
-gate_by_action=false
-four-domain average official MGS: 34.07%
+Provider: OpenLux
+Embedding model: text-embedding-3-small
+Embedding API base: https://api.openlux.ai/v1
+Top-k: 20
 ```
 
-The same report explicitly says the independent safety audit still finds
-substantial context exposure, especially in Medical and Household. Therefore
-the paper must not claim that the current system provides zero leakage merely
-because an official headline metric is positive.
+The visible turn chunks are embedded, the question is embedded once, and the
+20 highest-scoring dense candidates become the initial evidence set. The
+embedding model is configured independently from the memory-system base LLM.
+The current base LLM is OpenLux `gpt-4o-mini`; the official GateMem judge is a
+separate OpenLux `gpt-4o` process.
 
-The full Gov-Mem/A-Mem configurations are not the same protocol as the frozen
-v3 run. A fair paper should declare:
+The initial evidence set is closed. Later processing may reorder, annotate, or
+filter these candidates, but it must not silently retrieve a hidden turn or
+invent a new source ID.
 
-- exact mode and YAML for every result;
-- whether the full transcript or retrieved evidence only was exposed;
-- whether graph, symbolic reasoner, action constraints, skills, experience,
-  and self-evolution were enabled;
-- model/provider and temperature for each role;
-- whether official LLM judge and context audit were complete;
-- whether any gold-derived feedback entered runtime.
+## 6. Symbolic evidence layer
 
-Recommended ablations for an ICLR submission:
+The Symbolic layer is implemented in
+`src/gov_mem/backbones/symbolic_evidence.py`. It operates on the retrieved
+top-20 evidence, not on the hidden transcript. Its purpose is to make facts
+that are easy to lose in prose explicit and checkable.
 
-| Variant | Remove/replace | Tests |
-|---|---|---|
-| Plain RAG | answer directly from top-k text | utility baseline and leakage risk |
-| Stage 1 only | remove Stage 2 typed binding | value of closed-set semantic admission |
-| No provenance certificate | keep graph/slots but skip source/span proof | provenance contribution |
-| Whole-record policy | authorize/deny complete records | field-level disclosure gain |
-| No lifecycle ledger | ignore current/superseded/deleted state | temporal/lifecycle gain |
-| No graph | remove governed graph certificate | graph contribution |
-| No action constraint | trust action predictor/LLM | action safety gain |
-| No query-local closure | allow broad transcript retrieval | leakage and source-boundary effect |
-| No runtime adaptation | disable skills/experience/evolution | adaptation effect and isolation |
+### 6.1 Typed relation graph
 
-Metrics should include utility `U`, access violation `A`, forgetting/deletion
-failure `F`, and `MGS = U * (1-A) * (1-F)`, plus supplementary action accuracy,
-over-refusal, slot coverage, answer leakage, and context leakage. Report both
-official judge metrics and an independent deterministic safety audit.
+The graph is a lightweight, query-local evidence graph. It is not a second
+large knowledge base and it is not used to replace dense retrieval.
 
-## 8. File-Level Reading Map
+Typical node types are:
 
-| Question | Primary files |
-|---|---|
-| CLI and mode dispatch | `run_govmem.py`, `src/gov_mem/pipeline.py` |
-| Checkpoint truncation and runtime isolation | `src/gov_mem/data/adapters.py`, `src/gov_mem/governance_runtime/leakage_guard.py` |
-| Formal v3 retrieval and Stage 2 | `src/gov_mem/backbones/rag_naive.py`, `src/gov_mem/backbones/stage2_typed_rerank.py` |
-| Gov-Mem-Symbolic runtime (legacy implementation path) | `src/gov_mem/backbones/rag_policy_amem.py` |
-| Atomic memory | `src/gov_mem/memory/amem_memory.py`, `src/gov_mem/memory/governed_atom.py` |
-| Query semantics and slot plan | `src/gov_mem/planning/query_planner.py`, `src/gov_mem/query_semantics.py`, `src/gov_mem/reasoning/operators.py` |
-| Owner/relation/policy | `src/gov_mem/governance_runtime/information_owner_ledger.py`, `principal_relation_ledger.py`, `policy_frames.py` |
-| Graph | `src/gov_mem/graph/graph_builder.py`, `graph_retriever.py`, `governance_runtime/provenance_authorization.py` |
-| Current state | `src/gov_mem/governance_runtime/current_state.py`, `state_ledger.py` |
-| Final answer | `src/gov_mem/legacy/typed_realization_audit.py`, `src/gov_mem/legacy/graph_slot_renderer.py`, `src/gov_mem/backbones/action_constrained_realizer.py`, `src/gov_mem/backbones/canonical_renderer.py` |
-| Evaluation | `src/gov_mem/eval/benchmark_official.py`, `src/gov_mem/evaluation/evaluator.py`, `src/gov_mem/evaluation/prompt_context_audit.py` |
-| Tests | `tests/test_stage2_typed_rerank.py`, `test_field_state_projection.py`, `test_answer_projection.py`, `test_official_evaluation_contract.py`, and governance-runtime tests |
+```text
+Evidence       one retrieved turn/chunk
+Principal      a speaker or requester identity
+Role           a role associated with a principal
+Entity         a GateMem entity
+Resource       a referenced object or resource
+LifecycleEvent an explicit deletion/revocation/update event
+PolicyEvent    an explicit allow/deny/revoke policy assertion
+```
 
-## 9. Prompt for Web GPT-5.6-sol
+Typical edge types are:
 
-Please act as an ICLR area chair plus a systems researcher. Using this report
-and the repository, do the following:
+```text
+Evidence  --spoken_by-->       Principal
+Evidence  --about-->           Entity or Resource
+Principal --has_role-->        Role
+PolicyEvent --allows/denies--> Principal, Role, or Resource
+PolicyEvent --revokes-->       an earlier permission or evidence item
+PolicyEvent --applies_to-->    a target
+LifecycleEvent --supersedes--> an earlier evidence item
+```
 
-1. Reconstruct the single canonical Gov-Mem method. Resolve the apparent
-   tension between the formal frozen `rag_naive_v3_typed_rerank` track and the
-   richer `govmem_symbolic` track. State which one should be the paper's main
-   method, and what must be called an ablation or an evolution branch.
-2. Produce a contribution taxonomy with three labels for every proposed item:
-   **defensible core contribution**, **supporting mechanism**, or
-   **implementation detail**. Do not count a model choice, logging, or a
-   benchmark wrapper as a scientific contribution.
-3. Formulate the central problem and method in one precise paragraph, avoiding
-   vague phrases such as "more secure RAG". Explicitly define the distinction
-   among relevance, authorization, lifecycle state, field admissibility, and
-   realization.
-4. Identify the minimum formal object that should be introduced in the paper:
-   for example a typed answer contract, a provenance authorization certificate,
-   a lifecycle state ledger, or a composition of these. Give notation and the
-   invariants that must hold before a field can enter the answer.
-5. Design a clean ICLR framework figure. Return:
-   - a one-panel main figure layout;
-   - a publication-ready caption;
-   - the exact boxes, arrows, branch labels, and inputs/outputs;
-   - a Mermaid draft and a concise TikZ/Graphviz implementation plan;
-   - a second small inset showing a mixed request where one field is answered,
-     one is redacted, and one is rejected as deleted/stale.
-6. Design the ablation table needed to support each core claim. Make every
-   ablation map to one mechanism and one metric effect. Flag claims that are
-   not supported by the existing results.
-7. Give a recommended paper outline and a contribution paragraph suitable for
-   the introduction. Be skeptical: explicitly list overclaim risks, protocol
-   confounds, and missing experiments.
+The graph is built from observable episode data and retrieved text with
+conservative rules. For example, it checks a speaker's observed role against
+the episode roster and records a conflict rather than silently correcting it.
+Relationship objects are directional; the implementation does not manufacture
+reverse edges merely because two principals appear in the same relationship.
 
-The output should prioritize a coherent, falsifiable story over listing every
-class in the repository. Treat the latest 2218-checkpoint v3 result as evidence
-for the frozen benchmark track only; do not use it as evidence for the full
-`govmem_symbolic` architecture unless the matching configuration and ablations
-are available.
+The graph is therefore auxiliary Symbolic information: dense retrieval finds
+candidate turns, while graph relations help check identity, scope, lifecycle,
+and policy consistency among those candidates.
 
-## 10. Bottom Line for the Author
+### 6.2 Principal-role consistency
 
-The cleanest current narrative is likely:
+For every retrieved record, the system compares the typed speaker fields with
+the episode roster. It records states such as:
 
-> Gov-Mem treats conversational memory access as a source-grounded,
-> field-level decision problem. It separates retrieval relevance from
-> authorization and lifecycle reasoning, constructs a typed current-state
-> evidence view, and releases only fields supported by an explicit provenance
-> and authorization contract, with redacted/refused terminal actions when the
-> contract is incomplete.
+```text
+consistent
+conflict
+missing_speaker_field
+principal_not_in_roster
+missing_record
+```
 
-Whether this becomes one contribution or several depends on the experiments.
-The repository currently demonstrates a mature implementation and a strict
-benchmark protocol, but the ICLR paper still needs one canonical method
-definition, controlled module ablations, and evidence that each proposed
-mechanism improves the utility-privacy-lifecycle frontier.
+This is a general consistency check. It is not a GateMem-domain-specific
+if/else answer rule and it does not use the hidden answer label.
+
+### 6.3 Explicit authorization assertions
+
+Authorization assertions are extracted conservatively from source text and
+retain source spans. The grammar is provider-neutral and recognizes explicit
+allow/deny/revoke-style statements. Extraction is not itself authorization:
+the assertion must be connected to a requester, role, target, and time-valid
+evidence before it can affect the evidence boundary.
+
+This distinction prevents a retrieved sentence that merely mentions a policy
+from automatically granting access.
+
+### 6.4 Lifecycle validity and target binding
+
+The system recognizes explicit lifecycle language such as:
+
+```text
+deleted, revoked, superseded, updated, replaced
+```
+
+It does not infer a deletion or update merely because a sentence contains
+ordinary words such as `current` or `latest`. An explicit lifecycle claim is
+bound to an earlier retrieved target only when the target match is unique and
+temporally valid. Ambiguous and unbound cases remain explicit audit states.
+
+This is a source-grounded validity mechanism, not a hard-coded list of
+GateMem questions.
+
+### 6.5 Retrieved-evidence-only state ledger
+
+For requested fields, the Symbolic layer builds a state ledger from the
+retrieved evidence only. A ledger field can contain:
+
+```text
+requested slot
+candidate values
+selected value
+source memory/chunk ID
+source turn ID
+source quote
+conflicting candidates
+missing/resolved status
+```
+
+The ledger helps preserve field-level provenance and resolve explicit conflicts.
+It cannot recover a value that was not retrieved, and it cannot use the hidden
+future transcript. The configuration keeps
+`stage2.long_context_field_ledger.enabled: false`; the optional full visible
+transcript ledger is not part of the current paper-facing protocol.
+
+## 7. Temporal authorization and evidence boundary
+
+Dev7 enables:
+
+```yaml
+symbolic:
+  temporal_authorization:
+    enabled: true
+    enforcement: true
+```
+
+The temporal graph tracks explicit policy events over the observable timeline.
+Its concepts include principal, role, resource, policy event, effective time,
+allow, deny, revoke, and supersede. It produces a source-bound authorization
+certificate describing the decision and the supporting event IDs.
+
+When enforcement identifies evidence that is not valid for the current
+requester, target, or temporal policy state, the authorization-aware evidence
+boundary can remove that candidate before Stage 2. The boundary can narrow the
+candidate set; it cannot promote blocked evidence or create an answer.
+
+This is the main place where the graph affects the active dev7 pipeline. The
+graph is not merely logged: its temporal authorization result can constrain
+what evidence reaches later answer selection. The remaining graph annotations
+and certificates also remain available for traceability.
+
+## 8. Stage 2: typed reranking and safety boundaries
+
+The Stage-2 implementation is in
+`src/gov_mem/backbones/stage2_typed_rerank.py` and is retained from the strong
+RAG-Naive v3 foundation.
+
+For typed scalar queries, the deterministic score is:
+
+```text
+0.70 * dense retrieval score
++ 0.12 * query-anchor overlap
++ 0.10 * requested-family match
++ 0.06 * currentness signal
++ 0.02 * recency signal
+```
+
+This is a ranking signal, not a permission grant. The ranker keeps evidence
+coverage and applies typed field matching so that a date, amount, identifier,
+location, or other requested field is not casually substituted by a neighboring
+field.
+
+For mixed or difficult queries, the bounded LLM reranker receives at most 20
+candidates and at most 2400 characters per candidate. It returns a validated
+ordering/selection. The selected evidence is moved to the front while the
+remaining candidates are retained when the contract permits. If the response
+is missing or invalid, deterministic fallback projection is used.
+
+Active delivery boundaries include:
+
+- explicit deletion or forgetting requests;
+- explicit sensitive-field requests;
+- summary-only handling for broad requests where exact disclosure is unsafe;
+- current-versus-stale evidence handling;
+- multi-field and multi-entity separation;
+- no-memory/refusal actions when the requested field is unavailable or blocked.
+
+The current dev7 config has:
+
+```yaml
+stage2:
+  llm_reasoning_rerank:
+    enabled: true
+    max_candidates: 20
+    max_candidate_chars: 2400
+  long_context_field_ledger:
+    enabled: false
+```
+
+## 9. Answer realization
+
+The answering model is the configured base answering model (`gpt-4o-mini` in
+the current config). It sees the question plus the selected, structured
+evidence. It does not see the full hidden episode and does not receive hidden
+evaluation labels.
+
+The answer schema supports:
+
+```text
+answer          direct source-grounded answer
+answer_redacted safe subset or broad summary
+refuse          policy blocks the requested disclosure
+no_memory       requested value is unavailable, deleted, or unresolved
+```
+
+The answer includes used memory/chunk IDs and runtime metadata for evaluation.
+For optional provenance auditing, the same answer JSON may contain a
+`claim_contract` with requested fields, selected values, source IDs, and source
+spans. The contract is an audit record; it is not additional answer content.
+
+## 10. Claim-level provenance explanation
+
+In this report, “explanation” means a post-answer, non-intervention record: the
+system explains what evidence and Symbolic conditions support the delivered
+answer. It does not change the answer and it is not used by the GateMem scorer.
+
+Dev7 enables the verifier but intentionally sets:
+
+```yaml
+policy_verifier:
+  enabled: true
+  claim_provenance_enabled: true
+  explanation_enabled: true
+  claim_provenance_enforcement: false
+  llm_enabled: true
+  llm_advisory_only: true
+```
+
+The explanation module is called on the actual `govmem_v4_symbolic` RAG-Naive
+answer path. It records, where a contract is available:
+
+1. the answer's selected values;
+2. whether cited source IDs belong to the Stage-2 selected evidence;
+3. whether each source span occurs in the cited source text;
+4. whether the source span supports the claimed field/value;
+5. whether unsupported extra claims appear in the answer;
+6. whether restricted or unknown fields are represented consistently.
+
+GateMem source-message IDs are mapped to the internal chunk IDs only within the
+current checkpoint. No synthetic source is created. If the base model omits a
+claim contract, the explanation records `claim-level explanation incomplete`
+rather than pretending that claim-level support was verified.
+
+The explanation is non-intervention for the RAG-Naive dev7 path. A failed claim
+check does not replace the original answer or turn it into a refusal. The
+explanation records `answer_unchanged: true` and `scored_by_gatemem: false`.
+This is deliberate: the temporal authorization boundary remains
+intervention-capable earlier in the pipeline, while this module provides an
+auditable explanation channel. The separate historical stateful executor has
+its own fail-closed field-projection contract and must not be conflated with
+this RAG-Naive path.
+
+The explanation adds no extra LLM call in the active dev7 RAG-Naive path. It is
+assembled from the selected evidence, Stage-2 decision, Symbolic trace, and
+the deterministic claim audit. The optional model-produced claim contract is
+only supplementary.
+
+## 11. Why this is neuro-symbolic
+
+The neural components handle semantic representation and recall:
+
+```text
+embedding retrieval
+LLM-based bounded evidence reranking
+LLM-based answer realization
+```
+
+The Symbolic components handle explicit, auditable structure:
+
+```text
+typed source metadata
+principal-role consistency
+entity/resource relations
+explicit lifecycle transitions
+temporal authorization transitions
+state slots and conflicts
+source IDs and source spans
+deterministic claim verification
+```
+
+The division of labor is important. The graph and ledgers do not pretend to
+understand every sentence perfectly; they constrain and verify claims using
+information already recovered from the neural retrieval stage. The neural
+model supplies semantic flexibility, while the Symbolic layer supplies
+identity, time, lifecycle, authorization, and provenance checks that should
+not be left to unconstrained prose generation.
+
+## 12. Runtime and evaluation details
+
+The current config uses:
+
+```text
+Memory base LLM:       OpenLux gpt-4o-mini
+Embedding:             OpenLux text-embedding-3-small
+Official judge:        OpenLux gpt-4o
+Memory temperature:    0.2
+Stage-1 top-k:         20
+Official protocol:     gatemem_paper_main
+Gold feedback:         disabled
+Embedding fallback:    disabled in the dev7 config
+```
+
+The official judge is separate from the memory-system model. The metrics are
+defined by the GateMem evaluation protocol:
+
+```text
+U  = utility accuracy
+A  = privacy leakage rate
+F  = deletion leakage rate
+OR = over-refusal rate (reported separately)
+MGS = U * (1 - A) * (1 - F)
+```
+
+Scores must be reported with the exact base LLM, embedding model, config,
+dataset scope, checkpoint count, and official judge. A partial episode smoke
+run is an engineering diagnostic, not a paper full-benchmark result. The
+2026-08-19 claim-provenance smoke completed 28 Medical checkpoints with zero
+judge parse failures and recorded the verifier in every prediction, but its
+U/A/F/MGS values must not be presented as the final paper table.
+
+For operational safety, experiments should use bounded episode workers and at
+most one in-flight request per worker unless a separate capacity test is
+approved. API keys should be leased, not used to create nested thread pools.
+Long or frequent process scans can overload shared NFS; monitoring intervals
+should be coarse enough to avoid turning status checks into filesystem scans.
+
+## 13. Dev7 full-benchmark result (2026-08-20)
+
+The framework was evaluated on all 2,218 GateMem checkpoints after the
+dev7 claim-level explanation channel was integrated into the active
+`govmem_v4_symbolic` RAG-Naive path. The run used OpenLux `gpt-4o-mini` as the
+memory-system base LLM, OpenLux `text-embedding-3-small` for retrieval, and
+OpenLux `gpt-4o` as the official GateMem judge. The official protocol used
+`gate_by_action=false`; gold feedback, experience updates, skill updates, and
+the long-context ledger were disabled.
+
+| Domain | Checkpoints | U | A | F | MGS | Action accuracy | OR |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Medical | 579 | 74.29% | 46.35% | 10.17% | **35.80%** | 70.47% | 10.48% |
+| Office | 547 | 39.61% | 4.09% | 1.80% | **37.30%** | 75.69% | 39.61% |
+| Education | 540 | 40.00% | 18.89% | 7.22% | **30.10%** | 71.85% | 17.78% |
+| Household | 552 | 43.48% | 27.17% | 2.72% | **30.80%** | 70.11% | 19.02% |
+| **Four-domain average / pooled U-A-F** | **2,218** | **49.72%** | **24.47%** | **5.53%** | **33.50%** | | |
+
+The overall MGS is the arithmetic mean of the four domain MGS values. The
+overall U/A/F values are checkpoint-count-weighted pooled values and are shown
+separately to avoid mixing aggregation rules. `OR` is over-refusal and is not
+multiplied into MGS. All four official judge jobs completed with zero parse
+failures, and all 2,218 checkpoints have prompt-context audit records.
+
+The explanation record is present in 2,218/2,218 official predictions. It is a
+non-intervention artifact with `answer_unchanged=true` and
+`scored_by_gatemem=false`; it records evidence references, Stage 2 routing,
+Symbolic consistency/lifecycle/authorization facts, state-ledger summaries, and
+claim-level provenance when a source-bound claim contract exists. It does not
+change the answer, action, prompt context, or GateMem metric.
+
+The complete dated record is
+[`2026-08-20 dev7 full benchmark`](experiments/result/2026-08-20_Gov-Mem-v4-Symbolic-dev7_full_all_2218_openlux_gpt4omini.md).
+This is a complete dev7 measurement, not a causal ablation against the frozen
+v3 typed-rerank table. A causal claim for an individual Symbolic component
+still requires a paired ablation under the same checkpoint and model protocol.
+
+## 14. What a paper may claim
+
+Defensible claims supported by the current implementation include:
+
+- Gov-Mem preserves GateMem turn identity, role, timestamp, and source fields
+  as typed provenance instead of requiring post-retrieval prose extraction.
+- A query-local evidence graph represents principal, role, entity/resource,
+  policy, lifecycle, and evidence relations.
+- The framework performs explicit role consistency, lifecycle validity, and
+  temporal authorization checks over retrieved evidence.
+- The state ledger is closed over retrieved evidence and records field-level
+  conflicts and provenance.
+- Stage 2 and final claim verification restrict source IDs and source spans to
+  the selected evidence set.
+- The design combines neural retrieval/generation with deterministic
+  structure-based checks while preserving the strong RAG-Naive backbone.
+
+The following claims require additional controlled experiments and should not
+be asserted from the current smoke artifacts alone:
+
+- that every Symbolic component improves MGS;
+- that the claim verifier improves answer accuracy while enforcement is false;
+- that the graph alone causes a measured gain without an ablation;
+- that dev7's full-benchmark result proves a causal gain for every Symbolic
+  component without a paired ablation;
+- that partial episode diagnostics are representative of all four domains.
+
+Do not describe dataset-specific string rules as the main innovation. The
+method should be framed as general typed provenance, evidence-closed state
+resolution, temporal policy consistency, and auditable claim delivery.
+
+## 15. Relevant files
+
+```text
+run_govmem.py
+src/gov_mem/pipeline.py
+src/gov_mem/data/adapters.py
+src/gov_mem/backbones/rag_naive.py
+src/gov_mem/backbones/symbolic_evidence.py
+src/gov_mem/backbones/stage2_typed_rerank.py
+src/gov_mem/policy_verifier.py
+src/gov_mem/data/timestamps.py
+configs/govmem_v4_symbolic_openlux_gpt4omini_embedding3small_dev7_authorization_boundary.yaml
+README.md
+VERSION_LOG.md
+```
+
+The version history in `VERSION_LOG.md` records how dev0 through dev7 were
+promoted. The README contains the repository snapshot, benchmark tables, and
+the distinction between diagnostic results and paper-compatible results.

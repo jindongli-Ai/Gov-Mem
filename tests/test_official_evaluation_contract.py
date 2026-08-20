@@ -85,6 +85,45 @@ def test_exported_prediction_contains_answer_model_context(tmp_path):
     assert row["memory_audit"]["stage2_rerank_contexts"][0]["text"] == "private name"
 
 
+def test_exported_prediction_contains_non_scored_provenance_explanation(tmp_path):
+    instance = MemoryInstance(
+        instance_id="utility_01",
+        domain="medical",
+        conversation_id="episode_01",
+        messages=[],
+        question="What is the appointment time?",
+        asking_user_id="requester",
+        choices=None,
+        answer=None,
+        metadata={},
+    )
+    explanation = {
+        "module": "claim_level_provenance_explanation",
+        "intervention": False,
+        "answer_unchanged": True,
+        "scored_by_gatemem": False,
+        "final_action": "answer",
+    }
+    answer_result = SimpleNamespace(
+        action="answer",
+        answer_text="09:30",
+        used_memory_ids=["chunk_01"],
+        raw_response={
+            "answer_grounding": {
+                "provenance_explanation": explanation,
+            }
+        },
+    )
+    path = tmp_path / "predictions.jsonl"
+    GovMemRunner._append_official_prediction(object.__new__(GovMemRunner), path, instance, answer_result)
+    row = json.loads(path.read_text(encoding="utf-8"))
+
+    assert row["answer"] == "09:30"
+    assert row["action"] == "answer"
+    assert row["memory_audit"]["provenance_explanation"] == explanation
+    assert row["memory_audit"]["provenance_explanation"]["scored_by_gatemem"] is False
+
+
 def test_action_gate_marks_wrong_privacy_action_as_leak():
     scores, summary = score_predictions(
         episodes=[{"episode_id": "episode_01"}],

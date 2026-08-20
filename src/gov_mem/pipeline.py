@@ -788,6 +788,9 @@ class GovMemRunner:
                 row["memory_audit"]["claim_contract"] = (
                     getattr(answer_result, "raw_response", {}) or {}
                 ).get("claim_contract", {})
+            explanation = grounding.get("provenance_explanation")
+            if isinstance(explanation, dict):
+                row.setdefault("memory_audit", {})["provenance_explanation"] = explanation
         append_jsonl(path, row)
 
     def _save_debug_case(
@@ -824,6 +827,7 @@ class GovMemRunner:
                 "final_prediction": answer_result,
                 "slot_audit": (answer_result.raw_response or {}).get("slot_audit"),
                 "rendered_answer_verifier": (answer_result.raw_response or {}).get("rendered_answer_verifier"),
+                "provenance_explanation": (answer_result.raw_response or {}).get("provenance_explanation"),
                 "action_correction_trace": (answer_result.raw_response or {}).get("action_correction_trace", []),
                 "selected_frame_typed_slots": (answer_result.raw_response or {}).get("selected_frame_typed_slots", []),
                 "event_ledger_summary": (answer_result.raw_response or {}).get("event_ledger_summary", {}),
