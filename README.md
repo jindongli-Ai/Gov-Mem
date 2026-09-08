@@ -2,22 +2,34 @@
 
 This workspace uses GateMem as the default benchmark dataset for Gov-Mem.
 
-## Current Research Snapshot (2026-08-20)
+## Current Research Snapshot (2026-09-09)
 
-This section records the current paper-facing Gov-Mem framework and its latest
-full-benchmark results. Treat the commit containing this snapshot as a
-recovery point: later framework changes should be committed separately, so a
-regression can be diagnosed or the previous version can be restored from Git
-history.
+This section records the current development path and historical benchmark
+records. Treat the commit containing this snapshot as a recovery point: later
+framework changes should be committed separately, so a regression can be
+diagnosed or the previous version can be restored from Git history.
 
-### Active development version (2026-08-20)
+### Active development version (2026-09-09)
 
-The current development snapshot is **Gov-Mem-v4-Symbolic-dev7**. It is based on the frozen
+The current recovery snapshot is **Gov-Mem-v4-Symbolic-dev7**. It is based on the frozen
 `rag_naive_v3_typed_rerank` framework (`Gov-Mem-v3.0`) and preserves the
 complete checkpoint-visible GateMem turn as structured retrieval provenance:
 `turn_id`, timestamp, principal, role, turn kind, original text, checkpoint,
 and the source turn object. Stage 2 receives this data as valid JSON and does
 not need to re-extract these fields from prose.
+
+The paper-facing main path is deliberately fixed:
+
+```text
+run_govmem.py
+  -> pipeline
+  -> experiment.mode = govmem_v4_symbolic
+  -> src/gov_mem/backbones/rag_naive.py
+  -> RAGNaiveBackbone
+```
+
+`govmem_symbolic` and `rag_policy_amem` are historical/compatibility paths,
+not the canonical implementation of this snapshot.
 
 The current implementation line is **Gov-Mem-v4-Symbolic-dev7**,
 selected by `experiment.mode: govmem_v4_symbolic`. It retains v3 retrieval and
@@ -25,14 +37,48 @@ adds lightweight typed Symbolic annotations: principal-role consistency, an
 Evidence-Principal-Entity relation graph, explicit lifecycle-event assertions,
 and a source-bound current-state ledger. Dev7 adds an authorization-aware
 evidence boundary and a deterministic claim-level provenance verifier. The
-ledger records requested slots,
-candidate values, source memory/turn provenance, and conflicts from retrieved
-evidence only. It does not recover hidden transcript fields or make permission
-decisions; dev7 may filter evidence only when the explicit authorization
-boundary denies it. It does not add LLM calls. Lifecycle assertions
-recognize only explicit language such as `deleted`, `revoked`, `superseded`, or
-`updated from ... to ...`; they do not infer state from ordinary words such as
-`current` or `latest`.
+ledger records requested slots, candidate values, source memory/turn
+provenance, and conflicts from retrieved evidence only. It does not recover
+hidden transcript fields or make permission decisions; dev7 may filter
+evidence only when the explicit authorization boundary denies it.
+
+The current v7 development configuration also enables the bounded
+**Lexicon-Free Query-Conditioned Semantic Compiler**. After Stage-1 Top-20
+retrieval, the configured base LLM dynamically induces open-vocabulary query
+slots and proposes source-grounded candidate atoms. Deterministic code then
+checks source IDs, turn IDs, source-span membership, slot compatibility, and
+closed-evidence membership; it measures required-slot coverage and may run one
+targeted repair pass over the same Top-20 evidence. The compiler's atoms enter
+the existing governed symbolic graph. They are neither final facts nor
+authorization decisions: grounding, identity consistency, temporal/lifecycle
+reasoning, authorization, state-ledger transitions, and claim provenance stay
+in the symbolic control layer.
+
+The active semantic-compiler experiment configuration is
+[`configs/govmem_v4_symbolic_openlux_gpt5mini_embedding3small_semantic_compiler.yaml`](configs/govmem_v4_symbolic_openlux_gpt5mini_embedding3small_semantic_compiler.yaml).
+It fixes Stage-1 at `top_k: 20`, enables at most one repair round, and sets
+`use_fixed_lexicon: false` and `use_dataset_classifier: false`. The configured
+OpenLux model identifiers use provider aliases (for example `gpt-5-mini`), not
+dated model identifiers.
+
+### Lexical hardening status
+
+Commit `96d581d` (tag `v7-pre-lexicon-hardening-20260909`) is a recoverable
+snapshot made **before completion of the remaining lexical-rule audit and
+cleanup**. The Semantic Compiler itself has no fixed domain/benchmark ontology
+fallback, but older lexical helpers remain, including in paths reachable by
+the current v7 implementation, and require removal or disconnection before
+public release. This snapshot must therefore not be presented as a final
+lexicon-free release or as evidence that all benchmark-specific wording has
+been eliminated.
+
+At runtime, semantic induction, extraction, repair, governance, and answering
+must use only the adapter's observable prefix and the closed Stage-1 Top-20
+evidence set. They must not receive or read gold answers/evidence,
+`expected_action`, `judge_spec`, `leak_targets`, dataset `query_type`, oracle
+evidence, rationale, scorer fields, or any future episode suffix. Episode-local
+principals, roles, and relations may be retained only when they were observed
+in that runtime-visible prefix; they are not a fixed predefined vocabulary.
 
 Dev7's claim-level provenance explanation module is now connected to the actual
 `govmem_v4_symbolic` RAG-Naive path. The answering model may return a
@@ -65,7 +111,7 @@ metrics were U 30.00%, A 44.44%, F 0.00%, and MGS 16.67%; these values are not
 paper performance results. The explanation module added no LLM calls. The full artifact
 is `experiments/smoke/2026-08-19_dev7_claim_provenance_source_completion_medical_episode002`.
 
-### Gov-Mem-v4-Symbolic-dev7 full-benchmark result (2026-08-20)
+### Historical Gov-Mem-v4-Symbolic-dev7 full-benchmark result (2026-08-20)
 
 The complete GateMem benchmark was evaluated with OpenLux `gpt-4o-mini` as the
 memory-system base LLM and OpenLux `text-embedding-3-small`. The official
@@ -86,18 +132,21 @@ The overall MGS is the arithmetic mean of the four domain MGS values; the
 overall U/A/F values are checkpoint-count-weighted pooled values. The detailed
 protocol and artifact paths are in the dated
 [dev7 full-benchmark result](experiments/result/2026-08-20_Gov-Mem-v4-Symbolic-dev7_full_all_2218_openlux_gpt4omini.md).
-This is a complete dev7 measurement, not a causal ablation against the frozen
-v3 typed-rerank table.
+This is a complete historical dev7 measurement, not a causal ablation against
+the frozen v3 typed-rerank table. It predates the current semantic-compiler
+development and the unresolved legacy lexical-rule hardening described above;
+it must not be reported as a result of the eventual public lexicon-free
+release.
 
 The explanation channel was present in 2,218/2,218 official predictions. It
 records selected evidence and Symbolic reasoning facts while keeping
 `answer_unchanged=true` and `scored_by_gatemem=false`; it does not contribute
 to U, A, F, MGS, action accuracy, or OR.
 
-The final paper-facing name is **Gov-Mem-v4-Symbolic**. Dev7 is the current
-paper-facing implementation snapshot; further changes should create a new
-version and a new benchmark record rather than overwrite this result. The
-complete naming and promotion record is in
+The intended paper-facing name is **Gov-Mem-v4-Symbolic**. Dev7 is the current
+recovery snapshot; subsequent hardening must create a new version and a new
+benchmark record rather than overwrite this historical result. The complete
+naming and promotion record is in
 [`VERSION_LOG.md`](VERSION_LOG.md).
 
 The dev3 state-ledger increment was validated on one complete episode per
@@ -158,33 +207,39 @@ memory-model temperature is 0.2. It must not be mixed into the frozen
 score is recorded in
 `outputs/2026-08-14_Gov-Mem-v4-Symbolic-dev2-target-binding-shadow-v2_gpt4omini_embedding3small_smoke4/official_score.json`.
 
-### Canonical symbolic experiment method
+### Canonical v7 symbolic experiment method
 
-The canonical symbolic method is **Gov-Mem-Symbolic**, selected by the
-`govmem_symbolic` experiment mode. It is the neuro-symbolic governance track
-with typed memory, policy/state ledgers, governed evidence, and slot-level
-authorization. The historical `rag_policy_amem` mode is retained only as a
-backward-compatible alias for reproducing old runs.
+The canonical method is **Gov-Mem-v4-Symbolic**, selected by
+`experiment.mode: govmem_v4_symbolic` and executed through `RAGNaiveBackbone`.
+Its runtime flow is:
 
-The separate frozen benchmark track is `rag_naive_v3_typed_rerank`:
+```text
+observable episode prefix
+  -> turn-preserving structured records
+  -> Stage-1 dense retrieval (closed Top-20)
+  -> query-conditioned semantic induction (LLM)
+  -> source-grounded atomic extraction (LLM)
+  -> deterministic grounding and slot-coverage verification
+  -> optional one-round missing-slot repair over the same Top-20 (LLM)
+  -> governed symbolic slot graph and authorization/lifecycle/state reasoning
+  -> Stage-2 bounded reranking
+  -> answer realization
+  -> claim-level provenance verification
+```
 
-1. GateMem-compatible Stage 1 RAG-Naive retrieval over visible dialogue turns,
-   using the raw query and `top_k=20`.
-2. Stage 2 typed, constrained evidence reranking over retrieved evidence only.
-   The reranker binds query fields to typed source evidence, resolves current
-   versus stale/deleted values, and preserves field-level answer boundaries.
-3. Source-bound answer realization with explicit deletion and sensitive-field
-   boundaries.
-
-The formal frozen benchmark protocol disables the complete-transcript/
-long-context ledger, gold feedback, and runtime experience updates. Its results
-must not be labeled as Gov-Mem-Symbolic results.
+Neural stages may propose semantic structure; the Symbolic Rule Layer controls
+grounding, identity consistency, temporal state, lifecycle, authorization,
+conflict handling, and provenance. The semantic compiler is strictly
+source-grounded and closed-evidence: it cannot expand retrieval or access a
+future suffix. `govmem_symbolic`, `rag_policy_amem`, and
+`rag_naive_v3_typed_rerank` are retained only as historical or compatibility
+tracks and must not be substituted for this main path in a v7 experiment.
 
 ### Latest frozen typed-rerank full-benchmark performance
 
 The following table is the frozen `rag_naive_v3_typed_rerank` track, not the
-Gov-Mem-Symbolic track. The completed dev7 Symbolic full-benchmark table is
-recorded above and uses `experiment.mode: govmem_v4_symbolic`.
+current semantic-compiler path. The historical dev7 full-benchmark table above
+also predates semantic-compiler development and lexical hardening.
 
 These results cover all 2,218 GateMem checkpoints: Medical 579, Office 547,
 Education 540, and Household 552. All seven runs use the same checkpoint
@@ -275,10 +330,10 @@ git status --short
 git log --oneline --decorate -8
 ```
 
-当前纸面版本是 `Gov-Mem-v4-Symbolic-dev7`，对应冻结提交为：
+当前可恢复版本是 `Gov-Mem-v4-Symbolic-dev7`，对应冻结提交为：
 
 ```text
-fb60b2f Freeze Gov-Mem v4 Symbolic dev7 benchmark snapshot
+96d581d backup: Gov-Mem v7 before lexicon-free hardening
 ```
 
 迁移前不要删除旧服务器上的任何文件。旧服务器应作为回退副本保留，直到
@@ -357,7 +412,7 @@ python3 -m pytest -q tests/test_symbolic_evidence.py tests/test_official_evaluat
 
 应确认以下事实：
 
-- `git log` 能看到 `fb60b2f`；
+- `git log` 能看到 `96d581d`（或其后续文档/整改提交）；
 - GateMem 四个 domain 可以被读取；
 - Symbolic 相关测试通过；
 - `API-Key_OpenLux.md` 没有出现在 `git status` 的待提交文件中；
@@ -489,11 +544,12 @@ If you enable the official LLM judge or retrieval-heavy baselines, the full
 
 ## Gov-Mem Pipeline
 
-Formal Gov-Mem evaluations use retrieved evidence only in Stage 2. In
-particular, `long_context_field_ledger.enabled` must remain `false`: that
-optional component reads the complete visible checkpoint transcript and is
-reserved for explicitly labeled Long-Context ablations. The formal Gemini
-configuration is `configs/rag_naive_v3_openlux_gemini25flashlite_embedding3small_pure.yaml`.
+The v7 semantic-compiler path uses the adapter's observable episode prefix and
+retrieved evidence only. Stage 1 is fixed at Top-20 and compiler repair cannot
+retrieve more evidence or access the full transcript. In particular,
+`long_context_field_ledger.enabled` must remain `false`: that optional
+component reads the complete visible checkpoint transcript and is reserved for
+explicitly labeled long-context ablations.
 
 Main entry:
 
@@ -502,7 +558,8 @@ python3 run_govmem.py \
   --dataset_name gatemem \
   --data_path dataset/GateMem/gatemem/data/medical \
   --output_dir outputs/govmem_medical_debug \
-  --config configs/govmem_default.yaml \
+  --config configs/govmem_v4_symbolic_openlux_gpt5mini_embedding3small_semantic_compiler.yaml \
+  --experiment_mode govmem_v4_symbolic \
   --max_instances 10 \
   --stage all
 ```
@@ -516,7 +573,7 @@ The main config interface is:
 
 ```yaml
 llm:
-  base_model: gpt-5.4-nano-2026-03-17
+  base_model: gpt-5-mini
   role_models: {}
 ```
 
@@ -540,7 +597,16 @@ llm:
     answering: gpt-5
 ```
 
-Ready-to-run example configs are provided under `configs/`:
+The preferred v7 development configuration is:
+
+- `configs/govmem_v4_symbolic_openlux_gpt5mini_embedding3small_semantic_compiler.yaml`
+
+Other configs under `configs/` may target historical baselines or compatibility
+paths and must not be silently substituted for the v7 experiment. In
+particular, use OpenLux aliases such as `gpt-5-mini` and `gpt-5.4-mini`, rather
+than date-suffixed identifiers.
+
+Historical example configs include:
 
 - `configs/govmem_gpt5_nano.yaml`
 - `configs/govmem_gpt5.yaml`
@@ -555,7 +621,7 @@ python3 run_govmem.py \
   --data_path dataset/GateMem/gatemem/data/medical \
   --output_dir outputs/govmem_gpt5_nano_medical \
   --config configs/govmem_gpt5_nano.yaml \
-  --experiment_mode govmem_symbolic \
+  --experiment_mode govmem_v4_symbolic \
   --max_instances 30 \
   --stage all
 ```
@@ -566,7 +632,7 @@ python3 run_govmem.py \
   --data_path dataset/GateMem/gatemem/data/medical \
   --output_dir outputs/govmem_deepseek_v4_flash_medical \
   --config configs/govmem_deepseek_v4_flash.yaml \
-  --experiment_mode govmem_symbolic \
+  --experiment_mode govmem_v4_symbolic \
   --max_instances 30 \
   --stage all
 ```
@@ -580,7 +646,7 @@ python3 run_govmem.py \
   --data_path dataset/GateMem/gatemem/data/medical \
   --output_dir outputs/govmem_runtime_override \
   --config configs/govmem_default.yaml \
-  --experiment_mode govmem_symbolic \
+  --experiment_mode govmem_v4_symbolic \
   --base_model DeepSeek-V4-Flash \
   --llm_provider yunwu \
   --llm_api_base https://yunwu.ai/v1 \
@@ -597,7 +663,7 @@ python3 run_govmem.py \
   --data_path dataset/GateMem/gatemem/data/medical \
   --output_dir outputs/govmem_role_override \
   --config configs/govmem_default.yaml \
-  --experiment_mode govmem_symbolic \
+  --experiment_mode govmem_v4_symbolic \
   --base_model Qwen3.5-plus \
   --role_model action_decision=gpt-5 \
   --role_model answering=gpt-5 \
