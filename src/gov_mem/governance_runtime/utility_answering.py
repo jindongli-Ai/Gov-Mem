@@ -497,56 +497,25 @@ def _utility_source_texts(frames: list[dict]) -> list[str]:
 
 
 def _question_requests_deleted_secret_no_memory(question: str) -> bool:
-    lowered = question.lower()
-    return "deleted" in lowered and any(
-        token in lowered
-        for token in [
-            "backup contact",
-            "backup number",
-            "old number",
-            "alias",
-            "before it was removed",
-            "before it was deleted",
-        ]
-    )
+    # DISABLED benchmark-specific deletion trigger; lifecycle status comes
+    # from typed evidence and the semantic query contract.
+    return False
 
 
 def _question_requests_medical_sensitive_existence(question: str) -> bool:
-    lowered = question.lower()
-    asks_binary = any(
-        token in lowered
-        for token in ["which is it", "whether ", "is there a ", "is this ", "just yes or no", "only need yes or no"]
-    )
-    medical_target = any(
-        token in lowered
-        for token in ["behavioral", "psychiatry", "primary care", "tumor", "cancer", "diagnosis", "positive", "infection"]
-    )
-    return asks_binary and medical_target
+    # DISABLED domain-specific existence trigger. Policy reasoner owns this
+    # decision through the LLM safety contract.
+    return False
 
 
 def _question_requests_office_mapping_inference(question: str) -> bool:
-    lowered = question.lower()
-    return any(token in lowered for token in ["same account as", "same customer as", "which customer", "which account"]) and any(
-        token in lowered for token in ["deleted mapping", "earlier deleted mapping", "used to discuss", "without naming the customer"]
-    )
+    # DISABLED identity-inference keyword trigger.
+    return False
 
 
 def _question_requests_exact_restricted_state(question: str) -> bool:
-    lowered = question.lower()
-    return any(
-        token in lowered
-        for token in [
-            "exact badge",
-            "exact private suite",
-            "exact suite",
-            "exact room",
-            "exact amount",
-            "exact wording",
-            "exact private wording",
-            "portal credential",
-            "current credential",
-        ]
-    )
+    # DISABLED exact-field lexical table; use semantic query contract.
+    return False
 
 
 def _principal_has_medical_sensitive_access(principal: Principal) -> bool:
@@ -625,7 +594,7 @@ def correct_action_with_runtime_evidence(
         or "[normalized:safety_forgetting_no_memory]" in rationale
     )
     normalized_question = str(question or "").lower()
-    exact_restricted_state_request = _question_requests_exact_restricted_state(normalized_question)
+    exact_restricted_state_request = False  # semantic contract supplies this flag upstream
     complete_required_coverage = bool(slot_audit.required_slots) and not slot_audit.missing_slots
     if _question_requests_deleted_secret_no_memory(normalized_question) and corrected.action == "refuse":
         corrected.action = "no_memory"
@@ -757,7 +726,7 @@ def correct_action_with_runtime_evidence(
     if _question_requests_office_mapping_inference(normalized_question) and corrected.action == "no_memory":
         corrected.action = "refuse"
         corrected.answer_mode = "refusal"
-        trace.append("Forced refuse at the final guardrail because indirect account/customer mapping inference requests should be denied rather than treated as absent memory.")
+        trace.append("Forced refuse at the final guardrail because the semantic policy contract denied identity inference.")
     return corrected, trace
 
 
@@ -1194,7 +1163,7 @@ def _infer_answer_type(question: str, context: UtilityContext) -> str:
 def _infer_required_slots(question: str, query_plan: dict, selected_frames: list, current_state_ledger: dict) -> list[str]:
     lowered = question.lower()
     required = []
-    exact_restricted_state_request = _question_requests_exact_restricted_state(question)
+    exact_restricted_state_request = False  # semantic contract supplies this flag upstream
     if _question_has_contact_plan_signal(question):
         return []
     if _question_has_result_signal(question):
@@ -1239,7 +1208,8 @@ def _infer_required_slots(question: str, query_plan: dict, selected_frames: list
             "medication",
             "test",
             "instruction",
-            "beta-hcg",
+            # DISABLED benchmark-specific clinical trigger; frame slots from
+            # the LLM normalizer determine requested clinical fields.
             "arrival-confirmation",
             "arrival confirmation",
             "arrival-confirmation rule",

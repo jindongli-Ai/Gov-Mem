@@ -1644,28 +1644,12 @@ def _passes_action_mode_surface_gate(*, item: dict[str, Any], question_profile: 
 
 def _looks_like_private_secret_text(text: str) -> bool:
     lowered = str(text or "").lower()
+    # Generic artifact classes only. Benchmark entities, project names,
+    # customer mappings, and concrete contact values are intentionally absent.
     secret_tokens = [
-        " pin ",
-        "pin:",
-        "token",
-        "door code",
-        "keypad code",
-        "release phrase",
-        "backup key",
-        "spare-key",
-        "spare key",
-        "customer mapping",
-        "exact customer",
-        "exact external sponsor",
-        "northbridge biologics",
-        "private note",
-        "hidden spare-key",
-        "gray planter",
-        "temporary callback number",
-        "callback number",
-        "phone number",
-        "617-555",
-        "415-555",
+        " pin ", "pin:", "token", "password", "passcode", "credential",
+        "keypad", "access code", "private", "confidential", "restricted",
+        "phone number", "contact number",
     ]
     if any(token in lowered for token in secret_tokens):
         return True
@@ -1723,9 +1707,7 @@ def _strip_private_surface_fragments(text: str) -> str:
     patterns = [
         r"\b\d{3}-\d{3}-\d{4}\b",
         r"\b(?:PIN|pin|token|code|phrase|key)\b[^.]*",
-        r"\b(?:exact external sponsor|customer mapping|private note|hidden spare-key|hidden spare key)\b[^.]*",
-        r"\bNorthbridge Biologics\b",
-        r"\bunder the gray planter by the 3B stair rail\b",
+        r"\b(?:private note|confidential note|restricted detail)\b[^.]*",
     ]
     for pattern in patterns:
         cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
@@ -3610,7 +3592,7 @@ def _extract_surface_spans_from_lines(selected_lines: list[dict[str, Any]], requ
             surfaces.append(text)
         if "reaction" in requested_groups and "rash" in lowered:
             surfaces.append("rash")
-        if "instruction" in requested_groups and any(token in lowered for token in ["beta-hcg", "unless symptoms worsen", "before tuesday"]):
+        if "instruction" in requested_groups and any(token in lowered for token in ["instruction", "should", "must", "avoid", "take", "use"]):
             surfaces.append(text)
         if "cancellation" in requested_groups and any(token in lowered for token in ["canceled", "cancelled", "no longer active", "inactive"]):
             surfaces.append(text)
@@ -4108,7 +4090,7 @@ def _build_line_metadata(text: str) -> dict[str, Any]:
         "procedures": procedures,
         "event_key": event_key or frame.frame_type,
         "slot_count": len(frame.slots),
-        "is_lab_like": any(token in lowered for token in ["beta-hcg", "lab suite", "blood draw", "lab draw"]),
+        "is_lab_like": any(token in lowered for token in ["laboratory", "lab", "blood test", "measurement"]),
         "is_policy_only": any(token in lowered for token in ["may receive", "nothing else", "do not share", "logistics only"]) and not procedures,
         "is_current_like": any(token in lowered for token in ["current", "latest", "updated", "booked", "reminder", "on file", "next step", "revised approved", "supersedes", "treat as current", "official pilot target"]),
         "is_access_artifact_temporal": _looks_like_access_artifact_temporal_text(text, slots),
@@ -4141,7 +4123,7 @@ def _build_row_metadata(row: RetrievedEvidence, frame) -> dict[str, Any]:
         "source_text": source_text,
         "bundle_payload": bundle_payload,
         "event_key": event_key or frame.frame_type,
-        "is_lab_like": any(token in lowered for token in ["beta-hcg", "lab suite", "blood draw", "lab draw"]),
+        "is_lab_like": any(token in lowered for token in ["laboratory", "lab", "blood test", "measurement"]),
         "is_current_like": any(token in lowered for token in ["current", "latest", "updated", "booked", "reminder", "on file", "next step", "revised approved", "supersedes", "official pilot target"]),
         "is_access_artifact_temporal": _looks_like_access_artifact_temporal_text(row.content or "", slots),
         "has_cancellation": any(token in lowered for token in ["canceled", "cancelled", "prior ", "old ", "inactive"]),
@@ -4281,8 +4263,8 @@ def _infer_line_procedures(text: str, frame) -> list[str]:
     procedures: set[str] = set()
     if any(token in lowered for token in ["ultrasound", "imaging", "scan"]):
         procedures.update({"ultrasound", "imaging", "scan"})
-    if any(token in lowered for token in ["beta-hcg", "blood draw", "lab draw", "lab suite"]):
-        procedures.update({"beta-hcg", "lab"})
+    if any(token in lowered for token in ["laboratory", "lab", "blood test", "measurement"]):
+        procedures.add("laboratory test")
     if "follow-up" in lowered or "follow up" in lowered:
         procedures.add("follow-up")
     if frame.slots.get("procedure"):
@@ -5555,7 +5537,7 @@ def _collect_instruction_items(selected_lines: list[dict[str, Any]]) -> list[str
     for line in selected_lines:
         meta = line.get("line_meta") or {}
         text = str(line.get("text") or "").strip()
-        if meta.get("frame_type") not in {"instruction", "medication"} and not any(token in text.lower() for token in ["unless symptoms worsen", "beta-hcg", "before tuesday"]):
+        if meta.get("frame_type") not in {"instruction", "medication"} and not any(token in text.lower() for token in ["instruction", "should", "must", "avoid"]):
             continue
         key = _normalize_surface_line(text)
         if key in seen:

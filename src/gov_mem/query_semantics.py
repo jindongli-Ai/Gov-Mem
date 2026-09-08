@@ -3,7 +3,11 @@ from __future__ import annotations
 import re
 
 
-CURRENT_STATE_SLOT_ALIASES: dict[str, list[str]] = {
+"""DISABLED LEGACY LEXICON (retained for audit only; never use in Gov-Mem v4).
+
+The original GateMem-shaped tables are preserved below as inert documentation.
+"""
+_DISABLED_CURRENT_STATE_SLOT_ALIASES: dict[str, list[str]] = {
     "target_date": [
         "target date",
         "launch date",
@@ -74,7 +78,7 @@ SAFE_WORDING_EXPLICIT_ALIASES = [
 
 PUBLIC_EVENT_ALIASES = ["public date", "public event date"]
 
-CURRENT_STATE_DOMAIN_ALIASES: dict[str, list[str]] = {
+_DISABLED_CURRENT_STATE_DOMAIN_ALIASES: dict[str, list[str]] = {
     "research": [
         "stipend",
         "safe wording",
@@ -87,7 +91,7 @@ CURRENT_STATE_DOMAIN_ALIASES: dict[str, list[str]] = {
     "project": ["budget", "discount", "project", "approved budget"],
 }
 
-HOUSEHOLD_SLOT_ALIASES: dict[str, list[str]] = {
+_DISABLED_HOUSEHOLD_SLOT_ALIASES: dict[str, list[str]] = {
     "date": ["date"],
     "visit_window": ["visit window"],
     "entry_method": ["entry method"],
@@ -101,7 +105,7 @@ HOUSEHOLD_SLOT_ALIASES: dict[str, list[str]] = {
 # household-plan slot vocabulary used by the rest of the framework.  The
 # aliases describe transferable operational functions, not domain objects or
 # benchmark-specific names.
-HOUSEHOLD_DELIVERY_SLOT_ALIASES: dict[str, list[str]] = {
+_DISABLED_HOUSEHOLD_DELIVERY_SLOT_ALIASES: dict[str, list[str]] = {
     "date": [
         "date", "day", "monday", "tuesday", "wednesday", "thursday",
         "friday", "saturday", "sunday",
@@ -141,6 +145,14 @@ HOUSEHOLD_DELIVERY_SLOT_ALIASES: dict[str, list[str]] = {
         "external safe state", "shareable state", "safe state",
     ],
 }
+
+# ACTIVE RUNTIME TABLES: intentionally empty. Do not populate these with
+# benchmark-derived phrases. Gov-Mem v4 uses the question-only LLM contract.
+CURRENT_STATE_SLOT_ALIASES: dict[str, list[str]] = {}
+CURRENT_STATE_DOMAIN_ALIASES: dict[str, list[str]] = {}
+HOUSEHOLD_SLOT_ALIASES: dict[str, list[str]] = {}
+HOUSEHOLD_DELIVERY_SLOT_ALIASES: dict[str, list[str]] = {}
+
 
 HOUSEHOLD_STATE_TEXT_CUES: list[str] = []
 
@@ -189,8 +201,8 @@ def contains_query_alias(text: str, aliases: list[str]) -> bool:
 
 
 def infer_current_state_domain(question: str) -> str:
-    research_hits = sum(1 for alias in CURRENT_STATE_DOMAIN_ALIASES["research"] if contains_query_alias(question, [alias]))
-    project_hits = sum(1 for alias in CURRENT_STATE_DOMAIN_ALIASES["project"] if contains_query_alias(question, [alias]))
+    research_hits = sum(1 for alias in CURRENT_STATE_DOMAIN_ALIASES.get("research", []) if contains_query_alias(question, [alias]))
+    project_hits = sum(1 for alias in CURRENT_STATE_DOMAIN_ALIASES.get("project", []) if contains_query_alias(question, [alias]))
     if research_hits > project_hits:
         return "research"
     return "project"
@@ -199,11 +211,11 @@ def infer_current_state_domain(question: str) -> str:
 def infer_current_state_slots(question: str) -> list[str]:
     domain = infer_current_state_domain(question)
     research_hits = sum(
-        1 for alias in CURRENT_STATE_DOMAIN_ALIASES["research"]
+        1 for alias in CURRENT_STATE_DOMAIN_ALIASES.get("research", [])
         if contains_query_alias(question, [alias])
     )
     project_hits = sum(
-        1 for alias in CURRENT_STATE_DOMAIN_ALIASES["project"]
+        1 for alias in CURRENT_STATE_DOMAIN_ALIASES.get("project", [])
         if contains_query_alias(question, [alias])
     )
     research_dominant = research_hits > project_hits and research_hits > 0
@@ -660,9 +672,9 @@ def extract_state_slots(text: str) -> dict[str, str]:
     money_matches = [m.group(0).strip() for m in STATE_MONEY_RE.finditer(text)]
     if money_matches:
         last_money = money_matches[-1]
-        if contains_query_alias(text, CURRENT_STATE_SLOT_ALIASES["approved_budget"]):
+        if contains_query_alias(text, CURRENT_STATE_SLOT_ALIASES.get("approved_budget", [])):
             slots["approved_budget"] = last_money
-        if contains_query_alias(text, CURRENT_STATE_SLOT_ALIASES["monthly_stipend"]):
+        if contains_query_alias(text, CURRENT_STATE_SLOT_ALIASES.get("monthly_stipend", [])):
             slots["monthly_stipend"] = last_money
     budget_match = STATE_BUDGET_AMOUNT_RE.search(text)
     if budget_match:
@@ -769,7 +781,7 @@ def extract_state_slots(text: str) -> dict[str, str]:
             slots.setdefault("package_rule", f"{candidate} remains resident-only")
 
     parking_match = STATE_PARKING_PASS_RE.search(text)
-    if parking_match and contains_query_alias(text, HOUSEHOLD_SLOT_ALIASES["parking_pass"]):
+    if parking_match and contains_query_alias(text, HOUSEHOLD_SLOT_ALIASES.get("parking_pass", [])):
         slots["parking_pass"] = parking_match.group(0).upper()
 
     contact_match = re.search(

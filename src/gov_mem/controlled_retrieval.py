@@ -7,7 +7,6 @@ from typing import Any
 
 from gov_mem.backbones.common import RAGChunk
 from gov_mem.data.schema import MemoryItem, RetrievedEvidence
-from gov_mem.general_lexicon import GENERAL_VALUE_HEADS
 from gov_mem.llm.client import LLMClient
 from gov_mem.memory.dense_index import DenseMemoryIndex
 from gov_mem.policy_schema import MemoryItemState, PolicyAction, PolicyDecision, PolicyState
@@ -389,27 +388,11 @@ def _latest_field_candidates(
                 and not target_tokens.issubset(label_tokens)
             ):
                 return True
-        # Some memory builders expose only a generic subject such as
-        # ``For Sunday``. Recover an explicitly named competing object from
-        # the observable source text when it is present.
-        for label in re.findall(
-            r"\b[A-Z][A-Za-z0-9&'-]+(?:\s+[A-Z][A-Za-z0-9&'-]+){1,4}\b",
-            str(item.content or ""),
-        ):
-            label_tokens = set(re.findall(r"[a-z0-9][a-z0-9_-]{2,}", label.lower()))
-            # Proper-noun extraction also sees qualified values such as
-            # ``Hollow Studio Bay``.  Those are field values, not sibling
-            # objects, and must not make a legitimate ``Hollow Capstone``
-            # source ineligible.  Subject metadata remains the preferred
-            # competing-object signal; this fallback ignores common value
-            # heads when inspecting raw prose.
-            if (
-                label_tokens
-                and target_tokens.intersection(label_tokens)
-                and not target_tokens.issubset(label_tokens)
-                and not label_tokens.intersection(GENERAL_VALUE_HEADS)
-            ):
-                return True
+        # Do not infer a competing object from capitalized prose. A phrase
+        # such as ``Hollow Studio Bay`` may be a field value rather than an
+        # entity; deciding otherwise with a hand-written value-head list
+        # would reintroduce the lexical prior removed from Stage 2. Structured
+        # entities/subject metadata above remain the explicit-object signal.
         return False
 
     def token_matches(term: str, tokens: set[str]) -> bool:

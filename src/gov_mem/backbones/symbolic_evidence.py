@@ -13,6 +13,7 @@ import re
 from typing import Any
 
 from gov_mem.data.schema import MemoryInstance, RetrievedEvidence
+from gov_mem.backbones.semantic_compiler import _atom, grounded_text_contains, verify_grounded_atom
 from gov_mem.governance_runtime.evidence_frames import compile_evidence_frame
 from gov_mem.query_semantics import (
     extract_state_slots,
@@ -75,13 +76,73 @@ _CLOSED_RECORD_STATUS_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Open-schema value extraction used only when the question analyzer returns a
+# field phrase that has no canonical slot alias.  These are value shapes, not
+# benchmark/domain vocabularies.  The field phrase remains the ledger key and
+# nearby source text supplies the binding.
+_OPEN_DATE_RE = re.compile(
+    r"\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)?\s*,?\s*"
+    r"(?:January|February|March|April|May|June|July|August|September|October|"
+    r"November|December)\s+\d{1,2}(?:,\s*\d{4})?\b",
+    re.IGNORECASE,
+)
+_OPEN_MONEY_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\s*(?:USD|dollars?)\b", re.IGNORECASE)
+_OPEN_PERCENT_RE = re.compile(r"\b\d{1,2}(?:\.\d+)?\s*%")
+
+
+def _open_schema_value_candidates(*, field_name: str, value_type: str, text: str) -> list[tuple[str, str]]:
+    """Extract typed values for an analyzer-provided open field phrase.
+
+    This deliberately uses no domain/entity/benchmark dictionary.  It only
+    uses the analyzer's broad value type and the local grammatical context of
+    each value, so the resulting claim remains auditable against source text.
+    """
+    kind = str(value_type or "unknown").casefold()
+    if kind == "date":
+        matches = list(_OPEN_DATE_RE.finditer(text))
+    elif kind == "money":
+        matches = list(_OPEN_MONEY_RE.finditer(text))
+    elif kind == "text":
+        matches = []
+    elif kind == "location":
+        matches = []
+    else:
+        return []
+    field_tokens = [t for t in re.findall(r"[a-z0-9]+", str(field_name).casefold()) if len(t) > 2]
+    result: list[tuple[str, str]] = []
+    for match in matches:
+        left = text[max(0, match.start() - 90):match.start()].casefold()
+        right = text[match.end():min(len(text), match.end() + 50)].casefold()
+        context = left + " " + right
+        # A typed value is accepted only when its local source context has a
+        # meaningful connection to the copied question field, or when the
+        # source explicitly marks it as current/approved/latest.  This keeps
+        # unrelated same-typed values from entering the ledger.
+        field_hit = sum(token in context for token in field_tokens)
+        current_hit = bool(re.search(
+            r"\b(?:current|currently|latest|approved|updated|now|replaces?|"
+            r"supersedes?|moves?\s+from|remains)\b", context,
+        ))
+        if field_hit or current_hit:
+            result.append((match.group(0).strip(), text[max(0, text.rfind(".", 0, match.start()) + 1):text.find(".", match.end()) + 1 if text.find(".", match.end()) >= 0 else len(text)].strip()))
+    return result
+
 
 def _requested_state_slots(
     question: str,
     required_slot_plan: dict[str, Any] | None = None,
+    query_analysis: dict[str, Any] | None = None,
 ) -> list[str]:
     """Infer transferable state fields without using an episode/domain name."""
 
+    # A v4 question contract is authoritative. Return immediately from the
+    # query-side detector boundary; no legacy lexical function is invoked.
+    if query_analysis is not None:
+        return list(dict.fromkeys(
+            str(item.get("name") or "").strip()
+            for item in (query_analysis.get("fields") or [])
+            if isinstance(item, dict) and str(item.get("name") or "").strip()
+        ))
     slots = [*infer_current_state_slots(question), *infer_household_slots(question)]
     # Reuse the existing typed query contract for clinical and other plans
     # whose vocabulary is intentionally outside the generic state aliases.
@@ -226,21 +287,281 @@ def _state_claim_is_historical(text: str, *, current_query: bool) -> bool:
     return any(marker in lowered for marker in _STATE_HISTORICAL_MARKERS)
 
 
+def _normalized_grounding_text(value: Any) -> str:
+    return " ".join(re.findall(r"\w+", str(value or "").casefold()))
+
+
+def _build_semantic_state_ledger(
+    *,
+    evidence: list[RetrievedEvidence],
+    query_analysis: dict[str, Any],
+    semantic_atoms: list[dict[str, Any]],
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    """Compile verified open-vocabulary atoms into the symbolic state ledger."""
+
+    specs: list[dict[str, Any]] = []
+    for index, item in enumerate(query_analysis.get("fields") or []):
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        specs.append({
+            "slot_id": str(item.get("slot_id") or f"qslot_{index}"),
+            "name": name,
+            "target_entity": item.get("target_entity"),
+            "required": bool(item.get("required", True)),
+            "temporal_requirement": str(
+                item.get("temporal_requirement") or "unknown"
+            ).casefold(),
+        })
+
+    evidence_by_id = {row.memory_id: row for row in evidence}
+    candidates: dict[str, list[dict[str, Any]]] = {
+        spec["slot_id"]: [] for spec in specs
+    }
+    claims_by_memory: dict[str, dict[str, Any]] = {}
+    valid_lifecycle = {
+        "assert", "update", "supersede", "cancel", "delete", "none", "uncertain",
+    }
+    valid_temporal = {"current", "historical", "unknown"}
+
+    for atom in semantic_atoms:
+        if not isinstance(atom, dict):
+            continue
+        slot_id = str(atom.get("slot_id") or "")
+        if slot_id not in candidates:
+            continue
+        spec = next(item for item in specs if item["slot_id"] == slot_id)
+        expected_target = _normalized_grounding_text(spec.get("target_entity"))
+        atom_target = _normalized_grounding_text(atom.get("target_entity"))
+        if expected_target and atom_target and not (
+            expected_target == atom_target
+            or expected_target in atom_target
+            or atom_target in expected_target
+        ):
+            continue
+        source = dict(atom.get("source") or {})
+        memory_id = str(source.get("chunk_id") or source.get("memory_id") or "")
+        row = evidence_by_id.get(memory_id)
+        if row is None:
+            continue
+        record = _record(row) or {}
+        text = str(record.get("text") or row.content or "")
+        span = str(source.get("span") or "").strip()
+        normalized_text = _normalized_grounding_text(text)
+        normalized_span = _normalized_grounding_text(span)
+        value = str(atom.get("value") or "").strip()
+        normalized_value = _normalized_grounding_text(value)
+        if not normalized_span or normalized_span not in normalized_text:
+            continue
+        if normalized_value and normalized_value not in normalized_span:
+            continue
+        supplied_turn_id = str(source.get("turn_id") or "")
+        turn_id = str(record.get("turn_id") or record.get("message_id") or "")
+        if supplied_turn_id and supplied_turn_id != turn_id:
+            continue
+        turn_index = record.get("turn_index")
+        if not isinstance(turn_index, int):
+            turn_index = -1
+        lifecycle_type = str(
+            dict(atom.get("lifecycle_semantics") or {}).get("type") or "none"
+        ).casefold()
+        if lifecycle_type not in valid_lifecycle:
+            lifecycle_type = "uncertain"
+        temporal_state = str(
+            dict(atom.get("temporal") or {}).get("state") or "unknown"
+        ).casefold()
+        if temporal_state not in valid_temporal:
+            temporal_state = "unknown"
+        candidate = {
+            "atom_id": str(atom.get("atom_id") or ""),
+            "slot_id": slot_id,
+            "slot": str(atom.get("slot_name") or ""),
+            "value": value or None,
+            "memory_id": memory_id,
+            "turn_id": turn_id,
+            "turn_index": turn_index,
+            "quote": span,
+            "temporal_state": temporal_state,
+            "lifecycle_type": lifecycle_type,
+            "confidence": float(atom.get("confidence") or 0.0),
+            "target_entity": atom.get("target_entity"),
+            "sensitivity_type": str(
+                dict(atom.get("sensitivity_semantics") or {}).get("type") or "unknown"
+            ).casefold(),
+            "authorization_candidate_type": str(
+                dict(atom.get("authorization_semantics") or {}).get("type") or "none"
+            ).casefold(),
+            "lifecycle_target_atom_id": dict(atom.get("lifecycle_semantics") or {}).get("target_atom_id"),
+            "lifecycle_target_value": dict(atom.get("lifecycle_semantics") or {}).get("target_value"),
+        }
+        candidates[slot_id].append(candidate)
+        if value:
+            claims_by_memory.setdefault(memory_id, {})[slot_id] = {
+                "slot_name": candidate["slot"],
+                "value": value,
+                "turn_id": turn_id,
+                "turn_index": turn_index,
+                "atom_id": candidate["atom_id"],
+            }
+
+    fields: dict[str, Any] = {}
+    for spec in specs:
+        slot_id = spec["slot_id"]
+        slot_name = spec["name"]
+        all_candidates = candidates[slot_id]
+        terminal = [
+            item for item in all_candidates
+            if item["lifecycle_type"] in {"cancel", "delete"}
+            and item["turn_index"] >= 0
+            and any(
+                previous["turn_index"] >= 0
+                and previous["turn_index"] < item["turn_index"]
+                and previous["target_entity"] == item["target_entity"]
+                and (
+                    previous["atom_id"] == item["lifecycle_target_atom_id"]
+                    or (
+                        item["lifecycle_target_value"]
+                        and _normalized_grounding_text(previous["value"])
+                        == _normalized_grounding_text(item["lifecycle_target_value"])
+                        and grounded_text_contains(item["quote"], item["lifecycle_target_value"])
+                    )
+                )
+                for previous in all_candidates if previous["value"]
+            )
+        ]
+        values = [
+            item for item in all_candidates
+            if item["value"] and item["lifecycle_type"] not in {"cancel", "delete"}
+        ]
+        requirement = spec["temporal_requirement"]
+        if requirement == "current":
+            explicit = [item for item in values if item["temporal_state"] == "current"]
+            unknown = [item for item in values if item["temporal_state"] == "unknown"]
+            eligible = explicit or unknown
+        elif requirement == "historical":
+            explicit = [item for item in values if item["temporal_state"] == "historical"]
+            eligible = explicit or values
+        else:
+            eligible = values
+
+        latest_terminal = max(
+            terminal,
+            key=lambda item: (item["turn_index"], item["confidence"], item["atom_id"]),
+            default=None,
+        )
+        latest_value_turn = max(
+            (item["turn_index"] for item in eligible), default=-1,
+        )
+        if latest_terminal and latest_terminal["turn_index"] > latest_value_turn:
+            fields[slot_name] = {
+                "slot_id": slot_id,
+                "status": "unavailable",
+                "lifecycle_state": latest_terminal["lifecycle_type"],
+                "source_memory_id": latest_terminal["memory_id"],
+                "source_turn_id": latest_terminal["turn_id"],
+                "source_turn_index": latest_terminal["turn_index"],
+                "quote": latest_terminal["quote"],
+                "candidate_count": len(all_candidates),
+            }
+            continue
+        if not eligible:
+            fields[slot_name] = {
+                "slot_id": slot_id,
+                "status": "missing",
+                "candidate_count": len(all_candidates),
+            }
+            continue
+
+        ranked = sorted(
+            eligible,
+            key=lambda item: (
+                item["turn_index"],
+                item["temporal_state"] == requirement,
+                item["confidence"],
+                item["memory_id"],
+            ),
+            reverse=True,
+        )
+        selected = ranked[0]
+        top_rank = (
+            selected["turn_index"], selected["temporal_state"] == requirement,
+        )
+        top_values = list(dict.fromkeys(
+            str(item["value"])
+            for item in ranked
+            if (item["turn_index"], item["temporal_state"] == requirement) == top_rank
+        ))
+        distinct_values = list(dict.fromkeys(str(item["value"]) for item in ranked))
+        status = "conflict" if len(top_values) > 1 else "resolved"
+        fields[slot_name] = {
+            "slot_id": slot_id,
+            "status": status,
+            "value": selected["value"] if status == "resolved" else None,
+            "source_memory_id": selected["memory_id"],
+            "source_turn_id": selected["turn_id"],
+            "source_turn_index": selected["turn_index"],
+            "source_atom_id": selected["atom_id"],
+            "quote": selected["quote"],
+            "temporal_state": selected["temporal_state"],
+            "temporal_requirement": requirement,
+            "lifecycle_state": selected["lifecycle_type"],
+            "sensitivity_type": selected["sensitivity_type"],
+            "authorization_candidate_type": selected["authorization_candidate_type"],
+            "conflict_count": max(0, len(top_values) - 1),
+            "candidate_count": len(ranked),
+            "candidate_values": distinct_values,
+        }
+
+    ledger = {
+        "version": "state-ledger-v2-semantic-atoms",
+        "mode": "verified_semantic_atoms_closed_evidence",
+        "requested_slots": [spec["name"] for spec in specs],
+        "fields": fields,
+        "resolved_count": sum(item.get("status") == "resolved" for item in fields.values()),
+        "missing_count": sum(item.get("status") == "missing" for item in fields.values()),
+        "unavailable_count": sum(item.get("status") == "unavailable" for item in fields.values()),
+        "conflict_count": sum(item.get("status") == "conflict" for item in fields.values()),
+        "enforcement_applied": False,
+        "new_llm_calls": 0,
+    }
+    return ledger, claims_by_memory
+
+
 def _build_state_ledger(
     *,
     question: str,
     evidence: list[RetrievedEvidence],
     required_slot_plan: dict[str, Any] | None = None,
+    query_analysis: dict[str, Any] | None = None,
+    semantic_atoms: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
     """Build a source-bound current-state ledger from retrieved turns only."""
 
-    requested = _requested_state_slots(question, required_slot_plan)
+    if bool((query_analysis or {}).get("semantic_compiler_contract")):
+        return _build_semantic_state_ledger(
+            evidence=evidence,
+            query_analysis=dict(query_analysis or {}),
+            semantic_atoms=[item for item in semantic_atoms or [] if isinstance(item, dict)],
+        )
+
+    requested = _requested_state_slots(
+        question,
+        required_slot_plan,
+        query_analysis=query_analysis,
+    )
     current_query = bool(re.search(
         r"\b(?:as of now|current|currently|latest|now|settled|active)\b",
         str(question or ""),
         re.IGNORECASE,
     ))
     candidates: dict[str, list[dict[str, Any]]] = {slot: [] for slot in requested}
+    open_specs = {
+        str(item.get("name") or "").strip(): str(item.get("value_type") or "unknown").casefold()
+        for item in (query_analysis or {}).get("fields") or []
+        if isinstance(item, dict) and str(item.get("name") or "").strip()
+    }
     claims_by_memory: dict[str, dict[str, Any]] = {}
     for row in evidence:
         record = _record(row) or {}
@@ -254,6 +575,39 @@ def _build_state_ledger(
         for key, value in frame.slots.items():
             if value not in (None, "", []):
                 values.setdefault(str(key), str(value))
+        # Bridge an analyzer-provided open field to an intrinsic typed value
+        # already extracted from this same source row.  The bridge is based on
+        # generic value shape only; it never maps an entity or benchmark term.
+        for field_name, value_type in open_specs.items():
+            intrinsic_keys = {
+                "date": ("target_date", "date"),
+                "time": ("time", "visit_window"),
+                "location": ("access_room", "location"),
+                "money": ("approved_budget", "approved_discount_cap", "monthly_stipend"),
+                "state": ("status", "blocker"),
+                "text": ("safe_wording", "blocker", "status"),
+            }.get(value_type, ())
+            field_words = set(re.findall(r"[a-z0-9]+", field_name.casefold()))
+            # When several intrinsic values share one broad type, use the
+            # question's own field wording to disambiguate them.  These are
+            # generic property words, not episode/entity trigger terms.
+            if value_type == "money":
+                if "discount" in field_words or "cap" in field_words:
+                    intrinsic_keys = ("approved_discount_cap",)
+                elif "budget" in field_words:
+                    intrinsic_keys = ("approved_budget",)
+                elif "stipend" in field_words or "support" in field_words or "amount" in field_words:
+                    intrinsic_keys = ("monthly_stipend",)
+            for intrinsic_key in intrinsic_keys:
+                if values.get(intrinsic_key):
+                    values.setdefault(field_name, values[intrinsic_key])
+                    break
+            if not values.get(field_name):
+                typed_candidates = _open_schema_value_candidates(
+                    field_name=field_name, value_type=value_type, text=text,
+                )
+                if typed_candidates:
+                    values[field_name] = typed_candidates[-1][0]
         turn_index = record.get("turn_index")
         if not isinstance(turn_index, int):
             turn_index = -1
@@ -421,6 +775,41 @@ def _lifecycle_claim(text: str) -> dict[str, Any] | None:
     return None
 
 
+def _semantic_lifecycle_claim(atoms: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Project a verified compiler lifecycle candidate into symbolic enums."""
+
+    status_by_type = {
+        "assert": "asserted",
+        "update": "updated",
+        "supersede": "superseded",
+        "cancel": "cancelled",
+        "delete": "deleted",
+    }
+    candidates: list[tuple[float, str, dict[str, Any]]] = []
+    for atom in atoms:
+        lifecycle_type = str(
+            dict(atom.get("lifecycle_semantics") or {}).get("type") or "none"
+        ).casefold()
+        status = status_by_type.get(lifecycle_type)
+        if not status:
+            continue
+        candidates.append((float(atom.get("confidence") or 0.0), status, atom))
+    if not candidates:
+        return None
+    _, status, atom = max(candidates, key=lambda item: (item[0], item[1]))
+    source = dict(atom.get("source") or {})
+    return {
+        "status": status,
+        "explicit": True,
+        "cue": str(source.get("span") or ""),
+        "inference": "verified_semantic_compiler",
+        "atom_id": str(atom.get("atom_id") or ""),
+        "slot_id": str(atom.get("slot_id") or ""),
+        "slot_name": str(atom.get("slot_name") or ""),
+        "target_entity": atom.get("target_entity"),
+    }
+
+
 def _validity_certificate(lifecycle_claim: dict[str, Any] | None) -> dict[str, Any]:
     """Project explicit lifecycle language into an auditable shadow state."""
     if lifecycle_claim is None:
@@ -432,7 +821,7 @@ def _validity_certificate(lifecycle_claim: dict[str, Any] | None) -> dict[str, A
             "reason": "no_explicit_lifecycle_assertion",
         }
     status = str(lifecycle_claim.get("status") or "unknown")
-    if status in {"deleted", "revoked", "superseded"}:
+    if status in {"cancelled", "deleted", "revoked", "superseded"}:
         return {
             "mode": "shadow",
             "state": "explicit_inactive",
@@ -950,8 +1339,93 @@ def _authorization_contract_present(
     return any(any(key in container for key in keys) for container in containers)
 
 
+def _semantic_atom_authorization_events(
+    *,
+    evidence: list[RetrievedEvidence],
+    semantic_atoms: list[dict[str, Any]] | None,
+    roster: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Normalize only source-grounded LLM policy candidates into graph events.
+
+    This is intentionally structural: the neural compiler proposes an explicit
+    policy relation, while exact source/span checks and roster resolution decide
+    whether the proposal is admissible to symbolic authorization reasoning.
+    """
+    by_id = {row.memory_id: row for row in evidence}
+    accepted: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
+    for atom in semantic_atoms or []:
+        if not isinstance(atom, dict):
+            continue
+        semantics = dict(atom.get("authorization_semantics") or {})
+        effect = str(semantics.get("type") or semantics.get("effect") or "").casefold()
+        if effect not in {"allow", "deny", "revoke"}:
+            continue
+        source = dict(atom.get("source") or {})
+        memory_id = str(source.get("chunk_id") or source.get("memory_id") or "")
+        row = by_id.get(memory_id)
+        span = str(source.get("span") or "").strip()
+        record = _record(row) if row is not None else None
+        text = str((record or {}).get("text") or (row.content if row else "") or "")
+        normalized_span = " ".join(span.split()).casefold()
+        normalized_text = " ".join(text.split()).casefold()
+        subject = str(
+            semantics.get("subject") or semantics.get("principal")
+            or semantics.get("subject_principal_id") or ""
+        ).strip()
+        principal = _resolve_roster_principal(subject, roster)
+        resource = _clean_auth_phrase(
+            semantics.get("resource") or semantics.get("target")
+        )
+        if row is None or not normalized_span or normalized_span not in normalized_text:
+            rejected.append({"atom_id": atom.get("atom_id"), "reason": "source_not_grounded"})
+            continue
+        if not principal:
+            rejected.append({"atom_id": atom.get("atom_id"), "reason": "subject_not_in_roster"})
+            continue
+        if not resource or not _auth_tokens(resource):
+            rejected.append({"atom_id": atom.get("atom_id"), "reason": "missing_resource"})
+            continue
+        principal_record = next(
+            (item for item in roster if str(item.get("principal_id") or "") == principal),
+            {},
+        )
+        subject_grounded = any(
+            grounded_text_contains(span, alias)
+            for alias in (
+                subject,
+                principal_record.get("principal_id"),
+                principal_record.get("display_name"),
+            )
+            if str(alias or "").strip()
+        )
+        if not subject_grounded:
+            rejected.append({"atom_id": atom.get("atom_id"), "reason": "subject_not_in_source_span"})
+            continue
+        if not grounded_text_contains(span, resource):
+            rejected.append({"atom_id": atom.get("atom_id"), "reason": "resource_not_in_source_span"})
+            continue
+        accepted.append({
+            "effect": effect,
+            "principal": principal,
+            "role": None,
+            "subject": subject,
+            "resource": resource,
+            "event_kind": "semantic_compiler_policy_candidate",
+            "source_memory_id": row.memory_id,
+            "source_turn_id": str((record or {}).get("turn_id") or (record or {}).get("message_id") or ""),
+            "turn_index": (record or {}).get("turn_index"),
+            "timestamp": (record or {}).get("timestamp"),
+            "source": "grounded_semantic_compiler",
+            "atom_id": str(atom.get("atom_id") or ""),
+        })
+    return accepted, rejected
+
+
 def _build_temporal_authorization_graph(
     *, instance: MemoryInstance, evidence: list[RetrievedEvidence],
+    semantic_atoms: list[dict[str, Any]] | None = None,
+    query_analysis: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
     """Build a provenance-grounded authorization state graph in shadow mode."""
     roster = _authorization_roster(instance)
@@ -962,17 +1436,23 @@ def _build_temporal_authorization_graph(
     for row in evidence:
         record = _record(row) or {}
         metadata = dict(row.metadata or {})
-        structured = _structured_authorization_events(
-            record=record, metadata=metadata, row=row, roster=roster,
-        )
-        parsed = (
-            structured
-            if _authorization_contract_present(record=record, metadata=metadata)
-            else _text_authorization_events(
-                text=str(record.get("text") or row.content or ""),
+        if bool((query_analysis or {}).get("semantic_compiler_contract")):
+            # The paper-facing compiler path obtains open-vocabulary policy
+            # candidates from the LLM and verifies them below. Do not also run
+            # the legacy lexical authorization extractor over the same text.
+            parsed = []
+        else:
+            structured = _structured_authorization_events(
                 record=record, metadata=metadata, row=row, roster=roster,
             )
-        )
+            parsed = (
+                structured
+                if _authorization_contract_present(record=record, metadata=metadata)
+                else _text_authorization_events(
+                    text=str(record.get("text") or row.content or ""),
+                    record=record, metadata=metadata, row=row, roster=roster,
+                )
+            )
         for event in parsed:
             event["temporal_key"] = _authorization_temporal_key(event)
             if event["temporal_key"] is None:
@@ -983,6 +1463,21 @@ def _build_temporal_authorization_graph(
                 "event_count": len(parsed),
                 "events": parsed,
             }
+
+    semantic_events, rejected_semantic_events = _semantic_atom_authorization_events(
+        evidence=evidence,
+        semantic_atoms=semantic_atoms,
+        roster=roster,
+    )
+    for event in semantic_events:
+        event["temporal_key"] = _authorization_temporal_key(event)
+        if event["temporal_key"] is None:
+            unknown_events.append({**event, "reason": "missing_temporal_source"})
+            continue
+        events.append(event)
+        payload = events_by_memory.setdefault(event["source_memory_id"], {"event_count": 0, "events": []})
+        payload["events"].append(event)
+        payload["event_count"] = len(payload["events"])
 
     as_of_turn_id = str((instance.metadata.get("observable") or {}).get("as_of_turn_id") or "")
     as_of_index = None
@@ -1079,6 +1574,9 @@ def _build_temporal_authorization_graph(
         })
 
     query_tokens = _auth_tokens(instance.question)
+    for field in list((query_analysis or {}).get("fields") or []):
+        if isinstance(field, dict):
+            query_tokens.update(_auth_tokens(str(field.get("name") or "")))
     query_states = [
         item for item in current_states
         if (_resolve_roster_principal(instance.question, roster) or str(instance.asking_user_id or "")) == item["principal"]
@@ -1097,6 +1595,8 @@ def _build_temporal_authorization_graph(
         "current_authorization": current_states,
         "event_count": len(applied),
         "unknown_event_count": len(unknown_events),
+        "semantic_candidate_event_count": len(semantic_events),
+        "rejected_semantic_candidate_events": rejected_semantic_events,
         "ignored_future_event_count": future_count,
         "conflict_count": conflict_count,
         "supporting_evidence_ids": sorted({str(item["source_memory_id"]) for item in query_states}),
@@ -1127,6 +1627,7 @@ def apply_authorization_evidence_boundary(
     *,
     evidence: list[RetrievedEvidence],
     certificate: dict[str, Any],
+    semantic_atoms: list[dict[str, Any]] | None = None,
 ) -> tuple[list[RetrievedEvidence], dict[str, Any]]:
     """Apply a narrow, provenance-grounded answer-evidence boundary.
 
@@ -1167,18 +1668,73 @@ def apply_authorization_evidence_boundary(
             or bool(item.get("conflict"))
         )
     ]
+    # A deny applies to a governed claim, not automatically to every other
+    # claim that happened to be retrieved from the same turn.  The semantic
+    # compiler gives us source-grounded, query-conditioned claim spans.  We
+    # can therefore redact only those spans without introducing a field-name
+    # lexicon.  If no admissible span exists, retain the previous fail-closed
+    # whole-memory exclusion.
+    atoms_by_memory: dict[str, list[dict[str, Any]]] = {}
+    for atom in semantic_atoms or []:
+        if not isinstance(atom, dict):
+            continue
+        source = dict(atom.get("source") or {})
+        memory_id = str(source.get("chunk_id") or source.get("memory_id") or "")
+        span = str(source.get("span") or "").strip()
+        slot_name = str(atom.get("slot_name") or "").strip()
+        if memory_id and span and slot_name:
+            atoms_by_memory.setdefault(memory_id, []).append(atom)
+
     if not governed_states:
         return list(evidence), {
-            "enabled": True,
-            "enforcement_applied": False,
+            "enabled": True, "enforcement_applied": False,
             "decision": str(certificate.get("decision") or "unknown"),
-            "governed_state_count": 0,
-            "filtered_memory_ids": [],
-            "reasons": [],
+            "governed_state_count": 0, "filtered_memory_ids": [], "reasons": [],
         }
 
-    filtered: list[RetrievedEvidence] = []
+    def protected_atoms_for(
+        row: RetrievedEvidence, states_for_row: list[dict[str, Any]], text: str,
+    ) -> list[dict[str, Any]]:
+        normalized_text = " ".join(text.split()).casefold()
+        protected: list[dict[str, Any]] = []
+        for atom in atoms_by_memory.get(row.memory_id, []):
+            source = dict(atom.get("source") or {})
+            span = str(source.get("span") or "").strip()
+            if not span or " ".join(span.split()).casefold() not in normalized_text:
+                continue
+            slot_name = str(atom.get("slot_name") or "").strip()
+            if any(
+                str(state.get("semantic_slot_id") or "") == str(atom.get("slot_id") or "")
+                or _authorization_resource_match(
+                    resource=str(state.get("resource") or ""), text=slot_name,
+                )
+                for state in states_for_row
+            ):
+                protected.append(atom)
+        return protected
+
+    def redact_spans(text: str, atoms: list[dict[str, Any]]) -> tuple[str, list[str]]:
+        projected = text
+        redacted_atom_ids: list[str] = []
+        # Longest first avoids leaving part of one grounded span visible when
+        # two candidate atoms overlap.
+        for atom in sorted(atoms, key=lambda item: len(str(dict(item.get("source") or {}).get("span") or "")), reverse=True):
+            span = str(dict(atom.get("source") or {}).get("span") or "").strip()
+            if not span:
+                continue
+            # This is source-span replacement, not semantic text matching.
+            pattern = re.escape(span).replace(r"\ ", r"\s+")
+            projected, replacements = re.subn(
+                pattern, "[REDACTED GOVERNED CLAIM]", projected,
+                flags=re.IGNORECASE,
+            )
+            if replacements:
+                redacted_atom_ids.append(str(atom.get("atom_id") or ""))
+        return projected, redacted_atom_ids
+
+    released: list[RetrievedEvidence] = []
     filtered_memory_ids: list[str] = []
+    projected_memory_ids: list[str] = []
     reasons: list[dict[str, Any]] = []
     for row in evidence:
         record = _record(row) or {}
@@ -1195,11 +1751,57 @@ def apply_authorization_evidence_boundary(
             ):
                 matched_states.append(state)
         if not matched_states:
-            filtered.append(row)
+            released.append(row)
             continue
+        protected_atoms = protected_atoms_for(row, matched_states, visible_text)
+        if protected_atoms:
+            projected_text, redacted_atom_ids = redact_spans(visible_text, protected_atoms)
+            # A projection consisting solely of placeholders is not useful
+            # evidence. Excluding it prevents the answer model from treating a
+            # redaction marker as support for a protected value.
+            residual = projected_text.replace("[REDACTED GOVERNED CLAIM]", "").strip()
+            if residual:
+                metadata = dict(row.metadata or {})
+                projected_record = dict(record)
+                if projected_record:
+                    projected_record["text"] = projected_text
+                    if isinstance(projected_record.get("source_turn"), dict):
+                        projected_record["source_turn"] = {
+                            **projected_record["source_turn"], "text": projected_text,
+                        }
+                    projected_record["authorization_assertions"] = []
+                    metadata["structured_record"] = projected_record
+                # These are derived text carriers, not independent sources.
+                # Rebuild them from the released text instead of leaking the
+                # removed span through a duplicate annotation.
+                for key in (
+                    "symbolic_state_claims", "symbolic_state_ledger",
+                    "symbolic_lifecycle_claim", "symbolic_permission_claim",
+                    "graph_context", "symbolic_policy_facts",
+                ):
+                    metadata.pop(key, None)
+                metadata["semantic_compiler_atoms"] = [
+                    atom for atom in metadata.get("semantic_compiler_atoms", [])
+                    if grounded_text_contains(projected_text, dict(atom.get("source") or {}).get("span"))
+                ]
+                metadata["authorization_claim_projection"] = {
+                    "mode": "source_grounded_span_redaction",
+                    "redacted_atom_ids": redacted_atom_ids,
+                    "resources": sorted({str(item.get("resource") or "") for item in matched_states}),
+                }
+                released.append(replace(row, content=projected_text, metadata=metadata))
+                projected_memory_ids.append(row.memory_id)
+                reasons.append({
+                    "memory_id": row.memory_id,
+                    "mode": "source_grounded_span_redaction",
+                    "redacted_atom_ids": redacted_atom_ids,
+                    "resources": sorted({str(item.get("resource") or "") for item in matched_states}),
+                })
+                continue
         filtered_memory_ids.append(row.memory_id)
         reasons.append({
             "memory_id": row.memory_id,
+            "mode": "whole_memory_exclusion_no_safe_projection",
             "decisions": sorted({str(item.get("decision") or "unknown") for item in matched_states}),
             "resources": sorted({str(item.get("resource") or "") for item in matched_states}),
             "supporting_evidence": sorted({
@@ -1209,12 +1811,13 @@ def apply_authorization_evidence_boundary(
             }),
         })
 
-    return filtered, {
+    return released, {
         "enabled": True,
-        "enforcement_applied": bool(filtered_memory_ids),
+        "enforcement_applied": bool(filtered_memory_ids or projected_memory_ids),
         "decision": str(certificate.get("decision") or "unknown"),
         "governed_state_count": len(governed_states),
         "filtered_memory_ids": filtered_memory_ids,
+        "projected_memory_ids": projected_memory_ids,
         "reasons": reasons,
     }
 
@@ -1407,6 +2010,8 @@ def build_symbolic_evidence(
     policy_consistency_enabled: bool = False,
     temporal_authorization_enabled: bool = False,
     temporal_authorization_enforcement: bool = False,
+    query_analysis: dict[str, Any] | None = None,
+    semantic_atoms: list[dict[str, Any]] | None = None,
 ) -> tuple[list[RetrievedEvidence], dict[str, Any]]:
     """Annotate role and typed relation consistency without changing ranking."""
     roster = _roster(instance)
@@ -1422,6 +2027,34 @@ def build_symbolic_evidence(
     validity_state_counts: dict[str, int] = {}
     lifecycle_binding_status_counts: dict[str, int] = {}
     lifecycle_bindings: list[dict[str, Any]] = []
+    if bool((query_analysis or {}).get("semantic_compiler_contract")):
+        specs = {
+            str(item.get("slot_id") or f"qslot_{index}"): item
+            for index, item in enumerate((query_analysis or {}).get("fields") or [])
+            if isinstance(item, dict)
+        }
+        names = {slot_id: str(spec.get("name") or "") for slot_id, spec in specs.items()}
+        checked_atoms = []
+        for index, item in enumerate(semantic_atoms or []):
+            atom = _atom(item, index, set(specs), names)
+            if atom is None:
+                continue
+            target = specs[atom.slot_id].get("target_entity")
+            check = verify_grounded_atom(
+                atom, evidence, set(specs),
+                [{"canonical_reference": target}] if target else [],
+            )
+            if check.accepted_for_symbolic_reasoning:
+                checked_atoms.append(atom.to_dict())
+        semantic_atoms = checked_atoms
+    atoms_by_memory: dict[str, list[dict[str, Any]]] = {}
+    for atom in semantic_atoms or []:
+        if not isinstance(atom, dict):
+            continue
+        source = dict(atom.get("source") or {})
+        source_id = str(source.get("chunk_id") or source.get("memory_id") or "")
+        if source_id:
+            atoms_by_memory.setdefault(source_id, []).append(atom)
 
     for row in evidence:
         record = _record(row)
@@ -1433,6 +2066,8 @@ def build_symbolic_evidence(
     for row in evidence:
         record = _record(row)
         metadata = dict(row.metadata or {})
+        if row.memory_id in atoms_by_memory:
+            metadata["semantic_compiler_atoms"] = atoms_by_memory[row.memory_id]
         if record is None:
             violations.append({"memory_id": row.memory_id, "kind": "missing_structured_record"})
             metadata["symbolic_provenance"] = {
@@ -1497,7 +2132,14 @@ def build_symbolic_evidence(
                     "inference": "conservative_token_match",
                 })
 
-            lifecycle_claim = _lifecycle_claim(str(record.get("text") or ""))
+            semantic_compiler_path = bool(
+                (query_analysis or {}).get("semantic_compiler_contract")
+            )
+            lifecycle_claim = (
+                _semantic_lifecycle_claim(atoms_by_memory.get(row.memory_id, []))
+                if semantic_compiler_path
+                else _lifecycle_claim(str(record.get("text") or ""))
+            )
             validity_certificate = _validity_certificate(lifecycle_claim)
             validity_state = str(validity_certificate["state"])
             validity_state_counts[validity_state] = validity_state_counts.get(validity_state, 0) + 1
@@ -1508,11 +2150,21 @@ def build_symbolic_evidence(
             if lifecycle_claim:
                 lifecycle_status = str(lifecycle_claim["status"])
                 lifecycle_status_counts[lifecycle_status] = lifecycle_status_counts.get(lifecycle_status, 0) + 1
-                lifecycle_binding = _bind_lifecycle_target(
-                    lifecycle_row=row,
-                    lifecycle_claim=lifecycle_claim,
-                    evidence=evidence,
-                )
+                if semantic_compiler_path:
+                    lifecycle_binding = {
+                        "status": "candidate_bound",
+                        "reason": "grounded_candidate_references_query_slot_not_whole_memory",
+                        "atom_id": lifecycle_claim.get("atom_id"),
+                        "slot_id": lifecycle_claim.get("slot_id"),
+                        "slot_name": lifecycle_claim.get("slot_name"),
+                        "target_entity": lifecycle_claim.get("target_entity"),
+                    }
+                else:
+                    lifecycle_binding = _bind_lifecycle_target(
+                        lifecycle_row=row,
+                        lifecycle_claim=lifecycle_claim,
+                        evidence=evidence,
+                    )
                 binding_status = str(lifecycle_binding.get("status") or "unknown")
                 lifecycle_binding_status_counts[binding_status] = (
                     lifecycle_binding_status_counts.get(binding_status, 0) + 1
@@ -1531,17 +2183,37 @@ def build_symbolic_evidence(
                     "status": lifecycle_status,
                     "inference": "explicit_text_only",
                 })
-                if binding_status == "bound":
-                    target_memory_id = str(lifecycle_binding["target_memory_id"])
-                    graph_edges.append({
-                        "edge_type": str(lifecycle_binding["edge_type"]),
-                        "source": lifecycle_node_id,
-                        "target": f"evidence::{target_memory_id}",
-                        "target_memory_id": target_memory_id,
-                        "target_turn_id": str(lifecycle_binding["target_turn_id"]),
-                        "inference": str(lifecycle_binding["inference"]),
-                        "overlap": list(lifecycle_binding["overlap"]),
-                    })
+                if binding_status in {"bound", "candidate_bound"}:
+                    if semantic_compiler_path:
+                        slot_node_id = f"query_slot::{lifecycle_binding['slot_id']}"
+                        if not any(
+                            node.get("node_id") == slot_node_id for node in graph_nodes
+                        ):
+                            graph_nodes.append({
+                                "node_id": slot_node_id,
+                                "node_type": "query_slot",
+                                "slot_id": lifecycle_binding["slot_id"],
+                                "slot_name": lifecycle_binding["slot_name"],
+                                "target_entity": lifecycle_binding.get("target_entity"),
+                            })
+                        graph_edges.append({
+                            "edge_type": "applies_lifecycle_to_slot",
+                            "source": lifecycle_node_id,
+                            "target": slot_node_id,
+                            "atom_id": lifecycle_binding["atom_id"],
+                            "inference": "verified_semantic_compiler",
+                        })
+                    else:
+                        target_memory_id = str(lifecycle_binding["target_memory_id"])
+                        graph_edges.append({
+                            "edge_type": str(lifecycle_binding["edge_type"]),
+                            "source": lifecycle_node_id,
+                            "target": f"evidence::{target_memory_id}",
+                            "target_memory_id": target_memory_id,
+                            "target_turn_id": str(lifecycle_binding["target_turn_id"]),
+                            "inference": str(lifecycle_binding["inference"]),
+                            "overlap": list(lifecycle_binding["overlap"]),
+                        })
                     lifecycle_bindings.append({
                         "source_memory_id": row.memory_id,
                         **lifecycle_binding,
@@ -1595,22 +2267,6 @@ def build_symbolic_evidence(
         replace(row, metadata={**dict(row.metadata or {}), "symbolic_consistency": consistency})
         for row in annotated
     ]
-    state_ledger, claims_by_memory = _build_state_ledger(
-        question=instance.question,
-        evidence=annotated,
-        required_slot_plan=required_slot_plan,
-    )
-    ledger_attached = False
-    ledger_annotated: list[RetrievedEvidence] = []
-    for row in annotated:
-        metadata = dict(row.metadata or {})
-        if row.memory_id in claims_by_memory:
-            metadata["symbolic_state_claims"] = claims_by_memory[row.memory_id]
-        if not ledger_attached:
-            metadata["symbolic_state_ledger"] = state_ledger
-            ledger_attached = True
-        ledger_annotated.append(replace(row, metadata=metadata))
-    annotated = ledger_annotated
     policy_certificate: dict[str, Any] | None = None
     policy_facts_by_memory: dict[str, list[dict[str, Any]]] = {}
     if policy_consistency_enabled:
@@ -1636,6 +2292,8 @@ def build_symbolic_evidence(
         temporal_authorization_certificate, temporal_events_by_memory = _build_temporal_authorization_graph(
             instance=instance,
             evidence=annotated,
+            semantic_atoms=semantic_atoms,
+            query_analysis=query_analysis,
         )
         temporal_annotated: list[RetrievedEvidence] = []
         certificate_attached = False
@@ -1661,6 +2319,7 @@ def build_symbolic_evidence(
         annotated, authorization_boundary = apply_authorization_evidence_boundary(
             evidence=annotated,
             certificate=temporal_authorization_certificate,
+            semantic_atoms=semantic_atoms,
         )
         temporal_authorization_certificate = {
             **temporal_authorization_certificate,
@@ -1671,6 +2330,27 @@ def build_symbolic_evidence(
             first_metadata = dict(first.metadata or {})
             first_metadata["symbolic_temporal_authorization_certificate"] = temporal_authorization_certificate
             annotated[0] = replace(first, metadata=first_metadata)
+    # Resolve values only after the authorization boundary. A denied atom or
+    # redacted claim span must not survive indirectly inside the ledger that is
+    # shown to the answer model.
+    state_ledger, claims_by_memory = _build_state_ledger(
+        question=instance.question,
+        evidence=annotated,
+        required_slot_plan=required_slot_plan,
+        query_analysis=query_analysis,
+        semantic_atoms=semantic_atoms,
+    )
+    ledger_annotated: list[RetrievedEvidence] = []
+    for index, row in enumerate(annotated):
+        metadata = dict(row.metadata or {})
+        metadata.pop("symbolic_state_claims", None)
+        metadata.pop("symbolic_state_ledger", None)
+        if row.memory_id in claims_by_memory:
+            metadata["symbolic_state_claims"] = claims_by_memory[row.memory_id]
+        if index == 0:
+            metadata["symbolic_state_ledger"] = state_ledger
+        ledger_annotated.append(replace(row, metadata=metadata))
+    annotated = ledger_annotated
     trace = {
         "version": (
             "Gov-Mem-v4-Symbolic-dev7"
@@ -1681,6 +2361,7 @@ def build_symbolic_evidence(
         ),
         "symbolic_step": "typed_principal_entity_relation_graph_v1",
         "candidate_count": len(evidence),
+        "semantic_compiler_atom_count": sum(len(items) for items in atoms_by_memory.values()),
         "structured_record_count": sum(_record(row) is not None for row in evidence),
         "graph_type": "evidence_principal_typed_relation_lifecycle",
         "graph_nodes": graph_nodes,

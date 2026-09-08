@@ -52,6 +52,8 @@ rag:
   naive_top_k: 20
 
 stage2:
+  query_analysis:
+    enabled: true
   llm_reasoning_rerank:
     enabled: true
     max_candidates: 20

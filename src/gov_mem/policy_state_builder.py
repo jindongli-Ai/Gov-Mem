@@ -327,7 +327,7 @@ def _resolve_operation_targets(
     lifecycle_text = operation.provenance.evidence_text.lower()
     protects_broad_projection = bool(
         operation.kind in {OperationKind.DELETE, OperationKind.FORGET}
-        and re.search(r"\b(?:exact|private|confidential|customer mapping|account name|credential|token)\b", lifecycle_text)
+        and re.search(r"\b(?:exact|private|confidential|credential|token)\b", lifecycle_text)
     )
     if protects_broad_projection:
         candidates = [

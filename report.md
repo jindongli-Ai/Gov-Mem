@@ -602,3 +602,121 @@ VERSION_LOG.md
 The version history in `VERSION_LOG.md` records how dev0 through dev7 were
 promoted. The README contains the repository snapshot, benchmark tables, and
 the distinction between diagnostic results and paper-compatible results.
+
+## 16. Lexicon removal: motivation, observed loss, and unresolved design problem
+
+This section records the current research difficulty rather than presenting a
+finished solution. It is intended for external review and discussion.
+
+### 16.1 Why the lexicons were removed
+
+The original v4 Symbolic implementation contained several large deterministic
+word/phrase tables in the Stage-2 and governance path. Some entries were
+ordinary semantic categories, but other entries were suspiciously close to
+GateMem-specific entities, values, event descriptions, or answer-bearing
+phrases. A reviewer inspecting the open-source code could reasonably ask
+whether these entries had been obtained by inspecting the benchmark and then
+used as hidden supervision.
+
+The concern is not that the words are individually secret. The concern is the
+pipeline-level effect: a table containing benchmark-specific phrases can turn
+an input string into a topic, sensitive-field label, lifecycle state, or
+authorization trigger before the LLM reasons about the evidence. That can look
+like advance extraction from GateMem and can inflate benchmark performance.
+
+For that reason, the 61-term ontology path and the clearly benchmark-specific
+trigger tables were disabled or commented out. The intended paper-facing
+system should use only source-grounded evidence, a general schema, and
+general-purpose language reasoning. It must not contain a list of GateMem
+entities, expected answer values, or domain-specific trigger phrases.
+
+### 16.2 What the removed tables were actually doing
+
+The tables were not merely documentation. They provided operational signals:
+
+1. They mapped query/evidence text to broad topics such as scheduling,
+   communication, medical, finance, location, or access control.
+2. They supplied candidate attributes such as time, contact information,
+   identity, role, amount, or current status.
+3. They acted as sensitivity and privacy hints for fields that should receive
+   narrower disclosure treatment.
+4. They helped identify lifecycle and authorization language such as current,
+   historical, deleted, revoked, allowed, or denied.
+5. They served as a deterministic fallback when the LLM returned an incomplete,
+   ambiguous, or malformed extraction.
+
+Thus the tables functioned as a lightweight semantic feature extractor. The
+later graph, certification, arbitration, and answer-boundary stages consumed
+these features; they did not independently recover all missing fields from
+raw text. Removing the tables therefore removed an implicit extraction and
+recall mechanism, not just a cosmetic prompt aid.
+
+### 16.3 Observed MGS changes
+
+MGS is the only final metric used for this comparison. U/A/F/OR are diagnostic
+decompositions only. The following measurements were produced during cleanup:
+
+| Configuration | Medical | Office | Education | Household | Four-domain mean MGS |
+|---|---:|---:|---:|---:|---:|
+| 61-term ontology run | not retained | not retained | not retained | not retained | **22.59%** |
+| Early lexicon-free smoke (8 episodes/domain; residual triggers remained) | n/a | n/a | n/a | n/a | **27.67%** |
+| Strong evidence-redaction variant | 29.11% | 13.23% | 15.28% | 11.28% | **17.22%** |
+| Mixed rollback state | n/a | n/a | n/a | n/a | **16.17%** |
+| Clean-audit smoke | 30.70% | 17.36% | 9.72% | 11.72% | **17.38%** |
+| Generic safety fallback restored | 26.51% | 14.14% | 18.75% | 5.27% | **16.17%** |
+
+These are smoke/diagnostic runs with different intermediate code states, not a
+single controlled ablation. They establish the practical problem (MGS can
+fall sharply after removal), but not the causal contribution of any one table.
+The 2218-checkpoint full benchmark should wait until the extraction issue and
+comparison protocol are frozen.
+
+### 16.4 Why performance drops after removal
+
+The current hypothesis is a cascading recall failure:
+
+```text
+LLM misses or underspecifies a field
+        -> no topic/attribute/sensitivity/lifecycle signal
+        -> governed-slot graph is incomplete
+        -> certification has no slot to validate
+        -> arbitration falls back to unknown or conservative refusal
+        -> answer omits usable evidence or becomes over-restricted
+        -> MGS decreases
+```
+
+The old tables were compensating for weaknesses in the LLM extraction
+contract. Once removed, multi-part requests can collapse into one generic
+attribute, temporal qualifiers can disappear, privacy/permission cues can be
+omitted, and source fields can fail to link to the correct slot. When
+extraction is uncertain, the symbolic layer correctly avoids promoting unknown
+state to allow; that protects privacy but can reduce useful answer coverage and
+therefore MGS.
+
+### 16.5 How the classifier idea arose
+
+The classifier idea arose as a diagnosis of this gap. The removed lexicons
+provided stable intermediate features, while a free-form LLM call did not
+reliably produce them. A learned component was therefore considered as a
+possible replacement that could learn general semantic patterns rather than
+shipping benchmark-specific strings.
+
+This is an open design question, not an adopted method. A classifier trained
+only on GateMem train episodes may memorize benchmark wording, and GateMem does
+not currently provide complete token-level labels for all entity, value,
+permission, privacy, temporal, role, and lifecycle fields. Replacing explicit
+leakage with an implicit memorizer would not solve the reviewer concern.
+
+The unresolved questions for external advice are:
+
+- Can extraction recall be recovered with a benchmark-independent method?
+- Should a learned component use external/general data, synthetic generic
+  examples, or not be used at all?
+- Can a stricter LLM schema, validation, and consistency-repair loop recover
+  MGS without a classifier?
+- What evaluation would demonstrate general semantics rather than GateMem
+  trigger memorization?
+
+Until these questions are answered, no classifier architecture or training
+recipe is final, and no full-benchmark MGS claim should be based on the cleanup
+smoke runs.

@@ -126,12 +126,23 @@ def stage_tracked_tree(project_root: Path, target_root: Path) -> Path:
     """Stage a Git repository from its index without traversing its checkout."""
     project_root = Path(project_root).resolve()
     target_root = require_local_path(target_root, label="tracked_runtime_root")
-    listing = subprocess.run(
+    listing_result = subprocess.run(
         ["git", "-C", str(project_root), "ls-files", "-z"],
-        check=True,
+        check=False,
         capture_output=True,
-    ).stdout.decode("utf-8")
-    for item in listing.split("\0"):
+    )
+    if listing_result.returncode == 0 and listing_result.stdout:
+        items = [item for item in listing_result.stdout.decode("utf-8").split("\0") if item]
+    else:
+        # Official GateMem may be supplied as a source archive without Git
+        # metadata. It is already staged on local storage, so enumerate only
+        # that evaluator tree as the fallback.
+        items = [
+            str(path.relative_to(project_root))
+            for path in project_root.rglob("*")
+            if path.is_file() and ".git" not in path.parts
+        ]
+    for item in items:
         if not item or item.endswith(".pyc") or "__pycache__" in item:
             continue
         source = project_root / item

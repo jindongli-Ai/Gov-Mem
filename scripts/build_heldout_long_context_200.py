@@ -49,7 +49,13 @@ def main() -> None:
     excluded: set[str] = set()
     excluded_manifests = [*EXCLUDED_MANIFESTS, *args.exclude_manifest]
     for manifest_path in excluded_manifests:
-        payload = json.loads((ROOT / manifest_path).read_text(encoding="utf-8"))
+        manifest_file = ROOT / manifest_path
+        # Historical benchmark manifests may not be present in a clean clone.
+        # Keep selection reproducible while avoiding a hard failure on stale
+        # paths; the emitted manifest records the paths that were requested.
+        if not manifest_file.exists():
+            continue
+        payload = json.loads(manifest_file.read_text(encoding="utf-8"))
         excluded.update(str(row["checkpoint_id"]) for row in payload.get("entries", []))
 
     entries: list[dict[str, str]] = []

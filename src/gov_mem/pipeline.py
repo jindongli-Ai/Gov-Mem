@@ -509,7 +509,11 @@ class GovMemRunner:
             from gov_mem.backbones.stateful_policy import StatefulPolicyBackbone
 
             self._backbone = StatefulPolicyBackbone(**kwargs)
-        elif self.experiment_mode in {"rag_naive", "rag_naive_v3_typed_rerank", "govmem_v4_symbolic"}:
+        elif self.experiment_mode in {"rag_naive", "rag_naive_v3_typed_rerank"}:
+            from gov_mem.backbones.rag_naive_v3_no_symbolic import RAGNaiveBackbone
+
+            self._backbone = RAGNaiveBackbone(**kwargs)
+        elif self.experiment_mode == "govmem_v4_symbolic":
             from gov_mem.backbones.rag_naive import RAGNaiveBackbone
 
             self._backbone = RAGNaiveBackbone(**kwargs)
@@ -640,6 +644,21 @@ class GovMemRunner:
                 instance=runtime_instance,
                 plan=plan,
                 evidence=evidence,
+                # Reuse the governed-slot graph outputs produced by symbolic
+                # reasoning; action arbitration must not fall back to lexical
+                # question triggers when these certificates are available.
+                required_slot_plan=getattr(reasoning_state, "required_slot_plan", None),
+                slot_coverage=getattr(reasoning_state, "slot_coverage", None),
+                current_state_ledger=getattr(reasoning_state, "current_state_ledger", None),
+                selected_frames=getattr(reasoning_state, "selected_frames", None),
+                graph_authorization_certificate=next(
+                    (
+                        (row.metadata or {}).get("symbolic_policy_certificate")
+                        for row in evidence
+                        if isinstance((row.metadata or {}).get("symbolic_policy_certificate"), dict)
+                    ),
+                    None,
+                ),
             )
 
         answer_agent = AnsweringAgent(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import asdict
 from hashlib import md5
+from typing import Any
 
 from gov_mem.data.schema import EvidenceFrame, RetrievedEvidence
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
@@ -149,7 +150,9 @@ HOLD_STATUS_RE = re.compile(
     r"no enrollment hold)\b",
     re.IGNORECASE,
 )
-TEST_OR_IMAGING_RE = re.compile(r"\b(?:ultrasound|imaging|scan|x-ray|mri|beta-hcg|lab draw|blood draw)\b", re.IGNORECASE)
+# Generic evidence category only; procedure names are supplied by the LLM
+# frame normalizer and source-bound slots, not a benchmark phrase table.
+TEST_OR_IMAGING_RE = re.compile(r"\b(?:imaging|scan|x-ray|mri|laboratory|lab|test)\b", re.IGNORECASE)
 MED_DOSAGE_RE = re.compile(
     r"\b\d+(?:\.\d+)?\s*(?:mg|mcg|micrograms?|grams?|tablets?|capsules?)"
     r"(?:\s*(?:q\d+h|bid|tid|daily|nightly|once daily|twice daily|every\s+\w+\s+hours?|as needed|prn|with food|at bedtime))?\b",
@@ -170,6 +173,28 @@ def compile_evidence_frame(row: RetrievedEvidence) -> EvidenceFrame:
     content = row.content or ""
     frame_type = _infer_frame_type(content, row)
     slots = _extract_slots(content, frame_type)
+    compiler_attributes: dict[str, Any] = {}
+    compiler_surface_values: dict[str, str] = {}
+    for atom in ((row.metadata or {}).get("semantic_compiler_atoms") or []):
+        if not isinstance(atom, dict):
+            continue
+        name = str(atom.get("slot_name") or "").strip()
+        if not name:
+            continue
+        key = name.casefold().replace(" ", "_")
+        value = atom.get("value")
+        if value not in (None, ""):
+            slots.setdefault(key, str(value))
+            compiler_surface_values[key] = str(value)
+        compiler_attributes[key] = {
+            "value": value,
+            "slot_id": atom.get("slot_id"),
+            "source": dict(atom.get("source") or {}),
+            "temporal": dict(atom.get("temporal") or {}),
+            "authorization_semantics": dict(atom.get("authorization_semantics") or {}),
+            "lifecycle_semantics": dict(atom.get("lifecycle_semantics") or {}),
+            "confidence": atom.get("confidence"),
+        }
     frame_id = md5(f"{row.memory_id}:{frame_type}:{content}".encode("utf-8")).hexdigest()[:12]
     sensitivity = {
         "privacy_level": (row.metadata or {}).get("privacy_level"),
@@ -197,6 +222,7 @@ def compile_evidence_frame(row: RetrievedEvidence) -> EvidenceFrame:
         }
     else:
         semantic_attributes = provenance_attributes
+    semantic_attributes = {**compiler_attributes, **semantic_attributes}
     for key, value in semantic_attributes.items():
         if value not in (None, "", []):
             # Keep normalized values in semantic_attributes for alignment, but
@@ -205,6 +231,7 @@ def compile_evidence_frame(row: RetrievedEvidence) -> EvidenceFrame:
     grounded_surface_spans = _extract_surface_spans(content, slots)
     for key in semantic_attributes:
         surface_value = semantic_surface_values.get(key)
+        surface_value = surface_value or compiler_surface_values.get(key)
         if surface_value not in (None, "", []):
             grounded_surface_spans[key] = surface_value
     return EvidenceFrame(
@@ -430,12 +457,12 @@ def _infer_frame_type(content: str, row: RetrievedEvidence) -> str:
             "lab status",
             "lab recap",
             "pregnancy",
-            "beta-hcg result",
+            "test result",
             "confirmatory positive",
             "cmp is normal",
             "cmp normal",
             "cd4",
-            "viral load",
+            "clinical measurement",
             "leading diagnosis remains",
             "current suspicion is",
             "current diagnosis",
@@ -477,10 +504,8 @@ def _extract_slots(content: str, frame_type: str) -> dict[str, str]:
             slots["procedure"] = "ultrasound"
         elif "orientation" in lowered:
             slots["procedure"] = "orientation"
-        elif "beta-hcg" in lowered:
-            slots["procedure"] = "beta-hCG"
-        elif "blood draw" in lowered:
-            slots["procedure"] = "blood draw"
+        elif "laboratory" in lowered or re.search(r"\blab\b", lowered):
+            slots["procedure"] = "laboratory test"
         elif "follow-up" in lowered or "follow up" in lowered:
             slots["procedure"] = "follow-up"
         elif "scan" in lowered:

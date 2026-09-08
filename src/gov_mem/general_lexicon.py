@@ -1,9 +1,8 @@
 """General-purpose semantic lexicon used only for source-quality hints.
 
-These terms describe ordinary object and value categories.  They are not
+These terms describe ordinary object and topic categories. They are not
 dataset entities, answer values, evaluator labels, or authorization rules.
-The lexicon helps distinguish an object name from a qualified field value
-while the observable state and policy engine remain authoritative.
+Value-type classification is performed by the question-only Stage 2 contract.
 """
 
 from __future__ import annotations
@@ -276,50 +275,63 @@ def topics_from_text(text: str) -> tuple[str, ...]:
     return tuple(sorted(topics))
 
 
-GENERAL_VALUE_HEAD_LEXICON: dict[str, tuple[str, ...]] = {
-    "time": (
-        "date", "day", "time", "window", "deadline", "target", "arrival",
-        "departure", "duration", "frequency", "period", "calendar", "schedule",
-        "appointment", "milestone",
-    ),
-    "location": (
-        "bay", "room", "site", "address", "desk", "hall", "suite", "floor",
-        "building", "office", "station", "entrance", "door", "route", "stop",
-        "parking", "location", "place", "venue", "destination",
-    ),
-    "access": (
-        "badge", "code", "credential", "password", "passcode", "pin", "token",
-        "key", "login", "access", "scope", "permission", "authorization", "approval",
-    ),
-    "identity": (
-        "identity", "account", "role", "owner", "name", "profile", "principal",
-    ),
-    "finance": (
-        "amount", "budget", "price", "cost", "fee", "payment", "invoice",
-        "discount", "rate", "salary", "wage", "expense", "cap", "limit",
-        "vendor", "term", "renewal", "deposit", "balance", "total",
-    ),
-    "economics": (
-        "income", "revenue", "profit", "loss", "debt", "loan", "savings", "funding",
-        "capital", "asset", "liability", "market", "demand", "supply",
-    ),
-    "state": (
-        "status", "state", "label", "color", "stage", "phase", "blocker",
-        "issue", "risk", "condition", "scope", "change", "update", "reason", "summary",
-    ),
-    "management": (
-        "instruction", "recommendation", "action", "plan", "task", "milestone",
-    ),
-    "health": (
-        "diagnosis", "condition", "symptom", "treatment", "medication", "dose",
-        "test", "result", "measurement", "imaging", "support", "care", "referral",
-    ),
-}
+ # Value-head classification is intentionally absent here. Stage 2 obtains
+ # it from the question-only LLM contract and validates copied spans locally.
 
 
 GENERAL_OBJECT_PREFIXES = frozenset(
     term for terms in GENERAL_OBJECT_LEXICON.values() for term in terms
 )
-GENERAL_VALUE_HEADS = frozenset(
-    term for terms in GENERAL_VALUE_HEAD_LEXICON.values() for term in terms
-)
+
+
+# Minimal, cross-domain governance ontology used to describe *what kind* of
+# evidence a question is asking about.  These terms are intentionally not
+# field aliases, entity names, answer values, or benchmark triggers.  The
+# ontology gives the LLM and the symbolic verifier a shared vocabulary for
+# temporal status, lifecycle, access, sensitivity, and requested operation.
+# It must never be used as a direct answer lookup table.
+GOVMEM_GOVERNANCE_ONTOLOGY: dict[str, tuple[str, ...]] = {
+    "temporal_current": (
+        "current", "currently", "latest", "now", "right now", "active",
+        "approved", "confirmed", "updated", "remains",
+    ),
+    "temporal_historical": (
+        "before", "earlier", "former", "initial", "old", "previous",
+        "historical", "stale", "superseded", "retired",
+    ),
+    "lifecycle_change": (
+        "replaced", "replaces", "supersedes", "superseded", "moved",
+        "changed", "revoked", "deleted",
+    ),
+    "access_control": (
+        "access", "authorized", "authorization", "permission", "permitted",
+        "allowed", "share", "disclose", "revoke", "restricted", "private",
+        "confidential",
+    ),
+    "sensitive_category": (
+        "identity", "customer", "account", "credential", "password", "token",
+        "medical", "diagnosis", "health", "location", "financial", "exact",
+    ),
+    "request_operation": (
+        "what", "which", "who", "whether", "confirm", "tell", "give",
+        "recover", "reconstruct", "restore",
+    ),
+}
+
+
+def governance_ontology_terms() -> tuple[str, ...]:
+    """Return the deduplicated ontology vocabulary in stable order."""
+    return tuple(dict.fromkeys(
+        term
+        for terms in GOVMEM_GOVERNANCE_ONTOLOGY.values()
+        for term in terms
+    ))
+
+
+def governance_ontology_word_count() -> int:
+    """Count atomic lexical words, while retaining phrases as ontology terms."""
+    return len({
+        word
+        for term in governance_ontology_terms()
+        for word in re.findall(r"[a-z0-9]+", term.casefold())
+    })

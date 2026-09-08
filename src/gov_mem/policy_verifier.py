@@ -16,8 +16,8 @@ from gov_mem.policy_schema import PolicyAction, PolicyDecision
 _DELIVERY_ACTIONS = {"answer", "answer_redacted", "refuse", "no_memory"}
 _SENSITIVE_FIELD_TERMS = {
     "diagnosis", "psychiatric", "psychiatry", "mental-health", "mental",
-    "self-harm", "incident", "review flag", "customer identity",
-    "customer mapping", "account number", "credential", "password",
+    "self-harm", "incident", "review flag", "identity",
+    "account number", "credential", "password",
     "passcode", "access code", "pin", "token", "private address",
 }
 _SENSITIVE_VALUE_TERMS = {

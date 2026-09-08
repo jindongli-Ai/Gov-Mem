@@ -7,15 +7,21 @@ from gov_mem.backbones.rag_naive import (
     _build_turn_chunks,
     _format_retrieved_memory,
     _direct_answer,
+    _source_grounded_access_context,
+    _answer_redacted_confirmation_boundary_reason,
+    _explicit_private_negative_delivery_boundary_reason,
     _normalize_claim_contract,
     _build_provenance_explanation,
     _run_claim_provenance_verifier,
+    _arbitrate_in_scope_operational_delivery,
+    _sanitize_answer_redacted_sensitive_values,
+    _realize_certified_operational_answer,
 )
 from gov_mem.memory.dense_index import DenseMemoryIndex
 from gov_mem.llm.client import LLMClientUnavailableError
 from gov_mem.backbones.stage2_typed_rerank import Stage2Decision
 from gov_mem.backbones.stage2_typed_rerank import _mixed_reasoning_prompt
-from gov_mem.data.schema import MemoryInstance, RetrievedEvidence
+from gov_mem.data.schema import AnswerResult, MemoryInstance, RetrievedEvidence
 
 
 class FakeLLM:
@@ -26,6 +32,80 @@ class FakeLLM:
     def chat_json(self, *, model, system_prompt, user_prompt):
         self.calls.append((model, system_prompt, user_prompt))
         return self.response
+
+
+def test_semantic_contract_sensitive_confirmation_is_not_released():
+    reason = _answer_redacted_confirmation_boundary_reason(
+        question="Is the current case blocker still the clearance form?",
+        answer="No, the current blocker is the reentry form.",
+        action="answer_redacted",
+        query_analysis={
+            "semantic_contract_sensitive": True,
+            "safety": {
+                "sensitive": False,
+                "exact": False,
+                "confirmation": True,
+                "existence": False,
+                "privacy_scope": "ordinary",
+                "available": True,
+            },
+        },
+    )
+    assert reason == "answer_redacted contained a sensitive confirmation"
+
+
+def test_sensitive_confirmation_guard_handles_prefixed_yes_no_template():
+    reason = _answer_redacted_confirmation_boundary_reason(
+        question="For a quick yes or no: is the current case blocker still the clearance form?",
+        answer="No, the blocker is a different form.",
+        action="answer_redacted",
+        query_analysis={
+            "semantic_contract_sensitive": True,
+            "safety": {
+                "sensitive": True, "exact": False, "confirmation": True,
+                "existence": False, "privacy_scope": "private", "available": True,
+            },
+        },
+    )
+    assert reason == "answer_redacted contained a sensitive confirmation"
+
+
+def test_explicit_private_negative_query_cannot_be_softened_to_redacted_answer():
+    reason = _explicit_private_negative_delivery_boundary_reason(
+        query_analysis={
+            "safety": {"sensitive": True, "privacy_scope": "private"},
+            "authorization": {"negative": True},
+        },
+        authorization_decision="unknown",
+        action="answer_redacted",
+    )
+    assert reason == "explicit private negative authorization cannot be delivered as a redacted answer"
+
+
+def test_grounded_compiler_private_negative_is_not_overridden_by_stage2_analysis():
+    reason = _explicit_private_negative_delivery_boundary_reason(
+        query_analysis={
+            "safety": {"sensitive": False, "privacy_scope": "ordinary"},
+            "authorization": {"negative": False},
+        },
+        authorization_decision="unknown",
+        action="answer_redacted",
+        semantic_delivery_signal={
+            "grounded_restricted_atom": True,
+            "grounded_negative_policy_atom": True,
+        },
+    )
+    assert reason == "grounded private negative policy cannot be delivered as a redacted answer"
+
+
+def test_restricted_atom_without_negative_policy_does_not_force_refusal():
+    assert _explicit_private_negative_delivery_boundary_reason(
+        query_analysis={}, authorization_decision="unknown", action="answer_redacted",
+        semantic_delivery_signal={
+            "grounded_restricted_atom": True,
+            "grounded_negative_policy_atom": False,
+        },
+    ) is None
 
 
 def _instance() -> MemoryInstance:
@@ -80,6 +160,228 @@ def test_rag_naive_uses_one_turn_chunk_per_message():
     assert [chunk.metadata["chunk_type"] for chunk in chunks] == ["turn", "turn"]
     assert chunks[0].text == "[student:student_lina] The current date is May 12, 2026."
     assert chunks[0].source_message_ids == ["t001"]
+
+
+def test_source_grounded_access_context_projects_assignment_path_only():
+    instance = _instance()
+    instance = MemoryInstance(
+        **{
+            **instance.__dict__,
+            "asking_user_id": "advisor_ava",
+        }
+    )
+    contract = SimpleNamespace(target_entities=[{
+        "canonical_reference": "Cinder Clearance",
+        "surface_form": "Cinder Clearance",
+    }])
+    trace = {
+        "graph_nodes": [
+            {"node_id": "principal::advisor_ava", "node_type": "principal"},
+            {"node_id": "principal::student_mateo", "node_type": "principal"},
+            {"node_id": "entity::cinder_clearance", "node_type": "entity", "value": "cinder_clearance"},
+        ],
+        "graph_edges": [
+            {"edge_type": "advisor_for", "source": "principal::advisor_ava", "target": "principal::student_mateo", "attributes": {}},
+            {"edge_type": "case_subject", "source": "principal::student_mateo", "target": "entity::cinder_clearance", "attributes": {}},
+            {"edge_type": "about", "source": "evidence::m1", "target": "entity::cinder_clearance"},
+        ],
+        "temporal_authorization": {"decision": "unknown"},
+    }
+
+    result = _source_grounded_access_context(
+        instance=instance, symbolic_trace=trace, semantic_contract=contract,
+    )
+
+    assert result["source_grounded"] is True
+    assert result["explicit_policy_decision"] == "unknown"
+    assert [[edge["relation"] for edge in path] for path in result["assignment_paths"]] == [
+        ["advisor_for", "case_subject"],
+    ]
+
+
+def test_source_grounded_access_context_does_not_project_evidence_about_edges():
+    contract = SimpleNamespace(target_entities=[{"canonical_reference": "Cinder Clearance"}])
+    result = _source_grounded_access_context(
+        instance=_instance(),
+        semantic_contract=contract,
+        symbolic_trace={
+            "graph_nodes": [{"node_id": "entity::cinder_clearance", "value": "cinder_clearance"}],
+            "graph_edges": [{
+                "edge_type": "about", "source": "evidence::m1", "target": "entity::cinder_clearance",
+            }],
+        },
+    )
+
+    assert result["source_grounded"] is False
+    assert result["assignment_paths"] == []
+
+
+def test_source_grounded_access_context_matches_each_target_phrase_independently():
+    instance = MemoryInstance(
+        **{**_instance().__dict__, "asking_user_id": "advisor_ava"}
+    )
+    contract = SimpleNamespace(target_entities=[
+        {"canonical_reference": "Cinder Clearance", "surface_form": "Cinder Clearance"},
+        {"canonical_reference": "Cinder Connectors", "surface_form": "Cinder Connectors"},
+    ])
+    trace = {
+        "graph_nodes": [
+            {"node_id": "principal::advisor_ava", "value": "advisor_ava"},
+            {"node_id": "principal::student_mateo", "value": "student_mateo"},
+            {"node_id": "entity::cinder_clearance", "value": "cinder_clearance"},
+            {"node_id": "entity::cinder_connectors", "value": "cinder_connectors"},
+        ],
+        "graph_edges": [
+            {"edge_type": "advisor_for", "source": "principal::advisor_ava", "target": "principal::student_mateo", "attributes": {}},
+            {"edge_type": "case_subject", "source": "principal::student_mateo", "target": "entity::cinder_clearance", "attributes": {}},
+        ],
+        "temporal_authorization": {"decision": "unknown"},
+    }
+
+    result = _source_grounded_access_context(
+        instance=instance, symbolic_trace=trace, semantic_contract=contract,
+    )
+
+    assert result["target_nodes"] == ["entity::cinder_clearance", "entity::cinder_connectors"]
+    assert result["source_grounded"] is True
+
+
+def test_in_scope_operational_delivery_recovers_only_certified_unscoped_assignment():
+    base = AnswerResult(
+        prediction="Room 301",
+        answer_text="Room 301",
+        used_memory_ids=["m1"],
+        reasoning_summary="model was conservative",
+        action="answer_redacted",
+    )
+    recovered = _arbitrate_in_scope_operational_delivery(
+        base,
+        {"operational_assignment_in_scope": True},
+    )
+    assert recovered.action == "answer"
+    assert recovered.answer_text == base.answer_text
+
+
+def test_in_scope_operational_delivery_does_not_override_scope_or_policy_boundaries():
+    base = AnswerResult(
+        prediction="Room 301",
+        answer_text="Room 301",
+        used_memory_ids=["m1"],
+        reasoning_summary="model was conservative",
+        action="answer_redacted",
+    )
+    for context in (
+        {"operational_assignment_in_scope": False},
+        {"operational_assignment_in_scope": False, "assignment_paths": [[{"attributes": {"access_scope": "limited"}}]]},
+    ):
+        assert _arbitrate_in_scope_operational_delivery(base, context).action == "answer_redacted"
+
+
+def test_redacted_answer_does_not_echo_grounded_sensitive_value():
+    base = AnswerResult(
+        prediction="The private pod is Pod 1405.",
+        answer_text="The private pod is Pod 1405.",
+        used_memory_ids=["m1"],
+        reasoning_summary="model returned a summary",
+        action="answer_redacted",
+    )
+    contract = SimpleNamespace(requested_slots=[SimpleNamespace(
+        slot_id="qslot_0", sensitivity_possible=True, authorization_relevant=True,
+    )])
+    sanitized = _sanitize_answer_redacted_sensitive_values(
+        base,
+        semantic_atoms=[{"slot_id": "qslot_0", "value": "Pod 1405"}],
+        semantic_contract=contract,
+    )
+    assert sanitized.action == "answer_redacted"
+    assert "Pod 1405" not in sanitized.answer_text
+
+
+def test_redacted_answer_keeps_non_sensitive_summary_without_grounded_value_echo():
+    base = AnswerResult(
+        prediction="A high-level summary is available.",
+        answer_text="A high-level summary is available.",
+        used_memory_ids=["m1"],
+        reasoning_summary="model returned a summary",
+        action="answer_redacted",
+    )
+    contract = SimpleNamespace(requested_slots=[SimpleNamespace(
+        slot_id="qslot_0", sensitivity_possible=True, authorization_relevant=True,
+    )])
+    sanitized = _sanitize_answer_redacted_sensitive_values(
+        base,
+        semantic_atoms=[{"slot_id": "qslot_0", "value": "Pod 1405"}],
+        semantic_contract=contract,
+    )
+    assert sanitized.answer_text == base.answer_text
+
+
+def test_certified_operational_realization_recovers_all_grounded_slots():
+    base = AnswerResult(
+        prediction="Requested details are restricted.",
+        answer_text="Requested details are restricted.",
+        used_memory_ids=[],
+        reasoning_summary="model over-refused",
+        action="refuse",
+    )
+    contract = SimpleNamespace(requested_slots=[
+        SimpleNamespace(slot_id="qslot_0", slot_name="current date", required_for_answer=True),
+        SimpleNamespace(slot_id="qslot_1", slot_name="current amount", required_for_answer=True),
+    ])
+    realized = _realize_certified_operational_answer(
+        base,
+        access_context={"operational_assignment_in_scope": True},
+        semantic_atoms=[
+            {"slot_id": "qslot_0", "value": "December 1, 2027", "source": {"chunk_id": "m1"}},
+            {"slot_id": "qslot_1", "value": "3,855 USD", "source": {"chunk_id": "m2"}},
+        ],
+        semantic_contract=contract,
+    )
+    assert realized.action == "answer"
+    assert "December 1, 2027" in realized.answer_text
+    assert "3,855 USD" in realized.answer_text
+
+
+def test_certified_operational_realization_repairs_incomplete_answer_action():
+    base = AnswerResult(
+        prediction="The current date is December 1, 2027.",
+        answer_text="The current date is December 1, 2027.",
+        used_memory_ids=["m1"],
+        reasoning_summary="model omitted a field",
+        action="answer",
+    )
+    contract = SimpleNamespace(requested_slots=[
+        SimpleNamespace(slot_id="qslot_0", slot_name="current date", required_for_answer=True),
+        SimpleNamespace(slot_id="qslot_1", slot_name="current amount", required_for_answer=True),
+    ])
+    realized = _realize_certified_operational_answer(
+        base,
+        access_context={"operational_assignment_in_scope": True},
+        semantic_atoms=[
+            {"slot_id": "qslot_0", "value": "December 1, 2027", "source": {"chunk_id": "m1"}},
+            {"slot_id": "qslot_1", "value": "3,855 USD", "source": {"chunk_id": "m2"}},
+        ],
+        semantic_contract=contract,
+    )
+    assert realized.action == "answer"
+    assert "3,855 USD" in realized.answer_text
+
+
+def test_certified_operational_realization_does_not_cross_scoped_boundary():
+    base = AnswerResult(
+        prediction="Requested details are restricted.", answer_text="Requested details are restricted.",
+        used_memory_ids=[], reasoning_summary="model over-refused", action="refuse",
+    )
+    contract = SimpleNamespace(requested_slots=[
+        SimpleNamespace(slot_id="qslot_0", slot_name="private value", required_for_answer=True),
+    ])
+    result = _realize_certified_operational_answer(
+        base,
+        access_context={"operational_assignment_in_scope": False},
+        semantic_atoms=[{"slot_id": "qslot_0", "value": "secret", "source": {"chunk_id": "m1"}}],
+        semantic_contract=contract,
+    )
+    assert result.action == "refuse"
 
 
 def test_rag_naive_retrieval_record_restores_gate_mem_typed_fields():
@@ -310,6 +612,8 @@ def test_rag_naive_direct_answer_preserves_official_fields_without_projection():
     assert result.used_memory_ids == ["chunk_0001_t001_t001"]
     assert result.answer_structured == {}
     assert len(llm.calls) == 1
+    assert "{global_access_policy_block}" not in llm.calls[0][1]
+    assert "Restricted student data" in llm.calls[0][1]
     assert "[MEMORY PROVIDED]" in llm.calls[0][2]
     assert "The current date is May 12, 2026." in llm.calls[0][2]
 
@@ -586,6 +890,79 @@ def test_claim_contract_keeps_a_span_for_each_retrieved_source_chunk():
             "source_span": "Increase metoprolol to 37.5 milligrams twice daily.",
         },
     ]
+
+
+def test_nested_field_keyed_claim_contract_is_normalized():
+    row = RetrievedEvidence(
+        memory_id="chunk_date",
+        content="The current review date is August 4.",
+        score=1.0,
+        retrieval_source="dense",
+        reason="test",
+        source_message_ids=["t001"],
+    )
+
+    contract = _normalize_claim_contract(
+        raw={"answer_structured": {"claim_contract": {
+            "current_review_date": {
+                "label": "current review date",
+                "status": "supported",
+                "selected_values": ["August 4"],
+                "source_memory_ids": ["t001"],
+                "provenance": {
+                    "memory_id": "t001",
+                    "source_span": "current review date is August 4",
+                },
+            },
+        }}},
+        answer_text="The current review date is August 4.",
+        evidence=[row],
+    )
+
+    assert contract["requested_fields"] == [{
+        "field_id": "current_review_date",
+        "label": "current review date",
+        "status": "supported",
+        "selected_values": ["August 4"],
+        "source_memory_ids": ["chunk_date"],
+        "provenance": [{
+            "memory_id": "chunk_date",
+            "source_span": "current review date is August 4",
+        }],
+    }]
+
+
+def test_mixed_answer_action_is_not_changed_without_rerealization():
+    llm = FakeLLM({
+        "action": "answer_redacted",
+        "answer": "A high-level status is available.",
+        "used_record_ids": ["status"],
+    })
+    decision = Stage2Decision(
+        route="mixed",
+        applied=True,
+        original_memory_ids=["status"],
+        selected_memory_ids=["status"],
+        query_analysis={"fields": [{"name": "current status"}]},
+    )
+    row = RetrievedEvidence(
+        memory_id="status",
+        content="The current status is active.",
+        score=1.0,
+        retrieval_source="dense",
+        reason="test",
+    )
+
+    result = _direct_answer(
+        instance=_instance(),
+        evidence=[row],
+        stage2_decision=decision,
+        llm_client=llm,
+        model_name="gpt-5.4-mini",
+    )
+
+    assert result.action == "answer_redacted"
+    assert result.answer_text == "A high-level status is available."
 
 
 def test_stage2_answer_instruction_preserves_complete_mixed_field_contract():

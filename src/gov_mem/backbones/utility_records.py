@@ -202,7 +202,7 @@ def _infer_record_type(text: str, meta: dict[str, Any]) -> str:
         return "canceled_schedule"
     if frame_type in {"appointment", "test_or_imaging", "clinic_visit", "logistics", "update"} or any(token in lowered for token in ["ultrasound", "visit", "arrival", "schedule", "ecg", "procedure"]):
         return "active_schedule"
-    if any(token in lowered for token in ["viable", "viability", "impression", "beta-hcg", "hcg"]):
+    if any(token in lowered for token in ["diagnosis", "result", "finding", "measurement"]):
         return "clinical_sensitive"
     return "general_utility"
 

@@ -253,6 +253,120 @@ manifest, evaluator, and whether long-context or gold-derived feedback was
 enabled. Commit improvements as new history points instead of overwriting the
 current snapshot.
 
+## 迁移到新服务器
+
+当前项目目录为：
+
+```text
+/data_nvme/user/jli/codes/2027_ICLR_Gov-Mem
+```
+
+迁移的目标是保留代码、GateMem 数据、实验配置、结果记录和 Git 历史，
+这样换服务器后仍然可以继续实验，也可以通过 Git 回到当前 dev7 快照。
+
+### 1. 迁移前检查
+
+先在旧服务器确认没有实验进程仍在运行：
+
+```bash
+cd /data_nvme/user/jli/codes/2027_ICLR_Gov-Mem
+ps -ef | rg 'run_gatemem_suite|run_parallel_official_judge_shards|run_govmem.py' || true
+git status --short
+git log --oneline --decorate -8
+```
+
+当前纸面版本是 `Gov-Mem-v4-Symbolic-dev7`，对应冻结提交为：
+
+```text
+fb60b2f Freeze Gov-Mem v4 Symbolic dev7 benchmark snapshot
+```
+
+迁移前不要删除旧服务器上的任何文件。旧服务器应作为回退副本保留，直到
+新服务器完成基本验证。
+
+### 2. 推荐复制内容
+
+以下内容属于项目的可复现实验框架，应复制到新服务器：
+
+- `.git/`：Git 历史和回滚点，必须保留；
+- `src/`、`scripts/`、`tests/`、`run_govmem.py`：实现、运行器和测试；
+- `configs/`、`experiments/gatemem_suites/`：实验配置和 checkpoint manifest；
+- `experiments/result/`、`README.md`、`report.md`、`VERSION_LOG.md`：结果、协议和版本记录；
+- `dataset/GateMem/`：GateMem 原始数据，只读，不要修改；
+- `third_party/GateMem-official/`：官方 GateMem 评测工具；
+- `third_party/python_deps/gatemem_eval/`：当前服务器已有的评测依赖包；
+- `cache/`：可选，已有 embedding 缓存可以减少重复请求，但不是代码运行的必要条件。
+
+### 3. 使用 rsync 复制整个工作区
+
+在旧服务器执行。把下面的目标路径替换成新服务器挂载后的目录：
+
+```bash
+rsync -aH --info=progress2 \
+  /data_nvme/user/jli/codes/2027_ICLR_Gov-Mem/ \
+  /new_server_path/2027_ICLR_Gov-Mem/
+```
+
+如果通过本地电脑中转，应确保隐藏目录 `.git/` 也被复制；只下载网页显示的
+源文件而不复制 `.git/`，会丢失所有历史版本和当前恢复点。
+
+### 4. 大型 outputs 的处理
+
+`outputs/` 被 `.gitignore` 忽略，不属于 GitHub 备份的一部分。它包含大量旧
+实验和中间文件，可能占用数 GB；可以按需要迁移。
+
+至少建议迁移当前完整 dev7 结果目录：
+
+```text
+outputs/govmem_v4_symbolic_dev7_full_all_2218_20260820/
+```
+
+如果磁盘空间有限，可以只迁移代码和文档，之后在新服务器重新生成实验输出。
+当前完整结果的可提交摘要已经保存在 Git 跟踪文件中，完整协议见：
+
+```text
+experiments/result/2026-08-20_Gov-Mem-v4-Symbolic-dev7_full_all_2218_openlux_gpt4omini.md
+```
+
+不要把旧的临时 smoke 输出、失败重试输出和所有历史中间文件混入新的论文结果。
+
+### 5. API key 的处理
+
+`API-Key_OpenLux.md` 只用于本地运行，不能提交到 GitHub，也不能放进公开的
+README。迁移时通过安全方式单独复制，并在新服务器设置严格权限：
+
+```bash
+chmod 600 /new_server_path/2027_ICLR_Gov-Mem/API-Key_OpenLux.md
+```
+
+运行实验前，在新服务器的 shell 中设置程序实际使用的密钥环境变量，或按照
+本地运行器的说明配置 key pool。不要把 key 直接写入 YAML、Python 文件、
+shell 历史或实验日志。
+
+### 6. 新服务器验证
+
+进入新目录后，先只做本地检查，不要立即启动全量实验：
+
+```bash
+cd /new_server_path/2027_ICLR_Gov-Mem
+git status --short
+git log --oneline --decorate -1
+python3 scripts/inspect_gatemem.py
+python3 -m pytest -q tests/test_symbolic_evidence.py tests/test_official_evaluation_contract.py
+```
+
+应确认以下事实：
+
+- `git log` 能看到 `fb60b2f`；
+- GateMem 四个 domain 可以被读取；
+- Symbolic 相关测试通过；
+- `API-Key_OpenLux.md` 没有出现在 `git status` 的待提交文件中；
+- 新服务器没有自动恢复旧实验进程。
+
+迁移完成后，第一次网络实验只运行一个小 episode，确认 OpenLux、embedding、
+官方 GateMem judge 和输出目录均正常，再逐步增加并行度。不要直接恢复旧服务器
+上的高并行配置。
+
 ## Dataset
 
 The raw GateMem dataset is stored under `dataset/GateMem`.

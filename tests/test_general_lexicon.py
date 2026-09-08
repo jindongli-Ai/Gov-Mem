@@ -1,7 +1,9 @@
 from gov_mem.general_lexicon import (
     GENERAL_OBJECT_LEXICON,
     GENERAL_TOPIC_LEXICON,
-    GENERAL_VALUE_HEAD_LEXICON,
+    GOVMEM_GOVERNANCE_ONTOLOGY,
+    governance_ontology_terms,
+    governance_ontology_word_count,
     topics_from_text,
 )
 from gov_mem.query_semantics import (
@@ -16,9 +18,6 @@ def test_topic_lexicon_contains_atomic_general_categories():
         "economics", "legal", "privacy", "technology", "document", "environment",
     }
     assert expected.issubset(GENERAL_TOPIC_LEXICON)
-    assert "finance_economics" not in GENERAL_VALUE_HEAD_LEXICON
-    assert "finance" in GENERAL_VALUE_HEAD_LEXICON
-    assert "economics" in GENERAL_VALUE_HEAD_LEXICON
 
 
 def test_topics_from_text_is_shared_and_word_boundary_aware():
@@ -63,3 +62,17 @@ def test_delivery_slot_shapes_accept_unseen_operational_modifiers():
         "What is the collection window, secure route, approved work areas, and weather contingency?"
     ))
     assert {"visit_window", "entry_method", "approved_areas", "fallback_rule"}.issubset(slots)
+
+
+def test_governance_ontology_is_small_generic_and_not_answer_lookup():
+    terms = set(governance_ontology_terms())
+    assert governance_ontology_word_count() == 61
+    assert {"current", "deleted", "authorized", "restricted", "exact"}.issubset(terms)
+    assert not terms.intersection({
+        "Redwood", "Pinecrest", "Northstar Bank", "Silverline Retail",
+        "approved maximum discount", "current target date",
+    })
+    assert set(GOVMEM_GOVERNANCE_ONTOLOGY) == {
+        "temporal_current", "temporal_historical", "lifecycle_change",
+        "access_control", "sensitive_category", "request_operation",
+    }

@@ -83,8 +83,47 @@ def _matches_target_user_or_entity(plan: QueryPlan, row: RetrievedEvidence) -> b
     return False
 
 
-def build_required_slot_plan(question: str, query_plan: QueryPlan, action_decision=None) -> dict:
+def build_required_slot_plan(
+    question: str,
+    query_plan: QueryPlan,
+    action_decision=None,
+    query_analysis: dict | None = None,
+) -> dict:
     lowered = (question or "").lower()
+
+    # Hard v4 boundary: the question-only LLM contract is the sole query
+    # semantic source.  Return before touching any legacy lexical detector or
+    # benchmark-shaped slot table below.  The legacy implementation remains
+    # intact for non-v4 callers and audit comparison.
+    if query_analysis is not None:
+        fields = [
+            item for item in (query_analysis.get("fields") or [])
+            if isinstance(item, dict) and str(item.get("name") or "").strip()
+        ]
+        required_slots = [str(item["name"]).strip() for item in fields]
+        value_types = {
+            str(item.get("value_type") or "unknown").casefold()
+            for item in fields
+        }
+        target_frame_types = ["general_fact"]
+        if value_types.intersection({"date", "time"}):
+            target_frame_types.append("schedule")
+        if "location" in value_types:
+            target_frame_types.append("logistics")
+        if query_analysis.get("policy") or query_analysis.get("authorization"):
+            target_frame_types.append("consent_or_permission")
+        request_shape = str(query_analysis.get("request_shape") or "unknown")
+        return {
+            "target_frame_types": list(dict.fromkeys(target_frame_types)),
+            "required_slots": list(dict.fromkeys(required_slots)),
+            "optional_slots": [],
+            "target_entities": [],
+            "temporal_policy": "historical" if str(
+                (query_analysis.get("temporal") or {}).get("orientation")
+            ).casefold() == "historical" else "current_state",
+            "mixed": request_shape == "multi_field" or len(required_slots) > 1,
+            "domains": ["question_contract"],
+        }
     target_frame_types = ["general_fact"]
     required_slots: list[str] = []
     optional_slots: list[str] = []
@@ -125,14 +164,25 @@ def build_required_slot_plan(question: str, query_plan: QueryPlan, action_decisi
         "phone", "contact_method", "backup_contact", "consent_scope", "policy_scope",
     }
     requested_current_slots = [slot for slot in semantic_slots if slot in current_slot_names]
-    if not requested_current_slots:
+    # In the v4 symbolic path, the validated question-only contract is the
+    # authority.  Do not reconstruct GateMem-shaped fields from lexical rules
+    # after the contract has been produced.  The legacy inference remains in
+    # this file for older non-v4 callers and auditability.
+    if not requested_current_slots and query_analysis is None:
         requested_current_slots = infer_current_state_slots(question)
-    clinical_plan = _infer_clinical_plan_requirements(lowered)
+    # Clinical/domain phrase routing is a legacy lexical fallback.  The v4
+    # contract already carries the question's generic field and request
+    # semantics, so do not execute this detector after LLM analysis.
+    clinical_plan = (
+        _infer_clinical_plan_requirements(lowered)
+        if query_analysis is None
+        else {}
+    )
     household_slots = [slot for slot in semantic_slots if slot in household_slot_names]
-    if not household_slots:
+    if not household_slots and query_analysis is None:
         household_slots = infer_household_slots(question)
     security_slots = [slot for slot in semantic_slots if slot in security_slot_names]
-    office_incident_scope_query = (
+    office_incident_scope_query = query_analysis is None and (
         any(token in lowered for token in ["current diagnosis", "leading diagnosis", "diagnosis for the", "diagnosis"])
         and any(token in lowered for token in ["access scope", "debugging contractor", "logs-only", "what access"])
     )
@@ -161,27 +211,27 @@ def build_required_slot_plan(question: str, query_plan: QueryPlan, action_decisi
         target_frame_types = list(clinical_plan.get("target_frame_types", target_frame_types))
         required_slots.extend(clinical_plan.get("required_slots", []))
         optional_slots.extend(clinical_plan.get("optional_slots", []))
-    elif any(token in lowered for token in ["appointment", "schedule", "visit", "follow-up", "follow up", "imaging", "ultrasound"]):
+    elif query_analysis is None and any(token in lowered for token in ["appointment", "schedule", "visit", "follow-up", "follow up", "imaging", "ultrasound"]):
         domains.append("schedule")
         target_frame_types = ["test_or_imaging", "clinic_visit", "instruction", "cancellation", "update", "appointment", "logistics"]
         required_slots.extend(["date", "time", "arrival_time", "location", "provider", "procedure", "visit_type", "status", "condition"])
         optional_slots.extend(["precondition", "replacement_event", "canceled_event"])
-    elif any(token in lowered for token in ["allergy", "reaction"]):
+    elif query_analysis is None and any(token in lowered for token in ["allergy", "reaction"]):
         domains.append("allergy")
         target_frame_types = ["allergy", "test_or_imaging", "clinic_visit"]
         required_slots.extend(["substance", "reaction"])
         optional_slots.extend(["date", "time", "arrival_time", "location", "provider", "procedure"])
-    elif any(token in lowered for token in ["medication", "pain", "nausea"]):
+    elif query_analysis is None and any(token in lowered for token in ["medication", "pain", "nausea"]):
         domains.append("medication")
         target_frame_types = ["medication", "instruction"]
         required_slots.extend(["medication", "instruction", "timing"])
         optional_slots.extend(["prep_instruction"])
-    elif any(token in lowered for token in ["permission", "authorized", "family-access", "family access", "share"]):
+    elif query_analysis is None and any(token in lowered for token in ["permission", "authorized", "family-access", "family access", "share"]):
         domains.append("policy")
         target_frame_types = ["consent_or_permission", "privacy_policy", "logistics"]
         required_slots.extend(["consent_scope", "status"])
         optional_slots.extend(["date", "time", "location", "procedure"])
-    elif any(token in lowered for token in ["callback", "voicemail", "portal"]):
+    elif query_analysis is None and any(token in lowered for token in ["callback", "voicemail", "portal"]):
         domains.append("logistics")
         target_frame_types = ["logistics", "instruction"]
         required_slots.extend(["prep_instruction"])
@@ -192,7 +242,7 @@ def build_required_slot_plan(question: str, query_plan: QueryPlan, action_decisi
 
     if len(domains) > 1:
         mixed = True
-    if any(token in lowered for token in ["and", "both", ",", "mixed", "also"]):
+    if query_analysis is None and any(token in lowered for token in ["and", "both", ",", "mixed", "also"]):
         mixed = True
     if mixed:
         target_frame_types = list(dict.fromkeys(target_frame_types + ["allergy", "medication", "test_or_imaging", "clinic_visit", "instruction", "cancellation", "logistics"]))

@@ -175,6 +175,8 @@ def run_official_scorer(
     judge_api_base: str | None = None,
     judge_api_key_env: str | None = None,
     judge_api_key: str | None = None,
+    judge_api_keys: list[str] | None = None,
+    judge_api_keys_env: str | None = None,
     judge_concurrency: int | None = None,
     resume_judge: bool = False,
     # GateMem paper main tables report judge-derived U/A/F without the
@@ -213,6 +215,8 @@ def run_official_scorer(
             cmd.extend(["--judge_api_base", judge_api_base])
         if judge_api_key_env:
             cmd.extend(["--judge_api_key_env", judge_api_key_env])
+        if judge_api_keys:
+            cmd.extend(["--judge_api_keys_env", judge_api_keys_env or "OPENLUX_API_KEYS"])
         if judge_concurrency is not None:
             cmd.extend(["--judge_concurrency", str(judge_concurrency)])
         if resume_judge:
@@ -228,6 +232,8 @@ def run_official_scorer(
     env['PYTHONPATH'] = os.pathsep.join(pythonpath_parts)
     if judge_api_key:
         env[judge_api_key_env or "YUNWU_API_KEY"] = judge_api_key
+    if judge_api_keys:
+        env[judge_api_keys_env or "OPENLUX_API_KEYS"] = ",".join(judge_api_keys)
 
     result = subprocess.run(cmd, check=True, text=True, env=env)
     # Some command-construction smoke tests intentionally use a placeholder

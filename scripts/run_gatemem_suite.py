@@ -33,9 +33,9 @@ from gov_mem.utils.storage import (
 ROOT = Path(__file__).resolve().parents[1]
 RUN_GOVMEM = ROOT / "run_govmem.py"
 DEFAULT_DATA_ROOT = ROOT / "dataset" / "GateMem" / "gatemem" / "data"
-# Keep one request in flight per episode worker; five is the approved bounded
-# validation level for the current OpenLux experiments.
-MAX_SAFE_EPISODE_WORKERS = 5
+# Keep one request in flight per episode worker. Each worker leases one
+# isolated provider key for its complete lifetime.
+MAX_SAFE_EPISODE_WORKERS = 30
 
 
 def _load_manifest(path: Path) -> dict:
@@ -388,6 +388,12 @@ def main() -> None:
         default=4,
         help="Global number of episode subprocesses to run concurrently.",
     )
+    parser.add_argument(
+        "--max_api_keys",
+        type=int,
+        default=None,
+        help="Use only the first N discovered API keys for memory, embedding, and judge calls.",
+    )
     args = parser.parse_args()
 
     requested_episode_workers = max(1, int(args.parallel_episodes))
@@ -421,12 +427,13 @@ def main() -> None:
     os.environ["GOVMEM_DATASET_ROOT"] = str(local_data_root)
     local_config = local_root / "config.yaml"
     shutil.copy2(Path(args.config).resolve(), local_config)
-    runtime_fingerprint = subprocess.run(
+    runtime_fingerprint_result = subprocess.run(
         ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
-    ).stdout.strip() or "unverified-runtime"
+    )
+    runtime_fingerprint = runtime_fingerprint_result.stdout.strip() or "unverified-runtime"
     storage_audit({
         "project_dir": ROOT,
         "dataset_source": source_data_root,
@@ -450,6 +457,12 @@ def main() -> None:
     judge_cfg = dict((config.get("evaluation") or {}).get("official_judge") or {})
     judge_provider = str(judge_cfg.get("provider") or "yunwu")
     judge_keys = _discover_api_keys(provider=judge_provider)
+    if args.max_api_keys is not None:
+        if args.max_api_keys < 1:
+            raise ValueError("--max_api_keys must be positive")
+        llm_keys = llm_keys[:args.max_api_keys]
+        embedding_keys = embedding_keys[:args.max_api_keys]
+        judge_keys = judge_keys[:args.max_api_keys]
     if llm_provider in {"openlux", "openai-compatible-openlux"} and not llm_keys:
         raise RuntimeError(
             "No OpenLux memory-system API key found. Refusing to start a real run. "
@@ -649,6 +662,8 @@ def main() -> None:
                     judge_api_base=str(judge_config.get("api_base") or "https://yunwu.ai/v1"),
                     judge_api_key_env=str(judge_config.get("api_key_env") or "YUNWU_API_KEY"),
                     judge_api_key=judge_key,
+                    judge_api_keys=judge_keys,
+                    judge_api_keys_env=_pool_env(str(judge_config.get("api_key_env") or "YUNWU_API_KEY")),
                     judge_concurrency=int(judge_config.get("concurrency", 4)),
                     resume_judge=bool(args.resume),
                     gate_by_action=bool(judge_config.get("gate_by_action", False)),
@@ -720,9 +735,20 @@ def main() -> None:
         if active and not launched:
             time.sleep(0.2)
         elif pending_jobs and not active and not launched:
+            # A child can finish between the launch and reap passes.  The
+            # lease is returned in the reap pass, so observing an empty
+            # active list here is not proof that the provider pool is empty.
+            # This is common for one-key serial runs.  Wait for the lease to
+            # become visible instead of converting a transient scheduler
+            # state into a fatal configuration error.
+            if available_key_indices is not None and llm_keys:
+                time.sleep(0.2)
+                continue
+            if available_embedding_key_indices is not None and embedding_keys:
+                time.sleep(0.2)
+                continue
             raise RuntimeError(
-                "No API key lease is available and no episode is running; "
-                "check the configured provider key pool."
+                "No API key lease is configured; provide a valid provider key pool."
             )
 
     results = [

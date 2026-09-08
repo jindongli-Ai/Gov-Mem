@@ -69,43 +69,30 @@ _SENSITIVITY_CATEGORIES = {
     "other_sensitive",
 }
 
-_SENSITIVE_TOPIC_HINTS = {
-    "health": ("diagnosis", "condition", "symptom", "visit reason", "hormone", "gender clinic", "clinical", "care"),
-    "medication": ("medication", "medicine", "drug", "dose", "prescription", "started", "start", "stop", "treatment"),
-    "laboratory": ("lab", "laboratory", "bloodwork", "test result", "normal", "cbc", "cmp"),
-    "imaging": ("imaging", "scan", "ultrasound", "mri", "biopsy", "pathology", "x-ray"),
-    "identity": ("identity", "who", "same person", "customer", "patient", "account holder"),
-    "private_location": ("private room", "private bay", "private site", "exact room", "exact bay", "address", "where"),
-    "private_contact": ("phone", "mobile", "number", "voicemail", "contact", "callback", "email"),
-    "credential": ("credential", "badge", "code", "password", "pin", "token", "key", "login"),
-    "finance": ("budget", "amount", "discount", "price", "payment", "invoice", "billing", "salary", "expense", "financial"),
-    "legal": ("contract", "nda", "legal", "counsel", "settlement", "agreement"),
-    "access_control": ("permission", "authorization", "access", "share", "private file", "internal"),
-    "privacy": ("private", "confidential", "restricted", "sensitive", "not for sharing"),
+# DISABLED: benchmark/domain-specific fallback hint table. Sensitivity is
+# obtained from the question-only LLM contract; an unavailable contract must
+# not silently classify GateMem entities by keyword.
+_SENSITIVE_TOPIC_HINTS: dict[str, tuple[str, ...]] = {
+    "health": ("diagnosis", "condition", "symptom", "clinical", "medical", "health"),
+    "medication": ("medication", "medicine", "drug", "dose", "prescription", "treatment"),
+    "laboratory": ("lab", "laboratory", "bloodwork", "test result", "measurement"),
+    "imaging": ("imaging", "scan", "ultrasound", "mri", "pathology"),
+    "identity": ("identity", "same person", "account holder"),
+    "private_location": ("private room", "private site", "exact room", "address"),
+    "private_contact": ("phone", "mobile", "number", "contact", "email"),
+    "credential": ("credential", "password", "passcode", "pin", "token", "key"),
+    "finance": ("budget", "amount", "discount", "payment", "invoice", "financial"),
+    "legal": ("contract", "legal", "counsel", "agreement"),
+    "access_control": ("permission", "authorization", "access", "share", "private file"),
+    "privacy": ("private", "confidential", "restricted", "sensitive"),
 }
 
 
 def _fallback_sensitivity(query: str) -> tuple[str, ...]:
-    lowered = str(query or "").lower()
-    result = [
-        category for category, hints in _SENSITIVE_TOPIC_HINTS.items()
-        if any(hint in lowered for hint in hints)
-    ]
-    if re.search(r"\b(?:exact|precise|specific|whether|if|yes\s+or\s+no|confirm|tell me if)\b", lowered) and result:
-        result.append("other_sensitive")
-    return tuple(dict.fromkeys(result))
+    return ()
 
 
 def _fallback_disclosure_mode(query: str) -> str:
-    lowered = str(query or "").lower()
-    if re.search(r"\b(?:yes\s+or\s+no|whether|if|confirm|is\s+this|was\s+this|did\s+it)\b", lowered):
-        return "yes_no"
-    if re.search(r"\b(?:exact|precise|specific|full|complete)\b", lowered):
-        return "exact"
-    if re.search(r"\b(?:safe|broad|public|sponsor-safe|household-safe|mixed-audience|helper-facing)\b", lowered):
-        return "broad"
-    if re.search(r"\b(?:deleted|old|former|previous|used\s+to|before)\b", lowered):
-        return "historical"
     return "unknown"
 
 

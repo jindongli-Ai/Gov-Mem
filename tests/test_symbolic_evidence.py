@@ -224,6 +224,86 @@ def test_authorization_boundary_does_not_match_single_shared_token():
     assert audit["filtered_memory_ids"] == []
 
 
+def test_authorization_boundary_projects_only_grounded_denied_claim_span():
+    mixed = _evidence(
+        memory_id="mixed", turn_id="t002", principal_id="coach_ivy", role="coach",
+        text=("The private review date is September 9. "
+              "The public room is Hall A."), score=0.8,
+    )
+    released, audit = apply_authorization_evidence_boundary(
+        evidence=[mixed],
+        certificate={
+            "decision": "deny",
+            "current_authorization": [{
+                "principal": "student_aria",
+                "resource": "private review date",
+                "decision": "deny",
+                "supporting_evidence_ids": ["policy"],
+            }],
+        },
+        semantic_atoms=[{
+            "atom_id": "private-date",
+            "slot_name": "private review date",
+            "source": {
+                "chunk_id": "mixed",
+                "span": "The private review date is September 9.",
+            },
+        }],
+    )
+
+    assert [row.memory_id for row in released] == ["mixed"]
+    assert "September 9" not in released[0].content
+    assert "The public room is Hall A." in released[0].content
+    assert audit["filtered_memory_ids"] == []
+    assert audit["projected_memory_ids"] == ["mixed"]
+
+
+def test_authorization_boundary_fails_closed_without_grounded_claim_projection():
+    mixed = _evidence(
+        memory_id="mixed", turn_id="t002", principal_id="coach_ivy", role="coach",
+        text="The private review date is September 9. The public room is Hall A.", score=0.8,
+    )
+    released, audit = apply_authorization_evidence_boundary(
+        evidence=[mixed],
+        certificate={
+            "decision": "deny",
+            "current_authorization": [{
+                "principal": "student_aria",
+                "resource": "private review date",
+                "decision": "deny",
+                "supporting_evidence_ids": ["policy"],
+            }],
+        },
+        semantic_atoms=[],
+    )
+
+    assert released == []
+    assert audit["filtered_memory_ids"] == ["mixed"]
+
+
+def test_source_grounded_restricted_atom_does_not_become_authorization_decision():
+    row = _evidence(
+        memory_id="private", turn_id="t002", principal_id="coach_ivy", role="coach",
+        text="The case blocker remains private: clearance form.", score=0.8,
+    )
+    released, audit = apply_authorization_evidence_boundary(
+        evidence=[row],
+        certificate={"decision": "unknown", "current_authorization": []},
+        semantic_atoms=[{
+            "atom_id": "restricted-slot", "slot_id": "qslot_0",
+            "slot_name": "current case blocker",
+            "sensitivity_semantics": {"type": "restricted"},
+            "source": {
+                "chunk_id": "private",
+                "span": "The case blocker remains private: clearance form.",
+            },
+        }],
+    )
+
+    assert [item.memory_id for item in released] == ["private"]
+    assert audit["enforcement_applied"] is False
+
+
 def test_dev4_policy_certificate_denies_sensitive_scope_for_logistics_only_policy():
     instance = replace(_instance(), question="What clinical result is current?")
     evidence = [
@@ -536,6 +616,72 @@ def test_v4_symbolic_state_ledger_reuses_clinical_plan_and_typed_frame_slots():
     assert ranked[0].metadata["symbolic_state_ledger"] == ledger
 
 
+def test_v4_semantic_atoms_drive_open_vocabulary_state_ledger():
+    instance = replace(
+        _instance(),
+        question="What is the current review date and support amount?",
+    )
+    evidence = [
+        _evidence(
+            memory_id="m_old", turn_id="t001", principal_id="nurse_alvarez",
+            role="nurse", text="The support amount was 4,150 USD.", score=0.7,
+        ),
+        _evidence(
+            memory_id="m_current", turn_id="t002", principal_id="nurse_alvarez",
+            role="nurse",
+            text="The current review date is August 4 and support amount is 4,130 USD.",
+            score=0.9,
+        ),
+    ]
+    atoms = [
+        {
+            "atom_id": "date", "slot_id": "qslot_0",
+            "slot_name": "current review date", "value": "August 4",
+            "temporal": {"state": "current"},
+            "lifecycle_semantics": {"type": "assert"},
+            "source": {"chunk_id": "m_current", "turn_id": "t002", "span": "current review date is August 4"},
+            "confidence": 0.9,
+        },
+        {
+            "atom_id": "old-amount", "slot_id": "qslot_1",
+            "slot_name": "support amount", "value": "4,150 USD",
+            "temporal": {"state": "historical"},
+            "lifecycle_semantics": {"type": "none"},
+            "source": {"chunk_id": "m_old", "turn_id": "t001", "span": "support amount was 4,150 USD"},
+            "confidence": 0.8,
+        },
+        {
+            "atom_id": "current-amount", "slot_id": "qslot_1",
+            "slot_name": "support amount", "value": "4,130 USD",
+            "temporal": {"state": "current"},
+            "lifecycle_semantics": {"type": "update"},
+            "source": {"chunk_id": "m_current", "turn_id": "t002", "span": "support amount is 4,130 USD"},
+            "confidence": 0.9,
+        },
+    ]
+
+    ranked, trace = build_symbolic_evidence(
+        instance=instance,
+        evidence=evidence,
+        query_analysis={
+            "semantic_compiler_contract": True,
+            "fields": [
+                {"slot_id": "qslot_0", "name": "current review date", "temporal_requirement": "current"},
+                {"slot_id": "qslot_1", "name": "support amount", "temporal_requirement": "current"},
+            ],
+        },
+        semantic_atoms=atoms,
+    )
+
+    ledger = trace["state_ledger"]
+    assert ledger["version"] == "state-ledger-v2-semantic-atoms"
+    assert ledger["resolved_count"] == 2
+    assert ledger["fields"]["current review date"]["value"] == "August 4"
+    assert ledger["fields"]["support amount"]["value"] == "4,130 USD"
+    assert ledger["fields"]["support amount"]["source_memory_id"] == "m_current"
+    assert ranked[0].metadata["symbolic_state_ledger"] == ledger
+
+
 def _auth_event(effect: str, principal: str = "nurse_alvarez", resource: str = "clinical records"):
     return {
         "effect": effect,
@@ -759,3 +905,67 @@ def test_temporal_authorization_consumes_ingestion_annotation_and_resolves_roste
         for event in certificate["graph_nodes"]
         if event.get("node_type") == "PolicyEvent"
     )
+
+
+def test_grounded_semantic_policy_atom_enters_graph_then_enforces_boundary():
+    metadata = dict(_instance().metadata)
+    metadata["raw_sample"] = {
+        "episode": {"entities": {"principals": [
+            {"principal_id": "patient_elena", "role": "patient", "display_name": "Elena Park"},
+            {"principal_id": "family_linda", "role": "family_member", "display_name": "Linda Park"},
+        ], "relationships": []}},
+    }
+    instance = replace(
+        _instance(),
+        question="Can Linda Park receive the current clinical record?",
+        metadata=metadata,
+    )
+    policy = _evidence(
+        memory_id="policy", turn_id="t001", principal_id="patient_elena", role="patient",
+        text="Linda Park must not receive the clinical record.", score=0.9,
+    )
+    fact = _evidence(
+        memory_id="fact", turn_id="t002", principal_id="patient_elena", role="patient",
+        text="The clinical record contains a detailed diagnosis.", score=0.8,
+    )
+    atoms = [{
+        "atom_id": "a0", "slot_id": "qslot_0", "slot_name": "clinical record",
+        "authorization_semantics": {
+            "type": "deny", "subject": "Linda Park", "resource": "clinical record",
+        },
+        "source": {"chunk_id": "policy", "span": "Linda Park must not receive the clinical record."},
+    }]
+
+    ranked, trace = build_symbolic_evidence(
+        instance=instance, evidence=[policy, fact], semantic_atoms=atoms,
+        temporal_authorization_enabled=True, temporal_authorization_enforcement=True,
+        query_analysis={"fields": [{"name": "clinical record"}]},
+    )
+
+    certificate = trace["temporal_authorization"]
+    assert certificate["semantic_candidate_event_count"] == 1
+    assert certificate["decision"] == "deny"
+    assert trace["authorization_evidence_boundary"]["enforcement_applied"] is True
+    assert ranked == []
+
+
+def test_ungrounded_semantic_policy_atom_never_enters_authorization_graph():
+    instance = replace(_instance(), question="Can nurse_alvarez access clinical records?")
+    row = _evidence(
+        memory_id="policy", turn_id="t001", principal_id="patient_elena", role="patient",
+        text="A policy note exists.", score=0.9,
+    )
+    atoms = [{
+        "atom_id": "bad", "slot_id": "qslot_0", "slot_name": "clinical records",
+        "authorization_semantics": {"type": "deny", "subject": "nurse_alvarez"},
+        "source": {"chunk_id": "policy", "span": "absent policy statement"},
+    }]
+    _, trace = build_symbolic_evidence(
+        instance=instance, evidence=[row], semantic_atoms=atoms,
+        temporal_authorization_enabled=True,
+    )
+    certificate = trace["temporal_authorization"]
+    assert certificate["semantic_candidate_event_count"] == 0
+    assert certificate["rejected_semantic_candidate_events"] == [
+        {"atom_id": "bad", "reason": "source_not_grounded"}
+    ]

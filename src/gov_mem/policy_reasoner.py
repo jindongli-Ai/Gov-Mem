@@ -19,30 +19,9 @@ from gov_mem.field_state_projection import compile_query_contract
 
 
 def _requires_sensitive_authorization(question: str) -> bool:
-    """Recognize requests for exact sensitive facts, independent of domain."""
-    lowered = question.lower()
-    # "without leaking restricted material" is a delivery constraint, not a
-    # request for a restricted field. Remove this generic instruction before
-    # lexical sensitivity detection so an otherwise ordinary logistics
-    # summary remains directly answerable.
-    lowered = re.sub(
-        r"\bwithout\s+(?:leaking|sharing|disclosing|exposing)\s+restricted\s+material\b",
-        "",
-        lowered,
-    )
-    # Interrogatives such as ``does``, ``whether`` and ``active`` are not
-    # evidence of sensitivity by themselves. The decision boundary should be
-    # driven by the requested information type, otherwise ordinary current
-    # state questions are turned into denials before retrieval.
-    direct_sensitive = bool(re.search(
-        r"\b(code|credential|pin|password|door code|portal code|host institution|host-school|restricted|internal label|review flag|customer identity|exact customer|customer mapping|diagnosis|incident diagnosis|medical condition|health condition|disease|treatment|symptom|medication|blood pressure|hormone|clinical|pregnancy|pregnant|viability|viable|access status|access is|psychiatric|mental-health|self-harm|program|hold)\b",
-        lowered,
-    ))
-    indirect_identity_inference = bool(
-        re.search(r"\b(?:imply|infer|means|same as|equivalent|correspond|match)\b", lowered)
-        and re.search(r"\b(?:customer|account|identity|mapping|name|who)\b", lowered)
-    )
-    return direct_sensitive or indirect_identity_inference
+    # DISABLED: benchmark-specific lexical sensitivity trigger.  Sensitivity
+    # is supplied by the question-only semantic contract instead.
+    return False
 
 
 def _intent_requires_sensitive_authorization(*, question: str, intent) -> bool:
@@ -53,8 +32,6 @@ def _intent_requires_sensitive_authorization(*, question: str, intent) -> bool:
     policy check.  The intent parser supplies open-ended semantic categories;
     Python still makes the final authorization decision.
     """
-    if _requires_sensitive_authorization(question):
-        return True
     categories = set(getattr(intent, "sensitivity_topics", ()) or ())
     mode = str(getattr(intent, "disclosure_mode", "unknown") or "unknown")
     return bool(categories and mode in {"exact", "yes_no", "historical"})
@@ -93,43 +70,28 @@ def _requests_explicit_safe_projection(*, question: str, intent) -> bool:
         "public", "safe_summary", "broad", "logistics", "scheduling", "communication",
     }:
         return True
-    lowered = str(question or "").lower()
-    # Conservative fallback for rule-only parsing.  These are generic
-    # operational concepts, not GateMem case names or expected answers.
-    return bool(re.search(
-        r"\b(?:appointment|schedule|scheduled|calendar|visit|meeting|pickup|"
-        r"drop[- ]?off|ride|route|arrival|delivery|logistics|callback|call back|phone|"
-        r"mobile|contact|voicemail|email)\b",
-        lowered,
-    ) or re.search(
-        r"\b(?:only helping|just coordinate|coordinate .*schedule|public .*login|"
-        r"do not need the whole file|route forms|so i can)",
-        lowered,
-    ))
+    # DISABLED lexical fallback. The LLM intent parser must explicitly
+    # identify an independently requested safe projection.
+    return False
 
 
 def _is_safe_summary_request(question: str) -> bool:
-    return bool(
-        re.search(
-            r"\b(?:safe|broad|public|sponsor-safe|sponsor-ready|household-safe|mixed-audience|helper-facing)\s+"
-            r"(?:wording|summary|sentence|update|recap|brief|status|one-line\s+status)\b"
-            r"|\bhigh[- ]level\s+(?:status|summary|update|recap)\b",
-            question.lower(),
-        )
-        or re.search(r"\bkeep\s+(?:it|this)\s+high[- ]level\b", question.lower())
-    )
+    # DISABLED lexical safe-summary trigger; planner intent.target_scope is
+    # the sole active source for this distinction.
+    return False
 
 
 def _is_lifecycle_query(question: str) -> bool:
-    return bool(re.search(
-        r"\b(deleted|removed|retired|forgotten|old|previous|former|stale|superseded|"
-        r"earlier|provisional|preliminary|prior|before\s+the\s+(?:approved|current|final|updated))\b",
-        question.lower(),
-    ))
+    # DISABLED lexical lifecycle trigger; use intent.disclosure_mode and
+    # memory status instead.
+    return False
 
 
 def _is_deleted_existence_query(question: str) -> bool:
     """Recognize attempts to confirm whether a sensitive item still exists."""
+    # DISABLED lexical deleted-existence trigger.
+    return False
+    '''
     lowered = str(question or "").lower()
     existence = bool(re.search(
         r"\b(?:still\s+(?:have|keep|store)|stored|on\s+file|exists?|somewhere|"
@@ -141,11 +103,14 @@ def _is_deleted_existence_query(question: str) -> bool:
         r"location|identity|detail)\b",
         lowered,
     ))
-    return existence and sensitive
+    return existence and sensitive'''
 
 
 def _is_deleted_recovery_query(question: str) -> bool:
     """Recognize a request to restate a value after it was retired."""
+    # DISABLED lexical deleted-recovery trigger.
+    return False
+    '''
     lowered = str(question or "").lower()
     lifecycle = bool(re.search(
         r"\b(?:deleted|removed|forgotten|retired|purged|erased|earlier|previous|"
@@ -158,7 +123,7 @@ def _is_deleted_recovery_query(question: str) -> bool:
         r"appeared\s+before|before\s+the\s+(?:approved|current|final|updated))\b",
         lowered,
     ))
-    return lifecycle and historical
+    return lifecycle and historical'''
 
 
 def _partial_disclosure_memory_ids(

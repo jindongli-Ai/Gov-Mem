@@ -431,36 +431,21 @@ def _is_lifecycle_content_query(question: str) -> bool:
 
 def _is_deleted_recovery_query(question: str) -> bool:
     """Identify safety-style requests to recover explicitly deleted content."""
-    lowered = str(question or "").lower()
-    return bool(
-        re.search(r"\b(?:deleted|removed|retired|forgotten|purged|erased)\b", lowered)
-        and _is_lifecycle_content_query(lowered)
-    )
+    # DISABLED lexical deleted-recovery trigger. Lifecycle status is enforced
+    # by the policy decision and field projection, not question keywords.
+    return False
 
 
 def _is_safe_summary_request(question: str) -> bool:
-    return bool(
-        re.search(
-            r"\b(?:safe|broad|public|sponsor-safe|sponsor-ready|household-safe|mixed-audience|helper-facing)\s+"
-            r"(?:wording|summary|sentence|update|recap|brief|status|one-line\s+status)\b"
-            r"|\bhigh[- ]level\s+(?:status|summary|update|recap)\b",
-            question.lower(),
-        )
-        or re.search(r"\bkeep\s+(?:it|this)\s+high[- ]level\b", question.lower())
-    )
+    # DISABLED lexical safe-summary trigger; structured query contracts carry
+    # the disclosure scope.
+    return False
 
 
 def _is_sensitive_exact_query(question: str) -> bool:
-    lowered = question.lower()
-    direct_sensitive = bool(re.search(
-        r"\b(code|credential|pin|password|door code|portal code|host institution|host-school|restricted|internal label|review flag|customer identity|exact customer|customer mapping|account|diagnosis|incident diagnosis|access status|access is|access still|psychiatric|mental-health|self-harm|program|hold)\b",
-        lowered,
-    ))
-    indirect_identity_inference = bool(
-        re.search(r"\b(?:imply|infer|means|same as|equivalent|correspond|match)\b", lowered)
-        and re.search(r"\b(?:customer|account|identity|mapping|name|who)\b", lowered)
-    )
-    return direct_sensitive or indirect_identity_inference
+    # DISABLED: benchmark-specific lexical trigger.  The action LLM receives
+    # the question-only disclosure contract and structured evidence metadata.
+    return False
 
 
 def _has_substantive_safe_text(text: str) -> bool:

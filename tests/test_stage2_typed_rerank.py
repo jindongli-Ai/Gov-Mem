@@ -17,6 +17,10 @@ from gov_mem.backbones.stage2_typed_rerank import (
     rerank_typed_scalar_evidence,
     summary_only_boundary_reason,
     build_summary_only_evidence,
+    analyze_query_with_llm,
+    _query_lifecycle_flags,
+    _query_safety_profile,
+    _safety_requests_protected_fact,
 )
 from gov_mem.backbones.rag_naive import (
     _append_missing_verified_date,
@@ -64,6 +68,355 @@ def test_router_keeps_semantic_and_policy_queries_out_of_typed_pilot():
     assert route_query("What is the current active badge?")[0] == "typed_scalar"
     assert route_query("Tell me the current private room and safe wording.")[0] == "mixed"
     assert route_query("Can I access the exact private room?")[0] == "access_policy"
+
+
+def test_query_analysis_is_question_only_and_closes_llm_anchors_to_question():
+    class AnalysisLLM:
+        def __init__(self):
+            self.calls = []
+
+        def is_available(self):
+            return True
+
+        def chat_json(self, **kwargs):
+            self.calls.append(kwargs)
+            return {
+                "anchor_terms": ["Crescent Petition", "current", "not in question"],
+                "fields": [{"name": "approved amount", "value_type": "money"}],
+                "temporal": {"orientation": "current", "has_date": False, "has_time": False},
+                "value_types": {"date": False, "time": False, "location": False, "money": True, "identifier": False},
+                "policy": {"action": "none", "explicit": False},
+                "safety": {"sensitive": False, "exact": False, "privacy_scope": "ordinary"},
+                "authorization": {"positive": False, "negative": False, "explicit": False},
+            }
+
+    llm = AnalysisLLM()
+    analysis, reason = analyze_query_with_llm(
+        question="What is the current approved amount for Crescent Petition?",
+        llm_client=llm,
+        model_name="test-model",
+        config={},
+    )
+
+    assert reason is None
+    assert analysis["anchor_terms"] == ["Crescent Petition", "current"]
+    assert analysis["fields"] == [{"name": "approved amount", "value_type": "money"}]
+    assert len(llm.calls) == 1
+    assert "CANDIDATES" not in llm.calls[0]["user_prompt"]
+
+
+def test_query_analysis_safety_prompt_has_no_benchmark_scenario_terms():
+    class AnalysisLLM:
+        def is_available(self):
+            return True
+
+        def chat_json(self, **kwargs):
+            self.prompt = kwargs
+            return {
+                "anchor_terms": [],
+                "fields": [],
+                "safety": {
+                    "sensitive": True,
+                    "category": "credential",
+                    "privacy_scope": "restricted",
+                    "exact": True,
+                },
+            }
+
+    llm = AnalysisLLM()
+    analysis, reason = analyze_query_with_llm(
+        question="What is the exact access credential?",
+        llm_client=llm,
+        model_name="test-model",
+        config={},
+    )
+
+    assert reason is None
+    assert analysis["safety"]["category"] == "credential"
+    prompt = (llm.prompt["system_prompt"] + llm.prompt["user_prompt"]).casefold()
+    assert "archive carrel" not in prompt
+
+
+def test_query_analysis_recovers_when_provider_omits_safety_contract():
+    class AnalysisLLM:
+        def __init__(self):
+            self.calls = []
+
+        def is_available(self):
+            return True
+
+        def chat_json(self, **kwargs):
+            self.calls.append(kwargs)
+            if len(self.calls) == 1:
+                return {"anchor_terms": [], "fields": []}
+            return {
+                "sensitive": True,
+                "exact": True,
+                "confirmation": False,
+                "existence": False,
+                "request_type": "fact",
+                "category": "credential",
+                "privacy_scope": "confidential",
+            }
+
+    llm = AnalysisLLM()
+    analysis, reason = analyze_query_with_llm(
+        question="What is the exact access credential?",
+        llm_client=llm,
+        model_name="test-model",
+        config={},
+    )
+
+    assert reason is None
+    assert len(llm.calls) == 2
+    assert analysis["safety"]["sensitive"] is True
+    assert analysis["safety"]["category"] == "credential"
+
+
+def test_query_analysis_marks_unavailable_safety_without_silent_non_sensitive_fallback():
+    class BrokenAnalysisLLM:
+        def __init__(self):
+            self.calls = 0
+
+        def is_available(self):
+            return True
+
+        def chat_json(self, **kwargs):
+            self.calls += 1
+            return {"anchor_terms": [], "fields": []}
+
+    llm = BrokenAnalysisLLM()
+    analysis, reason = analyze_query_with_llm(
+        question="Just tell me whether Alex's labs were normal.",
+        llm_client=llm,
+        model_name="test-model",
+        config={},
+    )
+
+    assert llm.calls == 2
+    assert reason == "query analysis safety contract is unavailable"
+    assert analysis["safety"]["available"] is False
+    assert analysis["safety"]["sensitive"] is False
+
+
+def test_query_analysis_parses_string_booleans_without_inverting_false():
+    class StringBooleanLLM:
+        def is_available(self):
+            return True
+
+        def chat_json(self, **kwargs):
+            return {
+                "safety": {
+                    "sensitive": "false",
+                    "exact": "false",
+                    "confirmation": "false",
+                    "existence": "false",
+                    "request_type": "fact",
+                    "category": "none",
+                    "privacy_scope": "ordinary",
+                }
+            }
+
+    analysis, reason = analyze_query_with_llm(
+        question="What is the current approved amount?",
+        llm_client=StringBooleanLLM(),
+        model_name="test-model",
+        config={},
+    )
+
+    assert reason is None
+    assert analysis["safety"]["sensitive"] is False
+    assert analysis["safety"]["exact"] is False
+
+
+def test_query_analysis_parses_string_booleans_in_lifecycle_and_authorization():
+    class StringBooleanLLM:
+        def is_available(self):
+            return True
+
+        def chat_json(self, **kwargs):
+            return {
+                "temporal": {"orientation": "current"},
+                "lifecycle": {
+                    "explicit_historical": "false",
+                    "explicit_deleted": "false",
+                    "explicit_replacement": "false",
+                    "before_transition": "false",
+                },
+                "policy": {"action": "none", "explicit": "false"},
+                "authorization": {
+                    "positive": "false", "negative": "false", "explicit": "false",
+                },
+                "safety": {
+                    "sensitive": "true", "exact": "false",
+                    "confirmation": "false", "existence": "false",
+                    "request_type": "fact", "category": "health",
+                    "privacy_scope": "confidential",
+                },
+            }
+
+    analysis, reason = analyze_query_with_llm(
+        question="What is the current care plan?",
+        llm_client=StringBooleanLLM(),
+        model_name="test-model",
+        config={},
+    )
+
+    assert reason is None
+    assert _query_lifecycle_flags(analysis) == {
+        "explicit_historical": False,
+        "explicit_deleted": False,
+        "explicit_replacement": False,
+        "before_transition": False,
+    }
+    assert analysis["policy"]["explicit"] is False
+    assert analysis["authorization"] == {
+        "positive": False, "negative": False, "explicit": False,
+    }
+
+
+def test_mixed_projection_preserves_query_analysis():
+    instance = _instance("What are the current approved budget and target date?")
+    analysis = {
+        "fields": [
+            {"name": "approved budget", "value_type": "money"},
+            {"name": "target date", "value_type": "date"},
+        ],
+        "value_types": {
+            "date": True, "time": False, "location": False,
+            "money": True, "identifier": False,
+        },
+        "safety": {
+            "sensitive": False, "exact": False, "confirmation": False,
+            "existence": False, "request_type": "fact",
+            "category": "none", "privacy_scope": "ordinary",
+        },
+    }
+    evidence = [
+        _evidence("budget", "Current approved budget is 4,000 USD.", 0.8, "m_new"),
+        _evidence("date", "Current target date is September 10, 2026.", 0.79, "m_new"),
+    ]
+
+    _, decision = project_mixed_current_state_evidence(
+        instance=instance,
+        evidence=evidence,
+        query_analysis=analysis,
+    )
+
+    assert decision.query_analysis == analysis
+
+
+def test_query_analysis_can_route_without_the_value_head_lexicon():
+    analysis = {
+        "fields": [{"name": "approved amount", "value_type": "money"}],
+        "value_types": {
+            "date": False,
+            "time": False,
+            "location": False,
+            "money": True,
+            "identifier": False,
+        },
+        "policy": {"action": "none"},
+        "temporal": {"orientation": "current"},
+    }
+    assert route_query("What is the current approved amount?", query_analysis=analysis) == (
+        "typed_scalar",
+        ["money"],
+    )
+
+    semantic_analysis = {
+        "fields": [{"name": "current condition", "value_type": "state"}],
+        "value_types": {},
+        "policy": {"action": "none"},
+        "temporal": {"orientation": "current"},
+    }
+    assert route_query("What is the current condition?", query_analysis=semantic_analysis)[0] == (
+        "semantic_state"
+    )
+
+
+def test_delivery_analysis_uses_question_fields_without_delivery_alias_fallback():
+    question = "What are the cleaning window and arrival confirmation rule?"
+    analysis = {
+        "request_shape": "multi_field",
+        "fields": [
+            {"name": "cleaning window", "value_type": "time"},
+            {"name": "arrival confirmation rule", "value_type": "text"},
+        ],
+        "value_types": {"time": True},
+        "temporal": {"orientation": "current"},
+        "policy": {"action": "none", "explicit": False},
+    }
+
+    assert route_query(question, query_analysis=analysis)[0] == "mixed"
+    assert _mixed_reasoning_requested_slots(question, query_analysis=analysis) == [
+        "cleaning window", "arrival confirmation rule",
+    ]
+
+    evidence = [
+        _evidence(
+            "window",
+            "The cleaning window is Monday from 9:30 AM to 11:30 AM.",
+            0.8,
+            "m_new",
+        ),
+        _evidence(
+            "contact",
+            "The arrival confirmation rule is text Rina on arrival.",
+            0.79,
+            "m_new",
+        ),
+    ]
+    projected, decision = project_mixed_current_state_evidence(
+        instance=_instance(question),
+        evidence=evidence,
+        query_analysis=analysis,
+    )
+
+    assert decision.projection_applied is True
+    assert {row.memory_id for row in projected} == {"window", "contact"}
+
+
+def test_partial_question_analysis_does_not_reactivate_delivery_aliases():
+    question = "What is the current arrival window?"
+    partial_analysis = {"safety": {"available": True, "sensitive": False}}
+    assert route_query(question, query_analysis=partial_analysis)[0] == "semantic_state"
+    assert _mixed_reasoning_requested_slots(question, query_analysis=partial_analysis) == []
+
+
+def test_typed_rerank_records_question_analysis_and_uses_its_anchors():
+    class AnalysisLLM:
+        def is_available(self):
+            return True
+
+        def chat_json(self, **kwargs):
+            return {
+                "anchor_terms": ["Crescent Petition"],
+                "fields": [{"name": "approved amount", "value_type": "money"}],
+                "temporal": {"orientation": "current"},
+                "value_types": {"money": True},
+                "policy": {"action": "none", "explicit": False},
+                "safety": {"sensitive": False},
+                "authorization": {"positive": False, "negative": False},
+            }
+
+    instance = _instance("What is the current approved amount for Crescent Petition?")
+    evidence = [
+        _evidence("noise", "The current approved amount is 9 USD.", 0.71, "m_old"),
+        _evidence("target", "Crescent Petition approved amount is 8 USD.", 0.70, "m_new"),
+    ]
+    ranked, decision = rerank_typed_scalar_evidence(
+        instance=instance,
+        evidence=evidence,
+        llm_client=AnalysisLLM(),
+        model_name="test-model",
+        config={},
+    )
+
+    assert decision.query_analysis_applied is True
+    assert decision.query_analysis_model == "test-model"
+    assert decision.query_analysis["anchor_terms"] == ["Crescent Petition"]
+    assert [row.memory_id for row in ranked] == ["target", "noise"]
 
 
 def test_router_expands_predicate_expiry_into_a_mixed_access_contract():
@@ -134,6 +487,48 @@ def test_sensitive_boundary_covers_named_patient_medication_association():
     instance.domain = "medical"
     assert explicit_sensitive_boundary_reason(
         instance=instance, evidence=[]
+    ) == "explicit sensitive fact request lacks observable authorization evidence"
+
+
+def test_sensitive_fact_gate_does_not_treat_plain_sensitive_fact_as_protected_request():
+    analysis = {
+        "safety": {
+            "sensitive": True,
+            "exact": False,
+            "confirmation": False,
+            "existence": False,
+            "request_type": "fact",
+            "category": "health",
+            "privacy_scope": "confidential",
+        }
+    }
+    profile = _query_safety_profile(analysis, question="What is the current care plan?")
+    assert _safety_requests_protected_fact(profile) is False
+    assert explicit_sensitive_boundary_reason(
+        instance=_instance("What is the current care plan?"),
+        evidence=[],
+        query_analysis=analysis,
+    ) is None
+
+
+def test_sensitive_exact_request_remains_a_protected_request():
+    analysis = {
+        "safety": {
+            "sensitive": True,
+            "exact": True,
+            "confirmation": False,
+            "existence": False,
+            "request_type": "fact",
+            "category": "credential",
+            "privacy_scope": "restricted",
+        }
+    }
+    profile = _query_safety_profile(analysis, question="What is the exact access credential?")
+    assert _safety_requests_protected_fact(profile) is True
+    assert explicit_sensitive_boundary_reason(
+        instance=_instance("What is the exact access credential?"),
+        evidence=[],
+        query_analysis=analysis,
     ) == "explicit sensitive fact request lacks observable authorization evidence"
 
 
