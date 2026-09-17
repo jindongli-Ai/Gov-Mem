@@ -106,8 +106,14 @@ def stage_runtime_code(project_root: Path, target_root: Path) -> Path:
     # Keep newly developed runtime modules available before they are committed.
     # This explicit list preserves the no-checkout-walk invariant of staging.
     for relative in (
+        # Paper-facing v4 support modules may be newly added before the next
+        # commit. Keep them in the isolated runtime staging tree so a smoke
+        # run exercises the same checkout instead of failing at import time.
+        "src/gov_mem/backbones/v4_support.py",
+        "src/gov_mem/backbones/semantic_compiler.py",
         "src/gov_mem/backbones/symbolic_evidence.py",
         "src/gov_mem/data/timestamps.py",
+        "src/gov_mem/memory/governed_slot_graph.py",
     ):
         candidate = project_root / relative
         if candidate.exists() and relative not in items:

@@ -1869,29 +1869,21 @@ def _deduplicate_disclosure_constraints(constraints: list[dict[str, str]]) -> li
 
 
 def _infer_security_relevant_slots(question: str) -> list[str]:
-    lowered = str(question or "").lower()
-    slots: list[str] = []
-    if any(token in lowered for token in [
-        "phone", "phone number", "mobile", "direct line", "callback number",
-        "contact number", "contact details",
-    ]):
-        slots.append("phone")
-    return slots
+    """Disabled lexical security-slot inference.
+
+    Query-conditioned semantic compilation owns open-vocabulary field
+    discovery in the paper-facing path. Returning no inferred field here
+    prevents a fixed contact/credential vocabulary from influencing retrieval
+    or governance when the planner output is incomplete.
+    """
+    del question
+    return []
 
 
 def _is_record_bundle_request(question: str) -> bool:
-    lowered = str(question or "").lower()
-    collection_noun = re.search(
-        r"\b(?:items?|plans?|bookings?|appointments?|routes?|triggers?|steps?|"
-        r"instructions?|schedule|recap|summary|details?)\b",
-        lowered,
-    )
-    collection_signal = bool(re.search(
-        r"\b(?:what|which|list|give|show|tell|current|active|remain|booked|"
-        r"three|two|all|both|next[- ]week)\b",
-        lowered,
-    ))
-    return bool(collection_noun and collection_signal)
+    """Do not classify record bundles from a benchmark-shaped noun list."""
+    del question
+    return False
 
 
 def _has_semantic_signal(semantic_spec: object) -> bool:

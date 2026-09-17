@@ -32,11 +32,6 @@ from gov_mem.policy_schema import (
 )
 
 
-_SCOPE_TERMS = (
-    "scheduling", "logistics", "clinical", "medical", "budget", "contract",
-    "project", "room", "location", "financial", "public", "broad", "exact",
-)
-
 def _topics(text: str) -> tuple[str, ...]:
     lowered = str(text or "").lower()
     topics = set(topics_from_text(text))
@@ -137,9 +132,10 @@ def _scope(text: str) -> str | None:
         lowered,
     ):
         return "safe_summary"
-    for term in _SCOPE_TERMS:
-        if term in lowered:
-            return term
+    # Ordinary scope labels are no longer inferred from a fixed vocabulary.
+    # The paper-facing semantic compiler supplies open-vocabulary slots and
+    # explicit disclosure metadata; this legacy builder records only the
+    # structurally identifiable safe projection above.
     return None
 
 

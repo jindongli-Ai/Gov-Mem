@@ -1,5 +1,5 @@
 project:
-  name: Gov-Mem-v4-Symbolic-dev7-semantic-compiler-gpt4o-mini-full
+  name: Gov-Mem-v4-Symbolic-deepseek-v4-flash-full-2218
   seed: 42
 
 experiment:
@@ -14,12 +14,12 @@ llm:
   provider: openlux
   api_key_env: OPENLUX_API_KEY
   api_base: https://api.openlux.ai/v1
-  base_model: gpt-4o-mini
+  base_model: deepseek-v4-flash
   role_models: {}
-  memory_ingestion_model: gpt-4o-mini
-  query_planner_model: gpt-4o-mini
-  reasoning_model: gpt-4o-mini
-  answering_model: gpt-4o-mini
+  memory_ingestion_model: deepseek-v4-flash
+  query_planner_model: deepseek-v4-flash
+  reasoning_model: deepseek-v4-flash
+  answering_model: deepseek-v4-flash
   temperature: 0.2
   max_output_tokens: 4096
   max_retries: 3
@@ -36,10 +36,8 @@ embedding:
   request_timeout: 90
   retry_backoff_seconds: 3.0
   max_retry_backoff_seconds: 30.0
-  # Reuse the shared text-embedding-3-small cache and fall back to lexical
-  # retrieval only when the provider rate-limits a request.
   cache_dir: /tmp/govmem_v4_symbolic_text_embedding_3_small_gemini25flashlite_semantic_compiler
-  allow_fallback: true
+  allow_fallback: false
 
 pipeline:
   use_asking_user_id: true
@@ -69,6 +67,11 @@ semantic_compiler:
     max_rounds: 1
   use_fixed_lexicon: false
   use_dataset_classifier: false
+
+memory_governed_slot_graph:
+  enabled: false
+  batch_size: 8
+  dense_index: false
 
 stage2:
   query_analysis:
@@ -101,7 +104,7 @@ evaluation:
     model: gpt-4o
     temperature: 0.0
     max_output_tokens: 4096
-    concurrency: 20
+    concurrency: 30
     gate_by_action: false
 
 runner:

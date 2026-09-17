@@ -42,7 +42,7 @@ from gov_mem.retrieval.hybrid_retriever import HybridRetriever
 from gov_mem.retrieval.symbolic_retriever import SymbolicRetriever
 from gov_mem.skills.registry import SkillRegistry
 from gov_mem.skills.updater import SkillUpdater
-from gov_mem.utils.io import append_jsonl, ensure_dir, read_jsonl, write_json, write_jsonl
+from gov_mem.utils.io import append_jsonl, ensure_dir, read_json, read_jsonl, write_json, write_jsonl
 from gov_mem.utils.logging import setup_logger
 
 

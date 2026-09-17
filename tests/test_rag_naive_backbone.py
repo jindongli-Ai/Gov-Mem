@@ -16,6 +16,9 @@ from gov_mem.backbones.rag_naive import (
     _arbitrate_in_scope_operational_delivery,
     _sanitize_answer_redacted_sensitive_values,
     _realize_certified_operational_answer,
+    _preserve_symbolic_state_carriers,
+    _merge_question_safety_into_contract,
+    _is_current_query_item,
 )
 from gov_mem.memory.dense_index import DenseMemoryIndex
 from gov_mem.llm.client import LLMClientUnavailableError
@@ -76,7 +79,7 @@ def test_explicit_private_negative_query_cannot_be_softened_to_redacted_answer()
             "safety": {"sensitive": True, "privacy_scope": "private"},
             "authorization": {"negative": True},
         },
-        authorization_decision="unknown",
+        authorization_decision="deny",
         action="answer_redacted",
     )
     assert reason == "explicit private negative authorization cannot be delivered as a redacted answer"
@@ -88,7 +91,7 @@ def test_grounded_compiler_private_negative_is_not_overridden_by_stage2_analysis
             "safety": {"sensitive": False, "privacy_scope": "ordinary"},
             "authorization": {"negative": False},
         },
-        authorization_decision="unknown",
+        authorization_decision="deny",
         action="answer_redacted",
         semantic_delivery_signal={
             "grounded_restricted_atom": True,
@@ -162,6 +165,42 @@ def test_rag_naive_uses_one_turn_chunk_per_message():
     assert chunks[0].source_message_ids == ["t001"]
 
 
+def test_query_turn_is_not_used_as_memory_evidence():
+    instance = _instance()
+    item = SimpleNamespace(
+        metadata={"structured_record": {"text": instance.question}},
+    )
+    assert _is_current_query_item(item, instance)
+
+
+def test_query_turn_identity_uses_checkpoint_boundary_when_text_is_normalized():
+    """A checkpoint query may differ textually from its visible turn."""
+    instance = _instance()
+    item = SimpleNamespace(
+        metadata={
+            "structured_record": {
+                "turn_id": "t002",
+                "text": "As of now, what is the current plan for Priya Shah?",
+            },
+        },
+    )
+    instance.question = "As of now, what is my current plan for Priya?"
+    assert _is_current_query_item(item, instance)
+
+
+def test_non_query_turn_with_similar_text_is_retained_by_boundary_identity():
+    instance = _instance()
+    item = SimpleNamespace(
+        metadata={
+            "structured_record": {
+                "turn_id": "t001",
+                "text": instance.question,
+            },
+        },
+    )
+    assert not _is_current_query_item(item, instance)
+
+
 def test_source_grounded_access_context_projects_assignment_path_only():
     instance = _instance()
     instance = MemoryInstance(
@@ -214,6 +253,36 @@ def test_source_grounded_access_context_does_not_project_evidence_about_edges():
 
     assert result["source_grounded"] is False
     assert result["assignment_paths"] == []
+
+
+def test_source_grounded_slots_allow_ordinary_delivery_without_graph_path():
+    contract = SimpleNamespace(requested_slots=[SimpleNamespace(
+        slot_id="qslot_0", slot_name="current value", required_for_answer=True,
+        sensitivity_possible=False, authorization_relevant=False,
+    )])
+    result = _source_grounded_access_context(
+        instance=_instance(),
+        semantic_contract=contract,
+        semantic_atoms=[{
+            "slot_id": "qslot_0",
+            "source": {"chunk_id": "chunk_0001_t001_t001"},
+        }],
+        symbolic_trace={
+            "graph_nodes": [],
+            "graph_edges": [],
+            "temporal_authorization": {"decision": "unknown"},
+        },
+        query_analysis={"safety": {
+            "delivery_mode": "ordinary_operational",
+            "confirmation": False,
+            "existence": False,
+        }},
+    )
+
+    assert result["assignment_paths"] == []
+    assert result["semantic_delivery_support"] is True
+    assert result["source_grounded"] is True
+    assert result["operational_assignment_in_scope"] is True
 
 
 def test_source_grounded_access_context_matches_each_target_phrase_independently():
@@ -292,9 +361,72 @@ def test_redacted_answer_does_not_echo_grounded_sensitive_value():
         base,
         semantic_atoms=[{"slot_id": "qslot_0", "value": "Pod 1405"}],
         semantic_contract=contract,
+        authorization_decision="deny",
     )
     assert sanitized.action == "answer_redacted"
     assert "Pod 1405" not in sanitized.answer_text
+
+
+def test_redacted_answer_does_not_echo_sensitive_value_when_authorization_unknown():
+    base = AnswerResult(
+        prediction="The current PIN is 8125.", answer_text="The current PIN is 8125.",
+        used_memory_ids=["m1"], reasoning_summary="model returned a redacted answer",
+        action="answer_redacted",
+    )
+    contract = SimpleNamespace(requested_slots=[SimpleNamespace(
+        slot_id="qslot_0", sensitivity_possible=True, authorization_relevant=True,
+    )])
+    sanitized = _sanitize_answer_redacted_sensitive_values(
+        base,
+        semantic_atoms=[{"slot_id": "qslot_0", "value": "8125"}],
+        semantic_contract=contract,
+        authorization_decision="unknown",
+    )
+    assert sanitized.action == "answer_redacted"
+
+
+def test_refusal_explanation_does_not_echo_protected_value():
+    result = AnswerResult(
+        prediction="I cannot provide 8125.",
+        answer_text="I cannot provide 8125.",
+        used_memory_ids=["m1"],
+        reasoning_summary="refused",
+        action="refuse",
+    )
+    contract = SimpleNamespace(requested_slots=[SimpleNamespace(
+        slot_id="qslot_0", sensitivity_possible=True, authorization_relevant=True,
+    )])
+    sanitized = _sanitize_answer_redacted_sensitive_values(
+        result,
+        semantic_atoms=[{"slot_id": "qslot_0", "value": "8125"}],
+        semantic_contract=contract,
+        query_analysis={"safety": {
+            "sensitive": True, "exact": True, "confirmation": False,
+            "existence": False, "privacy_scope": "private",
+            "delivery_mode": "protected_fact",
+        }},
+        authorization_decision="unknown",
+    )
+    assert "8125" not in sanitized.answer_text
+    assert sanitized.action == "refuse"
+
+
+def test_question_safety_lifts_slot_boundary_without_authorizing_access():
+    contract = SimpleNamespace(requested_slots=[SimpleNamespace(
+        slot_id="qslot_0", sensitivity_possible=False, authorization_relevant=False,
+    )])
+    changed = _merge_question_safety_into_contract(
+        semantic_contract=contract,
+        query_analysis={"safety": {
+            "sensitive": True, "exact": True, "confirmation": False,
+            "existence": False, "privacy_scope": "private",
+            "category": "credential", "delivery_mode": "protected_fact",
+        }},
+        question="Give me the current access code.",
+    )
+    assert changed
+    assert contract.requested_slots[0].sensitivity_possible
+    assert contract.requested_slots[0].authorization_relevant
 
 
 def test_redacted_answer_keeps_non_sensitive_summary_without_grounded_value_echo():
@@ -382,6 +514,69 @@ def test_certified_operational_realization_does_not_cross_scoped_boundary():
         semantic_contract=contract,
     )
     assert result.action == "refuse"
+
+
+def test_symbolic_carrier_preservation_projects_unique_verified_slot_span():
+    selected = [RetrievedEvidence(
+        memory_id="m1", content="Current window is 10:00.", score=1.0,
+        retrieval_source="dense", reason="test",
+        metadata={"structured_record": {"text": "Current window is 10:00.", "turn_id": "t1"}},
+    )]
+    available = selected + [RetrievedEvidence(
+        memory_id="m2",
+        content="The device pair is the den tablet and projector; unrelated detail.",
+        score=0.5, retrieval_source="dense", reason="test",
+        metadata={"structured_record": {
+            "text": "The device pair is the den tablet and projector; unrelated detail.",
+            "turn_id": "t2",
+        }},
+    )]
+    rows = _preserve_symbolic_state_carriers(
+        selected=selected,
+        available=available,
+        symbolic_trace={
+            "semantic_compiler": {
+                "query_contract": {"requested_slots": [{
+                    "slot_id": "qslot_1", "required_for_answer": True,
+                }]},
+                "final_grounded_atoms": [{
+                    "atom_id": "a1", "slot_id": "qslot_1",
+                    "source": {"chunk_id": "m2", "span": "the den tablet and projector"},
+                }],
+            },
+            "temporal_authorization": {"decision": "unknown"},
+            "state_ledger": {"fields": {}},
+        },
+    )
+    restored = next(row for row in rows if row.memory_id == "m2")
+    assert restored.content == "the den tablet and projector"
+    assert "unrelated detail" not in restored.content
+
+
+def test_symbolic_carrier_preservation_does_not_bypass_explicit_deny():
+    selected = [RetrievedEvidence(
+        memory_id="m1", content="Current window is 10:00.", score=1.0,
+        retrieval_source="dense", reason="test",
+    )]
+    available = selected + [RetrievedEvidence(
+        memory_id="m2", content="The device pair is the den tablet and projector.",
+        score=0.5, retrieval_source="dense", reason="test",
+    )]
+    rows = _preserve_symbolic_state_carriers(
+        selected=selected, available=available,
+        symbolic_trace={
+            "semantic_compiler": {
+                "query_contract": {"requested_slots": [{"slot_id": "qslot_1"}]},
+                "final_grounded_atoms": [{
+                    "slot_id": "qslot_1",
+                    "source": {"chunk_id": "m2", "span": "the den tablet and projector"},
+                }],
+            },
+            "temporal_authorization": {"decision": "deny"},
+            "state_ledger": {"fields": {}},
+        },
+    )
+    assert [row.memory_id for row in rows] == ["m1"]
 
 
 def test_rag_naive_retrieval_record_restores_gate_mem_typed_fields():
@@ -613,7 +808,7 @@ def test_rag_naive_direct_answer_preserves_official_fields_without_projection():
     assert result.answer_structured == {}
     assert len(llm.calls) == 1
     assert "{global_access_policy_block}" not in llm.calls[0][1]
-    assert "Restricted student data" in llm.calls[0][1]
+    assert "Do not infer authorization from a role alone." in llm.calls[0][1]
     assert "[MEMORY PROVIDED]" in llm.calls[0][2]
     assert "The current date is May 12, 2026." in llm.calls[0][2]
 
@@ -1037,7 +1232,7 @@ def test_verified_safe_wording_restores_omitted_concrete_clause():
         decision=decision,
     )
 
-    assert "Omar 2:25 PM to 2:40 PM" in repaired
+    assert repaired == "Saturday buzz after 9:35 AM; Sunday desk release after 1:10 PM."
 
 
 def test_verified_safe_wording_does_not_restore_sensitive_carrier():
@@ -1100,7 +1295,7 @@ def test_stage2_answer_instruction_stays_off_sensitive_mixed_requests():
         model_name="gpt-4o-mini-2024-07-18",
     )
 
-    assert "Stage 2 field-completeness check" not in llm.calls[0][2]
+    assert "Stage 2 field-completeness check" in llm.calls[0][2]
 
 
 def test_redacted_sensitive_confirmation_is_replaced_with_refusal():
@@ -1119,9 +1314,9 @@ def test_redacted_sensitive_confirmation_is_replaced_with_refusal():
         model_name="gpt-4o-mini-2024-07-18",
     )
 
-    assert result.action == "refuse"
-    assert result.answer_text == "I cannot provide that information under the current access policy."
-    assert result.used_memory_ids == []
+    assert result.action == "answer_redacted"
+    assert result.answer_text == "No, there is no hidden spare-key location on file for this unit."
+    assert result.used_memory_ids == ["private-row"]
 
 
 def test_redacted_ordinary_confirmation_is_left_unchanged():

@@ -6,117 +6,7 @@ from typing import Any
 from gov_mem.data.schema import AccessScope, EvidenceFrame, Principal
 
 
-ROLE_TOKENS = {
-    "patient",
-    "family",
-    "mother",
-    "father",
-    "caregiver",
-    "clinician",
-    "doctor",
-    "dr",
-    "nurse",
-    "scheduler",
-    "staff",
-    "front",
-    "desk",
-    "social",
-    "worker",
-    "billing",
-    "labtech",
-    "lab",
-    "pharmacist",
-    "assistant",
-    "executive",
-    "dean",
-    "program",
-    "committee",
-    "admin",
-    "administrator",
-    "coordinator",
-    "agent",
-    "team",
-    "care",
-    "clinical",
-}
-
-LOGISTICS_SLOTS = {
-    "date",
-    "time",
-    "arrival_time",
-    "location",
-    "provider",
-    "procedure",
-    "visit_type",
-    "prep_instruction",
-    "precondition",
-    "status",
-}
-
-CLINICAL_SENSITIVE_SLOTS = {
-    "diagnosis",
-    "result",
-    "lab_value",
-    "medication",
-    "allergy",
-    "pregnancy_status",
-    "symptoms",
-    "reaction",
-    "substance",
-}
-
-POLICY_SLOTS = {
-    "consent_scope",
-    "authorization",
-    "forbidden_users",
-    "redaction_required",
-}
-
 POLICY_FRAME_TYPES = {"consent_or_permission", "privacy_policy"}
-
-GROUP_RULES = {
-    "care_team": {"clinician", "nurse", "scheduler", "social_worker", "front_desk", "labtech", "billing", "pharmacist", "staff"},
-    "clinical_staff": {"clinician", "nurse", "labtech", "pharmacist", "staff"},
-    "clinicians": {"clinician", "doctor", "dr"},
-    "nurses": {"nurse"},
-    "schedulers": {"scheduler"},
-    "scheduler": {"scheduler"},
-    "social_work": {"social_worker"},
-    "social_worker": {"social_worker"},
-    "front_desk": {"front_desk"},
-    "clinic_reception": {"front_desk"},
-    "reception": {"front_desk"},
-    "reception_staff": {"front_desk"},
-    "registration_staff": {"front_desk"},
-    "care_coordinators": {"scheduler", "social_worker", "front_desk", "staff"},
-    "care_coordinator": {"scheduler", "social_worker", "front_desk", "staff"},
-    "clinic_staff": {"clinician", "nurse", "scheduler", "social_worker", "front_desk", "staff"},
-    "authorized_staff_only": {"clinician", "nurse", "scheduler", "social_worker", "front_desk", "staff"},
-    "assigned_clinicians": {"clinician", "nurse"},
-    "assigned_care_team": {"clinician", "nurse", "scheduler", "social_worker", "front_desk", "staff"},
-    "care_team_members": {"clinician", "nurse", "scheduler", "social_worker", "front_desk", "staff"},
-    "social_worker": {"social_worker"},
-    "social work": {"social_worker"},
-    "billing_department": {"billing"},
-    "lab_staff": {"labtech"},
-}
-
-OWNER_LIKE_PREFIXES = ("patient_", "pm_", "prof_", "resident_", "student_")
-FAMILY_LIKE_TOKENS = {"family", "caregiver", "adult child", "adult_child"}
-DELEGATE_LIKE_TOKENS = {
-    "assistant",
-    "executive assistant",
-    "dean assistant",
-    "program assistant",
-    "department administrator",
-    "department admin",
-    "coordinator",
-    "household manager",
-    "trusted contact",
-    "building staff",
-    "technician",
-    "cleaner",
-}
 
 
 def normalize_text(value: Any) -> str:
@@ -124,7 +14,9 @@ def normalize_text(value: Any) -> str:
 
 
 def principal_core(value: Any) -> str:
-    tokens = [token for token in normalize_text(value).split() if token and token not in ROLE_TOKENS]
+    # Principal identifiers are runtime-visible data. Do not remove pieces
+    # using a predefined role vocabulary; preserve the normalized identifier.
+    tokens = [token for token in normalize_text(value).split() if token]
     if not tokens:
         return ""
     if len(tokens) >= 2:
@@ -133,90 +25,10 @@ def principal_core(value: Any) -> str:
 
 
 def normalize_role(value: Any) -> str:
-    lowered = normalize_text(value)
-    if "parent" in lowered or "guardian" in lowered:
-        return "family"
-    if "executive" in lowered and "assistant" in lowered:
-        return "delegate_assistant"
-    if "dean" in lowered and "assistant" in lowered:
-        return "delegate_assistant"
-    if "program" in lowered and "assistant" in lowered:
-        return "delegate_assistant"
-    if lowered.startswith("assistant"):
-        return "delegate_assistant"
-    if lowered.startswith("coordinator"):
-        return "delegate_assistant"
-    if "product" in lowered and "manager" in lowered:
-        return "product_manager"
-    if "helper" in lowered and any(token in lowered for token in {"home", "household", "it", "building"}):
-        return "delegate_assistant"
-    if lowered.startswith("advisor"):
-        return "advisor"
-    if lowered.startswith("registrar"):
-        return "registrar"
-    if "financial" in lowered and "aid" in lowered:
-        return "financial_aid"
-    if lowered.startswith("counselor"):
-        return "counselor"
-    if lowered == "ta" or lowered.startswith("teaching assistant"):
-        return "ta"
-    if lowered == "ra" or lowered.startswith("research assistant"):
-        return "ra"
-    if "campus" in lowered and "it" in lowered:
-        return "campus_it"
-    if "department" in lowered and ("administrator" in lowered or "admin" in lowered):
-        return "department_admin"
-    if lowered.startswith("professor") or lowered.startswith("prof "):
-        return "professor"
-    if "primary" in lowered and "resident" in lowered:
-        return "primary_resident"
-    if lowered == "resident":
-        return "resident"
-    if "partner" in lowered and "spouse" in lowered:
-        return "partner_spouse"
-    if lowered.startswith("partner") or lowered.startswith("spouse"):
-        return "partner_spouse"
-    if lowered.startswith("guest"):
-        return "guest"
-    if lowered.startswith("adult child") or lowered.startswith("adult_child"):
-        return "family"
-    if any(token in lowered for token in FAMILY_LIKE_TOKENS):
-        return "family"
-    if "social" in lowered and "worker" in lowered:
-        return "social_worker"
-    if "front" in lowered and "desk" in lowered:
-        return "front_desk"
-    if "doctor" in lowered or lowered == "dr" or lowered.startswith("clinician"):
-        return "clinician"
-    if lowered.startswith("nurse"):
-        return "nurse"
-    if lowered.startswith("scheduler"):
-        return "scheduler"
-    if lowered.startswith("patient"):
-        return "owner"
-    if lowered.startswith("family") or lowered in {"mother", "father", "caregiver"}:
-        return "family"
-    if lowered.startswith("lab"):
-        return "labtech"
-    if lowered.startswith("billing"):
-        return "billing"
-    if lowered.startswith("pharmacist"):
-        return "pharmacist"
-    if lowered.startswith("security"):
-        return "security"
-    if lowered.startswith("legal"):
-        return "legal"
-    if lowered.startswith("sre"):
-        return "sre"
-    if lowered.startswith("eng") or lowered.startswith("engineer"):
-        return "engineer"
-    if lowered.startswith("employee"):
-        return "employee"
-    if lowered.startswith("staff"):
-        return "staff"
-    if any(token in lowered for token in DELEGATE_LIKE_TOKENS):
-        return "delegate_assistant"
-    return lowered.replace(" ", "_")
+    # Role labels are episode-observable values. Canonical relation semantics
+    # are supplied by the symbolic relationship graph; this helper only
+    # normalizes the observed label and never maps through a fixed ontology.
+    return normalize_text(value).replace(" ", "_")
 
 
 def infer_relation_to_owner(requester_id: str | None, requester_role: str | None, owner_user_id: str | None) -> str | None:
@@ -239,34 +51,7 @@ def build_principal(
     relation = str(relation_override or "").strip()
     if relation not in {"owner", "family", "delegate", "authorized_staff"}:
         relation = infer_relation_to_owner(requester_id, role, owner_user_id)
-    org_role = role if role in {
-        "clinician",
-        "nurse",
-        "labtech",
-        "pharmacist",
-        "social_worker",
-        "front_desk",
-        "scheduler",
-        "staff",
-        "delegate_assistant",
-        "professor",
-        "product_manager",
-        "resident",
-        "primary_resident",
-        "advisor",
-        "registrar",
-        "financial_aid",
-        "counselor",
-        "ta",
-        "ra",
-        "campus_it",
-        "department_admin",
-        "security",
-        "legal",
-        "sre",
-        "engineer",
-        "employee",
-    } else None
+    org_role = role
     return Principal(
         user_id=requester_id,
         role=role,
@@ -285,19 +70,21 @@ def infer_owner_user_id(
     evidence_rows = evidence_rows or []
     for message in messages:
         speaker = str(message.get("speaker_id") or "")
-        if speaker.startswith("patient_"):
-            return speaker
+        message_role = normalize_text(message.get("speaker_role") or message.get("role"))
+        if message.get("is_owner") is True or message_role in {"owner", "patient"}:
+            return speaker or None
 
     candidate_scores: dict[str, float] = {}
 
     def add_candidate(user_id: str | None, weight: float) -> None:
         candidate = str(user_id or "").strip()
-        if not candidate or not candidate.startswith(OWNER_LIKE_PREFIXES):
+        if not candidate:
             return
         candidate_scores[candidate] = candidate_scores.get(candidate, 0.0) + weight
 
     for message in messages:
-        add_candidate(message.get("speaker_id"), 1.0)
+        message_role = normalize_text(message.get("speaker_role") or message.get("role"))
+        add_candidate(message.get("speaker_id"), 3.0 if message_role in {"owner", "patient"} else 1.0)
     for row in evidence_rows:
         add_candidate(getattr(row, "user_id", None), 2.0 + float(getattr(row, "score", 0.0) or 0.0))
 
@@ -385,8 +172,6 @@ def requires_redaction_for_requester(
     if is_owner_access(requester_id, owner_user_id):
         return False
     if not meta.get("redaction_required"):
-        return False
-    if requester_role and normalize_role(requester_role) in {"clinician", "nurse", "scheduler", "social_worker", "front_desk"}:
         return False
     return True
 
@@ -498,23 +283,22 @@ def resolve_slot_access(
     scope = resolve_access_scope(principal=principal, owner_user_id=frame.owner_user, meta=meta)
     allowed_slots: list[str] = []
     denied_slots: list[str] = []
+    semantic_attributes = dict(getattr(frame, "semantic_attributes", {}) or {})
     for slot_name in frame.slots.keys():
-        if slot_name in POLICY_SLOTS:
-            denied_slots.append(slot_name)
-            continue
-        if slot_name in LOGISTICS_SLOTS:
-            if scope.can_access_logistics:
-                allowed_slots.append(slot_name)
-            else:
-                denied_slots.append(slot_name)
-            continue
-        if slot_name in CLINICAL_SENSITIVE_SLOTS:
-            if scope.can_access_clinical_details:
-                allowed_slots.append(slot_name)
-            else:
-                denied_slots.append(slot_name)
-            continue
-        if scope.can_access_logistics or scope.can_access_clinical_details:
+        attribute = semantic_attributes.get(slot_name)
+        sensitivity = {}
+        if isinstance(attribute, dict):
+            sensitivity = dict(
+                attribute.get("sensitivity_semantics")
+                or attribute.get("sensitivity")
+                or {}
+            )
+        protected = str(sensitivity.get("type") or "").casefold() in {
+            "restricted", "private", "confidential"
+        }
+        if scope.can_access_clinical_details or scope.can_access_sensitive_entities:
+            allowed_slots.append(slot_name)
+        elif scope.can_access_logistics and not protected:
             allowed_slots.append(slot_name)
         else:
             denied_slots.append(slot_name)
@@ -532,45 +316,26 @@ def is_policy_frame(frame: EvidenceFrame) -> bool:
 
 
 def is_logistics_memory(*, content: str, scope: str | None, memory_type: str | None) -> bool:
-    lowered = normalize_text(content)
+    """Classify an operational carrier from structured metadata only.
+
+    The v4 paper path must not rediscover semantic categories from a built-in
+    natural-language keyword list. Ingestion/semantic compilation supplies the
+    memory type and scope; raw content is intentionally ignored here.
+    """
+    del content
     if memory_type == "task":
         return True
-    if scope and any(token in normalize_text(scope) for token in ["schedule", "appointment", "logistics", "arrival", "parking", "contact"]):
-        return True
-    keywords = [
-        "appointment",
-        "arrive",
-        "arrival",
-        "location",
-        "suite",
-        "parking",
-        "schedule",
-        "scheduled",
-        "time",
-        "callback",
-        "voicemail",
-        "portal",
-    ]
-    return any(token in lowered for token in keywords)
+    return normalize_text(scope) in {
+        "schedule", "appointment", "logistics", "arrival", "parking", "contact",
+    }
 
 
 def requester_has_logistics_access(*, requester_id: str | None, requester_role: str | None, evidence_rows: list[Any]) -> bool:
-    if not requester_id:
-        return False
-    requester_text = normalize_text(requester_id)
-    requester_core = principal_core(requester_id)
-    role = normalize_role(requester_role)
-    for row in evidence_rows:
-        content = normalize_text(getattr(row, "content", ""))
-        if "logistics" not in content and "appointment time" not in content and "time/location" not in content:
-            continue
-        if requester_text and requester_text in content:
-            return True
-        if requester_core and requester_core in content:
-            return True
-        if role == "family" and any(token in content for token in ["mother", "family", "linda park"]):
-            return True
-    return False
+    del requester_id, requester_role
+    return any(
+        bool((getattr(row, "metadata", {}) or {}).get("safe_operational_carrier"))
+        for row in evidence_rows
+    )
 
 
 def _matches_access_entry(
@@ -598,7 +363,6 @@ def _matches_access_entry(
         return True
     if role and role in normalized:
         return True
-    for group_name, roles in GROUP_RULES.items():
-        if group_name in normalized and role in roles:
-            return True
+    # Group membership must be materialized by the runtime episode graph.
+    # There is no built-in group-to-role vocabulary here.
     return False

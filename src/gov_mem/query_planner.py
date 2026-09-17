@@ -15,16 +15,11 @@ from gov_mem.llm.prompts import (
 from gov_mem.query_semantics import infer_current_state_slots, infer_household_slots
 
 
-SEMANTIC_SLOT_VOCABULARY = {
-    "target_date", "public_event_date", "approved_budget", "approved_discount_cap",
-    "monthly_stipend", "safe_wording", "blocker", "access_room", "access_badge",
-    "operational_result", "date", "time", "location", "visit_window",
-    "entry_method", "package_rule", "approved_areas", "parking_pass",
-    "arrival_contact_rule", "medication", "dosage", "instruction", "condition",
-    "policy_scope", "phone", "contact_method",
-    "contract_structure", "selected_vendor", "family_release_scope",
-    "public_room", "coordination_label", "access_token",
-}
+# Kept as an empty compatibility symbol for callers that introspect the old
+# planner.  Query slots are now open-vocabulary and are accepted only after
+# structural normalization; no benchmark/domain field names are embedded in
+# the planner.
+SEMANTIC_SLOT_VOCABULARY: frozenset[str] = frozenset()
 SEMANTIC_SCOPE_VALUES = {
     "temporal_scope": {"current", "historical", "comparison", "unspecified"},
     "disclosure_scope": {"full", "redacted", "public_only", "unspecified"},
@@ -413,11 +408,12 @@ class QueryUnderstandingAgent:
 def _normalize_semantic_spec(raw: object) -> dict:
     if not isinstance(raw, dict):
         return {}
-    slots = [
-        str(slot).strip()
-        for slot in list(raw.get("requested_slots") or [])
-        if str(slot).strip() in SEMANTIC_SLOT_VOCABULARY
-    ]
+    # Do not filter model-proposed slots through a fixed field ontology.  The
+    # planner receives only the current question/observable context, and the
+    # later semantic compiler performs source grounding before any symbolic
+    # reasoning.  Keep this normalization structural (bounded strings and
+    # stable de-duplication) rather than semantic.
+    slots = _normalize_open_attributes(raw.get("requested_slots"))
     normalized = {
         "requested_slots": _normalize_requested_slots(slots),
         "requested_attributes": _normalize_open_attributes(raw.get("requested_attributes")),
@@ -522,18 +518,7 @@ def _semantic_contract_needs_slot_audit(semantic_spec: object) -> bool:
 
 
 def _normalize_requested_slots(slots: list[str]) -> list[str]:
-    normalized = list(dict.fromkeys(str(slot) for slot in slots if str(slot)))
-    if "date" in normalized and any(
-        slot in normalized for slot in ("target_date", "public_event_date")
-    ):
-        normalized = [slot for slot in normalized if slot != "date"]
-    if "family_release_scope" in normalized:
-        normalized = [slot for slot in normalized if slot != "policy_scope"]
-    if any(slot in normalized for slot in ("access_room", "public_room")):
-        normalized = [
-            slot for slot in normalized if slot not in {"location", "approved_areas"}
-        ]
-    return normalized
+    return _normalize_open_attributes(slots)
 
 
 def _normalize_open_attributes(raw: object) -> list[str]:

@@ -1,5 +1,5 @@
 project:
-  name: Gov-Mem-v4-Symbolic-dev7-semantic-compiler-gpt4o-mini-full
+  name: Gov-Mem-v4-Symbolic-dev7-semantic-compiler-gpt56luna
   seed: 42
 
 experiment:
@@ -14,12 +14,12 @@ llm:
   provider: openlux
   api_key_env: OPENLUX_API_KEY
   api_base: https://api.openlux.ai/v1
-  base_model: gpt-4o-mini
+  base_model: gpt-5.6-luna
   role_models: {}
-  memory_ingestion_model: gpt-4o-mini
-  query_planner_model: gpt-4o-mini
-  reasoning_model: gpt-4o-mini
-  answering_model: gpt-4o-mini
+  memory_ingestion_model: gpt-5.6-luna
+  query_planner_model: gpt-5.6-luna
+  reasoning_model: gpt-5.6-luna
+  answering_model: gpt-5.6-luna
   temperature: 0.2
   max_output_tokens: 4096
   max_retries: 3
@@ -36,9 +36,10 @@ embedding:
   request_timeout: 90
   retry_backoff_seconds: 3.0
   max_retry_backoff_seconds: 30.0
-  # Reuse the shared text-embedding-3-small cache and fall back to lexical
-  # retrieval only when the provider rate-limits a request.
-  cache_dir: /tmp/govmem_v4_symbolic_text_embedding_3_small_gemini25flashlite_semantic_compiler
+  cache_dir: /tmp/govmem_v4_symbolic_text_embedding_3_small_gpt56luna_semantic_compiler
+  # Keep the smoke run measurable when the external embedding endpoint is
+  # temporarily unavailable; memory extraction and symbolic authorization
+  # remain unchanged, while retrieval falls back to lexical matching.
   allow_fallback: true
 
 pipeline:
@@ -69,6 +70,16 @@ semantic_compiler:
     max_rounds: 1
   use_fixed_lexicon: false
   use_dataset_classifier: false
+
+memory_governed_slot_graph:
+  enabled: true
+  # Keep each entity ledger compact by deduplicating repeated assertions while
+  # retaining every distinct permission/lifecycle change with provenance.
+  batch_size: 8
+  # Entity-list lookup is lexical and does not need a second graph embedding
+  # index. Enable only for compatibility experiments that explicitly compare
+  # dense graph-node retrieval.
+  dense_index: false
 
 stage2:
   query_analysis:

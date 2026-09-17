@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from gov_mem.policy_conflict_resolver import resolve_permission
-from gov_mem.general_lexicon import GENERAL_OBJECT_PREFIXES
 from dataclasses import replace
 import re
 
@@ -191,16 +190,6 @@ def replay_policy_state(
         text = " ".join((item.subject or "", item.provenance.evidence_text or "")).lower()
         if lowered_target in text:
             return True
-        # Shared-memory shorthand often drops a generic object prefix in
-        # later messages (``Project Maple`` -> ``Maple``).  Recover only this
-        # observable alias form; never match a substring such as Maplemark.
-        target_tokens = [
-            token for token in re.findall(r"[a-z0-9][a-z0-9_-]{2,}", lowered_target)
-        ]
-        generic_prefixes = GENERAL_OBJECT_PREFIXES
-        if len(target_tokens) >= 2 and target_tokens[0] in generic_prefixes:
-            source_tokens = set(re.findall(r"[a-z0-9][a-z0-9_-]{2,}", text))
-            return all(token in source_tokens for token in target_tokens[1:])
         return False
 
     def relevance(item) -> float:
@@ -462,18 +451,6 @@ def replay_policy_state(
             # be able to read a delivery time/location owned by a guest whose
             # scope says ``produce_drop``.  This remains object-bounded and
             # never grants records merely because they share a household.
-            capability_topic_aliases = {
-                "logistics": {"logistics", "scheduling", "location", "transport", "household"},
-                "scheduling": {"logistics", "scheduling", "location"},
-                "communication": {"communication"},
-                "watering": {"household", "environment", "location"},
-                "produce": {"food", "household", "logistics"},
-                "drop": {"logistics", "location", "household"},
-            }
-            sensitive_topics = {
-                "access_control", "privacy", "identity", "medical", "health",
-                "laboratory", "imaging", "finance", "economics", "legal",
-            }
             item_topics = set(item.topics or ())
             item_text = " ".join((item.subject or "", item.provenance.evidence_text or "")).lower()
             for requester_scope in requester_access:
@@ -485,15 +462,15 @@ def replay_policy_state(
                     owner_capability = (owner_tokens - shared_object) - generic
                     if not shared_object or not requester_capability:
                         continue
-                    if item_topics & sensitive_topics:
+                    # Delegated capability matching never crosses an explicit
+                    # private/exact record boundary. Semantic topic names are
+                    # supplied by the observable state; no alias table is used.
+                    if item.scope in {"private", "exact"}:
                         continue
                     literal_capability = (
                         requester_capability | owner_capability
                     ) & set(re.findall(r"[a-z0-9][a-z0-9_-]{2,}", item_text))
-                    semantic_capability = set().union(*(
-                        capability_topic_aliases.get(token, {token})
-                        for token in requester_capability
-                    ))
+                    semantic_capability = set(requester_capability)
                     if literal_capability or item_topics.intersection(semantic_capability):
                         return True, "shared observable access_scope capability"
             return False, None

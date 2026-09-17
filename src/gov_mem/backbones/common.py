@@ -391,6 +391,7 @@ def build_reasoning_state(
     trace: list[str] | None = None,
     slot_coverage: dict | None = None,
     selected_frames: list | None = None,
+    current_state_ledger: dict | None = None,
     required_slot_plan: dict | None = None,
 ) -> ReasoningState:
     return ReasoningState(
@@ -399,7 +400,7 @@ def build_reasoning_state(
         conflicts=[],
         conclusion_hint="Backbone evidence aggregation.",
         selected_frames=selected_frames or [],
-        current_state_ledger={},
+        current_state_ledger=current_state_ledger or {},
         required_slot_plan=required_slot_plan or {},
         slot_coverage=slot_coverage or {},
     )

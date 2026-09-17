@@ -37,7 +37,10 @@ embedding:
   retry_backoff_seconds: 3.0
   max_retry_backoff_seconds: 30.0
   cache_dir: /tmp/govmem_v4_symbolic_text_embedding_3_small_gemini25flashlite_semantic_compiler
-  allow_fallback: false
+  # Keep the smoke run measurable when the external embedding endpoint is
+  # temporarily unavailable; memory extraction and symbolic authorization
+  # remain unchanged, while retrieval falls back to lexical matching.
+  allow_fallback: true
 
 pipeline:
   use_asking_user_id: true
@@ -67,6 +70,13 @@ semantic_compiler:
     max_rounds: 1
   use_fixed_lexicon: false
   use_dataset_classifier: false
+
+memory_governed_slot_graph:
+  # Disabled for the paper-facing Gemini full run. Enable explicitly for the
+  # Entity Relation List Stage-2 ablation (or incremental-write experiments).
+  enabled: false
+  batch_size: 8
+  dense_index: false
 
 stage2:
   query_analysis:

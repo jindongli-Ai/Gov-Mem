@@ -304,7 +304,7 @@ def test_source_grounded_restricted_atom_does_not_become_authorization_decision(
     assert audit["enforcement_applied"] is False
 
 
-def test_dev4_policy_certificate_denies_sensitive_scope_for_logistics_only_policy():
+def test_legacy_raw_policy_scope_text_is_not_a_v4_authorization_source():
     instance = replace(_instance(), question="What clinical result is current?")
     evidence = [
         _evidence(
@@ -324,14 +324,14 @@ def test_dev4_policy_certificate_denies_sensitive_scope_for_logistics_only_polic
     )
 
     certificate = trace["policy_consistency"]
-    assert certificate["decision"] == "deny"
-    assert certificate["scope_decisions"]["clinical"] == "deny"
+    assert certificate["decision"] == "unknown"
+    assert certificate["scope_decisions"] == {}
     assert certificate["enforcement_applied"] is False
     assert ranked[0].metadata["symbolic_policy_certificate"] == certificate
-    assert ranked[0].metadata["symbolic_policy_facts"]
+    assert "symbolic_policy_facts" not in ranked[0].metadata
 
 
-def test_dev4_policy_certificate_uses_latest_explicit_policy_fact():
+def test_legacy_raw_policy_scope_text_cannot_create_a_v4_allow():
     instance = replace(_instance(), question="What clinical result is current?")
     evidence = [
         _evidence(
@@ -358,8 +358,8 @@ def test_dev4_policy_certificate_uses_latest_explicit_policy_fact():
         policy_consistency_enabled=True,
     )
 
-    assert trace["policy_consistency"]["decision"] == "allow"
-    assert trace["policy_consistency"]["supporting_evidence_ids"] == ["new_policy"]
+    assert trace["policy_consistency"]["decision"] == "unknown"
+    assert trace["policy_consistency"]["supporting_evidence_ids"] == []
 
 
 def test_dev4_policy_consistency_is_disabled_by_default():
@@ -394,7 +394,7 @@ def test_v4_symbolic_relation_is_directional_not_duplicated_for_two_principals()
     assert relation_edges[0]["target"] == "principal::patient_elena"
 
 
-def test_v4_symbolic_lifecycle_requires_explicit_language_and_is_annotation_only():
+def test_v4_symbolic_lifecycle_consumes_only_grounded_compiler_atoms():
     evidence = [
         _evidence(
             memory_id="m_delete",
@@ -414,7 +414,22 @@ def test_v4_symbolic_lifecycle_requires_explicit_language_and_is_annotation_only
         ),
     ]
 
-    ranked, trace = build_symbolic_evidence(instance=_instance(), evidence=evidence)
+    query_analysis = {
+        "semantic_compiler_contract": True,
+        "fields": [{"slot_id": "qslot_0", "name": "callback number"}],
+    }
+    atoms = [{
+        "atom_id": "delete", "slot_id": "qslot_0", "slot_name": "callback number",
+        "lifecycle_semantics": {"type": "delete"},
+        "source": {
+            "chunk_id": "m_delete", "turn_id": "t002",
+            "span": "Delete the old callback number from memory; it should no longer be available.",
+        },
+    }]
+    ranked, trace = build_symbolic_evidence(
+        instance=_instance(), evidence=evidence,
+        query_analysis=query_analysis, semantic_atoms=atoms,
+    )
 
     assert [row.memory_id for row in ranked] == ["m_delete", "m_current"]
     assert trace["lifecycle_status_counts"] == {"deleted": 1}
@@ -423,20 +438,17 @@ def test_v4_symbolic_lifecycle_requires_explicit_language_and_is_annotation_only
     ]
     assert len(lifecycle_edges) == 1
     assert lifecycle_edges[0]["status"] == "deleted"
-    target_edges = [edge for edge in trace["graph_edges"] if edge["edge_type"] == "invalidates"]
+    target_edges = [edge for edge in trace["graph_edges"] if edge["edge_type"] == "applies_lifecycle_to_slot"]
     assert len(target_edges) == 1
     assert target_edges[0]["source"] == "lifecycle::m_delete"
-    assert target_edges[0]["target"] == "evidence::m_current"
+    assert target_edges[0]["target"] == "query_slot::qslot_0"
     binding = trace["lifecycle_target_binding"]
-    assert binding["status_counts"] == {"bound": 1}
-    assert binding["bound_count"] == 1
+    assert binding["status_counts"] == {"candidate_bound": 1}
+    assert binding["bound_count"] == 0
     assert binding["ambiguous_count"] == 0
     assert binding["unbound_count"] == 0
     assert binding["bindings"][0]["source_memory_id"] == "m_delete"
-    assert binding["bindings"][0]["target_memory_id"] == "m_current"
-    assert binding["bindings"][0]["target_turn_id"] == "t001"
-    assert binding["bindings"][0]["edge_type"] == "invalidates"
-    assert binding["bindings"][0]["inference"] == "explicit_lifecycle_prior_overlap"
+    assert binding["bindings"][0]["slot_id"] == "qslot_0"
     assert ranked[0].metadata["graph_context"]["lifecycle_claim"]["explicit"] is True
     assert ranked[0].metadata["symbolic_validity_certificate"] == {
         "mode": "shadow",
@@ -457,7 +469,7 @@ def test_v4_symbolic_lifecycle_requires_explicit_language_and_is_annotation_only
     assert trace["new_llm_calls"] == 0
 
 
-def test_v4_symbolic_lifecycle_binding_stays_ambiguous_without_unique_target():
+def test_v4_symbolic_lifecycle_does_not_bind_raw_text_to_a_prior_memory():
     evidence = [
         _evidence(
             memory_id="m_old_a",
@@ -487,7 +499,7 @@ def test_v4_symbolic_lifecycle_binding_stays_ambiguous_without_unique_target():
 
     _, trace = build_symbolic_evidence(instance=_instance(), evidence=evidence)
 
-    assert trace["lifecycle_target_binding"]["status_counts"] == {"ambiguous": 1}
+    assert trace["lifecycle_target_binding"]["status_counts"] == {}
     assert trace["lifecycle_target_binding"]["bound_count"] == 0
     assert not [edge for edge in trace["graph_edges"] if edge["edge_type"] == "invalidates"]
 
@@ -536,7 +548,7 @@ def test_v4_symbolic_lifecycle_does_not_treat_deleted_question_as_assertion():
     assert trace["lifecycle_target_binding"]["status_counts"] == {}
 
 
-def test_v4_symbolic_state_ledger_resolves_latest_retrieved_claim_without_filtering():
+def test_v4_symbolic_state_ledger_resolves_latest_grounded_atom_without_filtering():
     instance = replace(
         _instance(),
         question=(
@@ -568,25 +580,72 @@ def test_v4_symbolic_state_ledger_resolves_latest_retrieved_claim_without_filter
         ),
     ]
 
-    ranked, trace = build_symbolic_evidence(instance=instance, evidence=evidence)
+    query_analysis = {
+        "semantic_compiler_contract": True,
+        "fields": [
+            {"slot_id": "qslot_0", "name": "current date", "required": True, "temporal_requirement": "current"},
+            {"slot_id": "qslot_1", "name": "current status", "required": True, "temporal_requirement": "current"},
+            {"slot_id": "qslot_2", "name": "current blocker", "required": True, "temporal_requirement": "current"},
+        ],
+    }
+    atoms = [
+        {
+            "atom_id": "a_old_date", "slot_id": "qslot_0", "slot_name": "current date",
+            "value": "July 8, 2026", "temporal": {"state": "current"},
+            "source": {"chunk_id": "m_old", "turn_id": "t001", "message_id": "t001", "span": "current date July 8, 2026"},
+        },
+        {
+            "atom_id": "a_new_date", "slot_id": "qslot_0", "slot_name": "current date",
+            "value": "July 12, 2026", "temporal": {"state": "current"},
+            "source": {"chunk_id": "m_new", "turn_id": "t002", "message_id": "t002", "span": "July 12, 2026 as the settled date"},
+        },
+        {
+            "atom_id": "a_old_status", "slot_id": "qslot_1", "slot_name": "current status",
+            "value": "pending", "temporal": {"state": "current"},
+            "source": {"chunk_id": "m_old", "turn_id": "t001", "message_id": "t001", "span": "status pending"},
+        },
+        {
+            "atom_id": "a_new_status", "slot_id": "qslot_1", "slot_name": "current status",
+            "value": "closed", "temporal": {"state": "current"},
+            "source": {"chunk_id": "m_new", "turn_id": "t002", "message_id": "t002", "span": "treated as closed"},
+        },
+        {
+            "atom_id": "a_old_blocker", "slot_id": "qslot_2", "slot_name": "current blocker",
+            "value": "budget review", "temporal": {"state": "current"},
+            "source": {"chunk_id": "m_old", "turn_id": "t001", "message_id": "t001", "span": "current blocker budget review"},
+        },
+        {
+            "atom_id": "a_new_blocker", "slot_id": "qslot_2", "slot_name": "current blocker",
+            "value": "no remaining blocker", "temporal": {"state": "current"},
+            "source": {"chunk_id": "m_new", "turn_id": "t002", "message_id": "t002", "span": "no remaining blocker"},
+        },
+    ]
+
+    ranked, trace = build_symbolic_evidence(
+        instance=instance,
+        evidence=evidence,
+        query_analysis=query_analysis,
+        semantic_atoms=atoms,
+    )
 
     ledger = trace["state_ledger"]
-    assert ledger["version"] == "state-ledger-v1"
-    assert ledger["mode"] == "retrieved_evidence_only"
-    assert ledger["fields"]["target_date"]["value"] == "July 12, 2026"
-    assert ledger["fields"]["target_date"]["source_memory_id"] == "m_new"
-    assert ledger["fields"]["status"]["value"] == "closed"
-    assert ledger["fields"]["status"]["source_memory_id"] == "m_new"
-    assert ledger["fields"]["blocker"]["value"] == "no remaining blocker"
-    assert ledger["fields"]["blocker"]["source_memory_id"] == "m_new"
-    assert ledger["fields"]["target_date"]["conflict_count"] == 1
+    assert ledger["version"] == "state-ledger-v2-semantic-atoms"
+    assert ledger["mode"] == "verified_semantic_atoms_closed_evidence"
+    assert ledger["fields"]["current date"]["value"] == "July 12, 2026"
+    assert ledger["fields"]["current date"]["source_memory_id"] == "m_new"
+    assert ledger["fields"]["current status"]["value"] == "closed"
+    assert ledger["fields"]["current status"]["source_memory_id"] == "m_new"
+    assert ledger["fields"]["current blocker"]["value"] == "no remaining blocker"
+    assert ledger["fields"]["current blocker"]["source_memory_id"] == "m_new"
+    assert ledger["fields"]["current date"]["conflict_count"] == 0
+    assert ledger["fields"]["current date"]["candidate_count"] == 2
     assert ledger["enforcement_applied"] is False
     assert ledger["new_llm_calls"] == 0
     assert [row.memory_id for row in ranked] == ["m_old", "m_new"]
     assert ranked[0].metadata["symbolic_state_ledger"] == ledger
 
 
-def test_v4_symbolic_state_ledger_reuses_clinical_plan_and_typed_frame_slots():
+def test_v4_symbolic_state_ledger_does_not_reactivate_typed_frame_extraction():
     instance = replace(
         _instance(),
         question="What allergy is documented for me?",
@@ -609,10 +668,10 @@ def test_v4_symbolic_state_ledger_reuses_clinical_plan_and_typed_frame_slots():
     )
 
     ledger = trace["state_ledger"]
-    assert ledger["requested_slots"] == ["substance", "reaction"]
-    assert ledger["fields"]["substance"]["value"] == "sulfa antibiotic"
-    assert ledger["fields"]["reaction"]["value"] == "rash"
-    assert ledger["resolved_count"] == 2
+    assert ledger["mode"] == "disabled_without_semantic_contract"
+    assert ledger["requested_slots"] == []
+    assert ledger["fields"] == {}
+    assert ledger["resolved_count"] == 0
     assert ranked[0].metadata["symbolic_state_ledger"] == ledger
 
 
@@ -682,11 +741,30 @@ def test_v4_semantic_atoms_drive_open_vocabulary_state_ledger():
     assert ranked[0].metadata["symbolic_state_ledger"] == ledger
 
 
-def _auth_event(effect: str, principal: str = "nurse_alvarez", resource: str = "clinical records"):
+def _semantic_policy_context(resource: str = "clinical records"):
     return {
-        "effect": effect,
-        "principal_id": principal,
-        "resource": resource,
+        "semantic_compiler_contract": True,
+        "fields": [{"slot_id": "qslot_0", "name": resource}],
+    }
+
+
+def _policy_atom(*, atom_id: str, memory_id: str, turn_id: str, span: str, effect: str,
+                 principal: str = "nurse_alvarez", resource: str = "clinical records"):
+    return {
+        "atom_id": atom_id,
+        "slot_id": "qslot_0",
+        "slot_name": resource,
+        "authorization_semantics": {
+            "type": effect,
+            "subject": principal,
+            "resource": resource,
+        },
+        "source": {
+            "chunk_id": memory_id,
+            "turn_id": turn_id,
+            "message_id": turn_id,
+            "span": span,
+        },
     }
 
 
@@ -695,18 +773,27 @@ def test_temporal_authorization_graph_applies_allow_then_revoke():
     evidence = [
         _evidence(
             memory_id="grant", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
-            text="A policy grants access.", score=0.9,
-            extra_metadata={"authorization_events": [_auth_event("allow")]},
+            text="nurse_alvarez may access clinical records.", score=0.9,
         ),
         _evidence(
             memory_id="revoke", turn_id="t002", principal_id="nurse_alvarez", role="nurse",
-            text="A policy revokes access.", score=0.8,
-            extra_metadata={"authorization_events": [_auth_event("revoke")]},
+            text="nurse_alvarez access to clinical records is revoked.", score=0.8,
         ),
     ]
 
     ranked, trace = build_symbolic_evidence(
         instance=instance, evidence=evidence, temporal_authorization_enabled=True,
+        query_analysis=_semantic_policy_context(),
+        semantic_atoms=[
+            _policy_atom(
+                atom_id="allow", memory_id="grant", turn_id="t001",
+                span="nurse_alvarez may access clinical records.", effect="allow",
+            ),
+            _policy_atom(
+                atom_id="revoke", memory_id="revoke", turn_id="t002",
+                span="nurse_alvarez access to clinical records is revoked.", effect="revoke",
+            ),
+        ],
     )
 
     certificate = trace["temporal_authorization"]
@@ -720,18 +807,59 @@ def test_temporal_authorization_graph_applies_allow_then_revoke():
     assert certificate["new_llm_calls"] == 0
 
 
+def test_temporal_authorization_replays_retrieved_entity_list():
+    instance = replace(_instance(), question="What access does nurse_alvarez have to clinical records?")
+    evidence = [
+        _evidence(
+            memory_id="grant", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
+            text="nurse_alvarez may access clinical records.", score=0.9,
+        ),
+        _evidence(
+            memory_id="revoke", turn_id="t002", principal_id="nurse_alvarez", role="nurse",
+            text="nurse_alvarez access to clinical records is revoked.", score=0.8,
+        ),
+    ]
+    entity_lists = {
+        "entity::clinical records": [
+            {
+                "relation_type": "permission", "effect": "allow",
+                "subject": "nurse_alvarez", "target": "clinical records",
+                "source_chunk_id": "grant", "source_message_id": "t001",
+                "source_span": "nurse_alvarez may access clinical records.",
+            },
+            {
+                "relation_type": "permission", "effect": "revoke",
+                "subject": "nurse_alvarez", "target": "clinical records",
+                "source_chunk_id": "revoke", "source_message_id": "t002",
+                "source_span": "nurse_alvarez access to clinical records is revoked.",
+            },
+        ],
+    }
+    _, trace = build_symbolic_evidence(
+        instance=instance, evidence=evidence, temporal_authorization_enabled=True,
+        query_analysis=_semantic_policy_context(), semantic_atoms=[],
+        governed_entity_lists=entity_lists,
+    )
+    certificate = trace["temporal_authorization"]
+    assert certificate["entity_list_event_count"] == 2
+    assert certificate["decision"] == "deny"
+    assert all(
+        event.get("source") == "retrieved_entity_relation_list"
+        for event in certificate["graph_nodes"]
+        if event.get("node_type") == "PolicyEvent"
+    )
+
+
 def test_dev7_boundary_filters_a_denied_resource_and_preserves_unrelated_evidence():
     instance = replace(_instance(), question="What access does nurse_alvarez have to clinical records?")
     evidence = [
         _evidence(
             memory_id="grant", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
-            text="A policy grants access to clinical records.", score=0.9,
-            extra_metadata={"authorization_events": [_auth_event("allow")]},
+            text="nurse_alvarez may access clinical records.", score=0.9,
         ),
         _evidence(
             memory_id="revoke", turn_id="t002", principal_id="nurse_alvarez", role="nurse",
-            text="A policy revokes access to clinical records.", score=0.8,
-            extra_metadata={"authorization_events": [_auth_event("revoke")]},
+            text="nurse_alvarez access to clinical records is revoked.", score=0.8,
         ),
         _evidence(
             memory_id="ordinary", turn_id="t001", principal_id="patient_elena", role="patient",
@@ -744,6 +872,17 @@ def test_dev7_boundary_filters_a_denied_resource_and_preserves_unrelated_evidenc
         evidence=evidence,
         temporal_authorization_enabled=True,
         temporal_authorization_enforcement=True,
+        query_analysis=_semantic_policy_context(),
+        semantic_atoms=[
+            _policy_atom(
+                atom_id="allow", memory_id="grant", turn_id="t001",
+                span="nurse_alvarez may access clinical records.", effect="allow",
+            ),
+            _policy_atom(
+                atom_id="revoke", memory_id="revoke", turn_id="t002",
+                span="nurse_alvarez access to clinical records is revoked.", effect="revoke",
+            ),
+        ],
     )
 
     assert trace["version"] == "Gov-Mem-v4-Symbolic-dev7"
@@ -757,24 +896,33 @@ def test_temporal_authorization_graph_later_allow_supersedes_older_deny():
     evidence = [
         _evidence(
             memory_id="old", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
-            text="A policy denies access.", score=0.9,
-            extra_metadata={"authorization_events": [_auth_event("deny")]},
+            text="nurse_alvarez may not access clinical records.", score=0.9,
         ),
         _evidence(
             memory_id="new", turn_id="t002", principal_id="nurse_alvarez", role="nurse",
-            text="A new policy allows access.", score=0.8,
-            extra_metadata={"authorization_events": [{**_auth_event("allow"), "event_kind": "supersedes"}]},
+            text="nurse_alvarez may access clinical records.", score=0.8,
         ),
     ]
 
     _, trace = build_symbolic_evidence(
         instance=instance, evidence=evidence, temporal_authorization_enabled=True,
+        query_analysis=_semantic_policy_context(),
+        semantic_atoms=[
+            _policy_atom(
+                atom_id="deny", memory_id="old", turn_id="t001",
+                span="nurse_alvarez may not access clinical records.", effect="deny",
+            ),
+            _policy_atom(
+                atom_id="allow", memory_id="new", turn_id="t002",
+                span="nurse_alvarez may access clinical records.", effect="allow",
+            ),
+        ],
     )
 
     certificate = trace["temporal_authorization"]
     assert certificate["decision"] == "allow"
     assert certificate["conflict_count"] == 0
-    assert any(edge["edge_type"] == "supersedes" for edge in certificate["graph_edges"])
+    assert any(edge["edge_type"] == "allows" for edge in certificate["graph_edges"])
 
 
 def test_temporal_authorization_graph_marks_same_time_allow_deny_unknown():
@@ -782,18 +930,27 @@ def test_temporal_authorization_graph_marks_same_time_allow_deny_unknown():
     evidence = [
         _evidence(
             memory_id="allow", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
-            text="A policy allows access.", score=0.9,
-            extra_metadata={"authorization_events": [_auth_event("allow")]},
+            text="nurse_alvarez may access clinical records.", score=0.9,
         ),
         _evidence(
             memory_id="deny", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
-            text="A policy denies access.", score=0.8,
-            extra_metadata={"authorization_events": [_auth_event("deny")]},
+            text="nurse_alvarez may not access clinical records.", score=0.8,
         ),
     ]
 
     _, trace = build_symbolic_evidence(
         instance=instance, evidence=evidence, temporal_authorization_enabled=True,
+        query_analysis=_semantic_policy_context(),
+        semantic_atoms=[
+            _policy_atom(
+                atom_id="allow", memory_id="allow", turn_id="t001",
+                span="nurse_alvarez may access clinical records.", effect="allow",
+            ),
+            _policy_atom(
+                atom_id="deny", memory_id="deny", turn_id="t001",
+                span="nurse_alvarez may not access clinical records.", effect="deny",
+            ),
+        ],
     )
 
     certificate = trace["temporal_authorization"]
@@ -807,13 +964,19 @@ def test_temporal_authorization_graph_ignores_future_event_at_checkpoint():
     evidence = [
         _evidence(
             memory_id="future", turn_id="t003", principal_id="nurse_alvarez", role="nurse",
-            text="A future policy allows access.", score=0.9,
-            extra_metadata={"authorization_events": [_auth_event("allow")]},
+            text="nurse_alvarez may access clinical records.", score=0.9,
         ),
     ]
 
     _, trace = build_symbolic_evidence(
         instance=instance, evidence=evidence, temporal_authorization_enabled=True,
+        query_analysis=_semantic_policy_context(),
+        semantic_atoms=[
+            _policy_atom(
+                atom_id="future", memory_id="future", turn_id="t003",
+                span="nurse_alvarez may access clinical records.", effect="allow",
+            ),
+        ],
     )
 
     certificate = trace["temporal_authorization"]
@@ -826,8 +989,7 @@ def test_temporal_authorization_graph_is_conservative_without_temporal_source():
     instance = replace(_instance(), question="What access does nurse_alvarez have to clinical records?")
     row = _evidence(
         memory_id="untimed", turn_id="t001", principal_id="nurse_alvarez", role="nurse",
-        text="A policy allows access.", score=0.9,
-        extra_metadata={"authorization_events": [_auth_event("allow")]},
+        text="nurse_alvarez may access clinical records.", score=0.9,
     )
     record = dict(row.metadata["structured_record"])
     record.pop("turn_index")
@@ -836,6 +998,13 @@ def test_temporal_authorization_graph_is_conservative_without_temporal_source():
 
     _, trace = build_symbolic_evidence(
         instance=instance, evidence=[row], temporal_authorization_enabled=True,
+        query_analysis=_semantic_policy_context(),
+        semantic_atoms=[
+            _policy_atom(
+                atom_id="untimed", memory_id="untimed", turn_id="t001",
+                span="nurse_alvarez may access clinical records.", effect="allow",
+            ),
+        ],
     )
 
     certificate = trace["temporal_authorization"]
@@ -844,20 +1013,15 @@ def test_temporal_authorization_graph_is_conservative_without_temporal_source():
     assert certificate["decision"] == "unknown"
 
 
-def test_authorization_assertion_is_structured_without_domain_vocabulary():
+def test_raw_authorization_grammar_is_disabled_in_the_release_path():
     assertions = extract_authorization_assertions(
         "Linda Park may receive scheduling details only; clinical results remain restricted."
     )
 
-    assert assertions
-    assert assertions[0]["effect"] == "allow"
-    assert assertions[0]["subject"] == "Linda Park"
-    assert "scheduling details" in assertions[0]["resource"]
-    assert assertions[0]["source"] == "ingestion_text_grammar"
-    assert assertions[0]["source_span"][0] == 0
+    assert assertions == []
 
 
-def test_temporal_authorization_consumes_ingestion_annotation_and_resolves_roster_name():
+def test_temporal_authorization_resolves_compiler_atom_subject_against_episode_roster():
     metadata = dict(_instance().metadata)
     metadata["raw_sample"] = {
         "episode": {
@@ -883,16 +1047,18 @@ def test_temporal_authorization_consumes_ingestion_annotation_and_resolves_roste
         text="Linda Park may receive scheduling details only.",
         score=0.9,
     )
-    record = dict(row.metadata["structured_record"])
-    record["authorization_assertions"] = extract_authorization_assertions(
-        record["text"]
-    )
-    row = replace(row, metadata={**row.metadata, "structured_record": record})
-
     _, trace = build_symbolic_evidence(
         instance=instance,
         evidence=[row],
         temporal_authorization_enabled=True,
+        query_analysis=_semantic_policy_context("scheduling details"),
+        semantic_atoms=[
+            _policy_atom(
+                atom_id="allow", memory_id="policy", turn_id="t001",
+                span="Linda Park may receive scheduling details only.",
+                effect="allow", principal="Linda Park", resource="scheduling details",
+            ),
+        ],
     )
 
     certificate = trace["temporal_authorization"]
@@ -901,7 +1067,7 @@ def test_temporal_authorization_consumes_ingestion_annotation_and_resolves_roste
     assert certificate["current_authorization"][0]["principal"] == "family_linda"
     assert certificate["graph_edges"][0]["edge_type"] == "has_role"
     assert any(
-        event.get("source") == "ingestion_text_grammar"
+        event.get("source") == "grounded_semantic_compiler"
         for event in certificate["graph_nodes"]
         if event.get("node_type") == "PolicyEvent"
     )
@@ -947,6 +1113,55 @@ def test_grounded_semantic_policy_atom_enters_graph_then_enforces_boundary():
     assert certificate["decision"] == "deny"
     assert trace["authorization_evidence_boundary"]["enforcement_applied"] is True
     assert ranked == []
+
+
+def test_cross_span_grounded_policy_relation_enters_graph():
+    metadata = dict(_instance().metadata)
+    metadata["raw_sample"] = {
+        "episode": {"entities": {"principals": [
+            {"principal_id": "patient_elena", "role": "patient", "display_name": "Elena Park"},
+            {"principal_id": "family_linda", "role": "family_member", "display_name": "Linda Park"},
+        ], "relationships": []}},
+    }
+    instance = replace(
+        _instance(),
+        question="Can Linda Park receive the current clinical record?",
+        metadata=metadata,
+    )
+    subject = _evidence(
+        memory_id="subject", turn_id="t001", principal_id="patient_elena", role="patient",
+        text="Linda Park is the named delegate for this request.", score=0.9,
+    )
+    policy = _evidence(
+        memory_id="policy", turn_id="t002", principal_id="patient_elena", role="patient",
+        text="The clinical record is denied to the delegate.", score=0.8,
+    )
+    atoms = [{
+        "atom_id": "cross-span-deny", "slot_id": "qslot_0", "slot_name": "clinical record",
+        "authorization_semantics": {
+            "type": "deny", "subject": "Linda Park", "resource": "clinical record",
+            "subject_source": {
+                "chunk_id": "subject", "turn_id": "t001", "message_id": "t001",
+                "span": "Linda Park is the named delegate for this request.",
+            },
+        },
+        "source": {
+            "chunk_id": "policy", "turn_id": "t002", "message_id": "t002",
+            "span": "The clinical record is denied to the delegate.",
+        },
+    }]
+
+    ranked, trace = build_symbolic_evidence(
+        instance=instance, evidence=[subject, policy], semantic_atoms=atoms,
+        temporal_authorization_enabled=True, temporal_authorization_enforcement=True,
+        query_analysis={"fields": [{"slot_id": "qslot_0", "name": "clinical record"}]},
+    )
+
+    certificate = trace["temporal_authorization"]
+    assert certificate["semantic_candidate_event_count"] == 1
+    assert certificate["decision"] == "deny"
+    assert trace["authorization_evidence_boundary"]["enforcement_applied"] is True
+    assert [row.memory_id for row in ranked] == ["subject"]
 
 
 def test_ungrounded_semantic_policy_atom_never_enters_authorization_graph():

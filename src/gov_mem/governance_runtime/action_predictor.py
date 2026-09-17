@@ -18,9 +18,7 @@ from gov_mem.governance_runtime.access import (
 from gov_mem.governance_runtime.evidence_frames import compile_evidence_frame
 from gov_mem.governance_runtime.provenance_authorization import certify_current_state_slots
 from gov_mem.governance_runtime.leakage_guard import assert_runtime_payload_safe, strip_hidden_eval_fields
-from gov_mem.general_lexicon import topics_from_text
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
-from gov_mem.query_semantics import classify_state_slot_families, infer_action_families
 
 
 GOVERNED_ACTION_SYSTEM_PROMPT = """
@@ -97,34 +95,20 @@ def _compact_evidence_for_action_prompt(evidence: list[RetrievedEvidence]) -> li
 
 
 def _compact_evidence_for_action_prompt_with_question(question: str, evidence: list[RetrievedEvidence]) -> list[dict]:
-    requested_families = _requested_action_families(question)
+    # The paper-facing v4 path does not select prompt evidence through a
+    # hand-authored query family vocabulary.  Stage 1 order plus structured
+    # lifecycle metadata are sufficient for this bounded action prompt.
+    del question
 
     def sort_key(row: RetrievedEvidence) -> tuple[float, str]:
-        lowered = str(row.content or "").lower()
-        current_bonus = 0.0
-        if any(token in lowered for token in ["as of now", "current", "approved", "supersedes", "superseded", "official pilot target", "only numbers that should be treated as current right now"]):
-            current_bonus += 3.0
-        if any(token in lowered for token in ["finance-confirmed", "official", "current right now", "treat as current", "as of now"]):
-            current_bonus += 2.2
-        if any(token in lowered for token in ["latest", "current approved", "approved current", "launch update"]):
-            current_bonus += 1.2
-        if any(token in lowered for token in ["delete", "deleted", "remove", "removed", "retired", "rotated", "old ", "earlier "]):
-            current_bonus -= 1.0
-        slot_bonus = 0.0
-        families = _classify_action_row_families(row)
-        slot_bonus += 1.4 * len(families & requested_families)
-        return (float(row.score) + current_bonus + slot_bonus, str(row.time or ""))
+        metadata = dict(row.metadata or {})
+        lifecycle = str(metadata.get("memory_status") or metadata.get("lifecycle_status") or "active").casefold()
+        current_bonus = 1.0 if lifecycle in {"active", "current", "approved", "confirmed", "updated"} else -1.0 if lifecycle in {"deleted", "superseded", "historical", "canceled"} else 0.0
+        return (float(row.score) + current_bonus, str(row.time or ""))
 
     ranked = sorted(evidence, key=sort_key, reverse=True)
     selected: list[RetrievedEvidence] = []
     selected_ids: set[str] = set()
-    if requested_families:
-        for family in requested_families:
-            best = next((row for row in ranked if family in _classify_action_row_families(row)), None)
-            if best is None or best.memory_id in selected_ids:
-                continue
-            selected.append(best)
-            selected_ids.add(best.memory_id)
     for row in ranked:
         if row.memory_id in selected_ids:
             continue
@@ -155,23 +139,6 @@ def _compact_evidence_for_action_prompt_with_question(question: str, evidence: l
             }
         )
     return compact
-
-
-def _requested_action_families(question: str) -> set[str]:
-    return infer_action_families(question)
-
-
-def _classify_action_row_families(row: RetrievedEvidence) -> set[str]:
-    meta_slots = dict((row.metadata or {}).get("slots") or {})
-    return classify_state_slot_families(text=str(row.content or ""), slots=meta_slots)
-
-
-def _contains_any(text: str, tokens: list[str]) -> bool:
-    return any(token in text for token in tokens)
-
-
-def _matches_any_pattern(text: str, patterns: list[str]) -> bool:
-    return any(re.search(pattern, text, re.IGNORECASE) for pattern in patterns)
 
 
 def _build_typed_state_summary(
@@ -260,273 +227,6 @@ def _build_question_disclosure_profile(question: str) -> dict[str, Any]:
         "is_pure_sensitive_request": False,
         "question_text_norm": lowered[:240],
     }
-    # DISABLED legacy lexical implementation retained below for audit.
-    '''
-    logistics_request_tokens = [
-        "what time",
-        "when is",
-        "where is",
-        "where should",
-        "which suite",
-        "what suite",
-        "what location",
-        "which location",
-        "time and location",
-        "appointment time",
-        "arrival",
-        "arrive by",
-        "arrival window",
-        "visit window",
-        "interview window",
-        "time window",
-        "scan time",
-        "ultrasound time",
-        "drop-off time",
-        "drop off time",
-        "ride timing",
-        "check-in timing",
-    ]
-    logistics_entity_tokens = [
-        "appointment",
-        "schedule",
-        "window",
-        "ultrasound",
-        "scan",
-        "imaging",
-        "suite",
-        "clinic",
-        "location",
-    ]
-    restricted_interpretation_tokens = [
-        "because",
-        "why",
-        "what does it mean",
-        "medical meaning",
-        "interpretation",
-        "looking bad",
-        "okay",
-        "normal",
-        "wrong",
-        "bad news",
-        "serious",
-        "concerning",
-        "problem",
-        "something bad",
-    ]
-    # Generic sensitivity cues only.  Benchmark/domain-specific clinical
-    # phrases were deliberately removed from the v4 main path.
-    sensitive_clinical_request_tokens = [
-        "medical", "health", "clinical", "symptom", "diagnosis", "treatment",
-        "procedure", "medication", "lab", "test result", "exact value",
-        "interpretation", "sensitive",
-    ]
-    sensitive_documentation_tokens = [
-        "documentation", "document", "record", "note", "notes", "wording",
-        "write", "send", "share", "include",
-    ]
-    sensitive_secret_request_tokens = [
-        "number", "phone", "contact", "address", "identifier", "account",
-        "password", "passcode", "pin", "code", "credential", "token",
-        "key", "phrase", "private", "confidential", "restricted", "secret",
-        "exact", "specific",
-    ]
-    private_timing_request_tokens = [
-        "time", "timing", "date", "schedule", "window", "appointment",
-        "exact time", "exact timing", "private", "confidential", "restricted",
-    ]
-    safe_partial_share_tokens = [
-        "broad wording",
-        "mixed-audience",
-        "calendar line",
-        "safe description",
-        "safe wording",
-        "broad room reassignment wording",
-        "room reassignment wording",
-        "logistics only",
-        "public timing",
-        "location only",
-        "safe sponsor wording",
-        "avoid overlap",
-        "coordinate calendars",
-        "coordinate schedule",
-        "call billing",
-        "keep from colliding",
-        "current plan",
-    ]
-    actionable_secret_request_tokens = [
-        "number", "phone", "address", "password", "passcode", "pin", "code",
-        "credential", "token", "key", "secret", "private", "confidential",
-        "exact", "specific",
-    ]
-    private_state_existence_tokens = [
-        "private", "confidential", "restricted", "internal", "sensitive",
-        "exists", "exist", "still", "remain", "on file", "in the record",
-    ]
-    exact_restricted_state_tokens = [
-        "exact", "precise", "specific", "number", "value", "amount", "limit",
-        "maximum", "current", "restricted", "confidential",
-    ]
-    asks_logistics = _contains_any(lowered, logistics_request_tokens) or (
-        _contains_any(lowered, ["what", "when", "where", "which"]) and _contains_any(lowered, logistics_entity_tokens)
-    )
-    if any(
-        token in lowered
-        for token in [
-            "avoid overlap",
-            "coordinate calendars",
-            "coordinate schedule",
-            "call billing",
-            "keep the tutor and building notes from colliding",
-            "current plan",
-        ]
-    ):
-        asks_logistics = True
-    asks_restricted_interpretation = _contains_any(lowered, restricted_interpretation_tokens)
-    asks_sensitive_clinical_content = _contains_any(lowered, sensitive_clinical_request_tokens) or (
-        "whether this is" in lowered
-        and any(token in lowered for token in ["injection", "procedure", "treatment", "diagnosis", "sti", "infectious disease"])
-    )
-    asks_sensitive_secret_content = _contains_any(lowered, sensitive_secret_request_tokens)
-    asks_private_timing_content = _contains_any(lowered, private_timing_request_tokens) or bool(
-        (
-            ("callback" in lowered or "study call" in lowered or "private" in lowered)
-            and ("exact" in lowered or "timing" in lowered or "time" in lowered)
-        )
-        or (
-            ("upstairs" in lowered or "desk nook" in lowered or "study" in lowered)
-            and ("time" in lowered or "timing" in lowered)
-        )
-    )
-    asks_safe_partial_share = _contains_any(lowered, safe_partial_share_tokens)
-    asks_actionable_secret_content = _contains_any(lowered, actionable_secret_request_tokens)
-    asks_binary_sensitive_existence = bool(
-        any(
-            token in lowered
-            for token in [
-                "yes or no",
-                "which is it",
-                "whether ",
-                "is there a ",
-                "is this ",
-                "was the ",
-                "did the ",
-                "same customer as",
-                "same account as",
-            ]
-        )
-        and any(
-            token in lowered
-            for token in [
-                "behavioral",
-                "psychiatry",
-                "care setting",
-                "tumor",
-                "cancer",
-                "diagnosis",
-                "positive",
-                "account",
-                "customer",
-                "mapping",
-                "label",
-                "alias",
-            ]
-        )
-    )
-    asks_private_state_existence = _contains_any(lowered, private_state_existence_tokens) or asks_binary_sensitive_existence or (
-        "yes or no" in lowered and _contains_any(lowered, ["private label", "internal label", "exact internal label"])
-    )
-    # Existence questions about restricted/private records must not be
-    # converted into a safe-looking partial answer merely because a broad
-    # replacement note was retrieved.
-    asks_private_state_existence = asks_private_state_existence or bool(
-        re.search(r"\b(?:still|any|exist|exists|remain|remains)\b", lowered)
-        and re.search(r"\b(?:in memory|on file|in the record|restricted|private|confidential)\b", lowered)
-        and re.search(r"\b(?:note|label|phrase|wording|detail|record|state)\b", lowered)
-    )
-    asks_exact_restricted_state = _contains_any(lowered, exact_restricted_state_tokens)
-    contact_secret_tokens = [
-        "number", "phone", "contact", "address", "identifier", "account",
-        "credential", "code", "private", "confidential",
-    ]
-    historical_secret_tokens = [
-        "old", "earlier", "previous", "former", "deleted", "removed",
-        "retired", "replaced", "before", "used to be",
-    ]
-    historical_secret_patterns = [
-        r"\bold\b",
-        r"\bdelete(?:d|ion)?\b",
-        r"\bremove(?:d|al)?\b",
-        r"\bearlier\b",
-        r"\bprevious\b",
-        r"\bretired\b",
-        r"\bused to be\b",
-    ]
-    asks_historical_or_deleted_secret = _contains_any(lowered, historical_secret_tokens) or _matches_any_pattern(lowered, historical_secret_patterns)
-    mixed_secret_logistics_request = bool(
-        asks_logistics and (asks_sensitive_secret_content or asks_private_timing_content or asks_actionable_secret_content or asks_historical_or_deleted_secret)
-    )
-    mixed_disclosure_request = bool(
-        (asks_logistics or asks_safe_partial_share)
-        and (
-            asks_restricted_interpretation
-            or asks_sensitive_clinical_content
-            or asks_sensitive_secret_content
-            or asks_private_timing_content
-            or asks_actionable_secret_content
-            or asks_private_state_existence
-            or asks_exact_restricted_state
-            or asks_historical_or_deleted_secret
-        )
-    )
-    # Administrative pretexts must not turn a binary medical fact request into
-    # a safe projection merely because an unrelated operational record was
-    # retrieved. This uses the shared general lexicon and grammatical cues,
-    # not a dataset-specific disease or case name.
-    semantic_sensitive_topics = set(topics_from_text(lowered)).intersection(
-        {"medical", "health", "medication", "laboratory", "imaging"}
-    )
-    binary_sensitive_fact = bool(
-        semantic_sensitive_topics
-        and re.search(r"\b(?:whether|if|is|are|was|were|did|does)\b", lowered)
-        and not asks_logistics
-        and not asks_safe_partial_share
-    )
-    if binary_sensitive_fact:
-        asks_sensitive_clinical_content = True
-    return {
-        "asks_logistics": asks_logistics,
-        "asks_restricted_interpretation": asks_restricted_interpretation,
-        "asks_sensitive_clinical_content": asks_sensitive_clinical_content,
-        "asks_sensitive_secret_content": asks_sensitive_secret_content,
-        "asks_private_timing_content": asks_private_timing_content,
-        "asks_actionable_secret_content": asks_actionable_secret_content,
-        "asks_safe_partial_share": asks_safe_partial_share,
-        "asks_exact_restricted_state": asks_exact_restricted_state,
-        "mixed_disclosure_request": mixed_disclosure_request,
-        "mixed_secret_logistics_request": mixed_secret_logistics_request,
-        "asks_private_state_existence": asks_private_state_existence,
-        "asks_contact_secret": _contains_any(lowered, contact_secret_tokens),
-        "asks_historical_or_deleted_secret": asks_historical_or_deleted_secret,
-        "asks_sensitive_documentation_guidance": bool(
-            _contains_any(lowered, ["claim note", "claim notes", "chart note", "chart notes", "documentation", "document", "record", "send me", "write", "include"])
-            and (asks_sensitive_clinical_content or asks_sensitive_secret_content or asks_actionable_secret_content)
-        ),
-        "is_pure_sensitive_request": bool(
-            not asks_logistics
-            and not asks_safe_partial_share
-            and (
-                asks_restricted_interpretation
-                or asks_sensitive_clinical_content
-                or asks_sensitive_secret_content
-                or asks_private_timing_content
-                or asks_actionable_secret_content
-                or asks_private_state_existence
-                or asks_historical_or_deleted_secret
-                or binary_sensitive_fact
-            )
-        ),
-        "question_text_norm": lowered[:240],
-    }'''
 
 
 def _llm_question_disclosure_profile(*, llm_client: LLMClient, model_name: str, question: str) -> dict[str, Any]:
@@ -586,16 +286,12 @@ def _evidence_has_contact_secret_signal(evidence: list[RetrievedEvidence]) -> bo
 
 
 def _evidence_has_forgetting_signal(evidence: list[RetrievedEvidence]) -> bool:
-    forgetting_tokens = [
-        "forget", "delete", "remove", "clear", "retired", "superseded",
-        "no longer", "must not be repeated", "must not be reconstructed",
-    ]
     for row in evidence:
-        lowered = str(row.content or "").lower()
         memory_type = str(getattr(row, "memory_type", "") or "").lower()
         if memory_type == "forgetting":
             return True
-        if any(token in lowered for token in forgetting_tokens):
+        status = str((row.metadata or {}).get("memory_status") or "").casefold()
+        if status in {"deleted", "superseded", "forgotten", "canceled"}:
             return True
     return False
 
@@ -613,43 +309,12 @@ def _evidence_has_requester_access_revocation(
     be answered from an older active fact when the transcript later revokes
     that requester's sharing permission.
     """
-    role = str(requester_role or "").strip().lower()
-    if not role or role in {"owner", "patient", "authorized_staff", "staff"}:
-        return False
-    if not (
-        question_profile.get("asks_logistics")
-        or question_profile.get("asks_private_timing_content")
-        or question_profile.get("asks_sensitive_clinical_content")
-    ):
-        return False
-    role_terms = {
-        "family_member": ("family", "mother", "father", "sister", "brother", "parent", "relative"),
-        "partner_spouse": ("partner", "spouse", "husband", "wife"),
-        "delegate": ("delegate", "proxy", "assistant"),
-        "guest": ("guest", "visitor"),
-    }
-    requester_terms = role_terms.get(role, (role.replace("_", " "),))
-    revocation_terms = (
-        "revoke",
-        "revoked",
-        "no longer share",
-        "no more timing",
-        "no more appointment",
-        "removed from scheduling",
-        "removed from callback",
-        "access is revoked",
-        "access revoked",
-    )
+    del requester_role, question_profile
     for row in evidence:
-        lowered = str(row.content or "").lower()
-        if not any(token in lowered for token in revocation_terms):
-            continue
-        if any(token in lowered for token in requester_terms):
-            return True
-        # Explicit permission revocation is requester-scoped by the policy
-        # statement itself even when it omits the person's relationship.
-        if any(token in lowered for token in ("scheduling-contact", "callback-contact", "future appointment details")):
-            return True
+        events = (row.metadata or {}).get("symbolic_temporal_authorization_events") or {}
+        for event in list(events.get("events") or []) if isinstance(events, dict) else []:
+            if str(event.get("effect") or "").casefold() in {"deny", "revoke"}:
+                return True
     return False
 
 
@@ -662,18 +327,12 @@ def _evidence_has_private_secret_signal(evidence: list[RetrievedEvidence]) -> bo
 
 
 def _evidence_has_access_denial_signal(evidence: list[RetrievedEvidence]) -> bool:
-    denial_tokens = [
-        "no disclosure authorized",
-        "not currently assigned",
-        "may not receive",
-        "coverage ended",
-        "without a care need",
-        "not authorized",
-        "do not give",
-    ]
     for row in evidence:
-        lowered = str(row.content or "").lower()
-        if any(token in lowered for token in denial_tokens):
+        for key in ("symbolic_temporal_authorization_certificate", "symbolic_policy_certificate"):
+            certificate = (row.metadata or {}).get(key) or {}
+            if str(certificate.get("decision") or "").casefold() in {"deny", "unknown"}:
+                return True
+        if str((row.metadata or {}).get("memory_status") or "").casefold() in {"deleted", "superseded", "forgotten"}:
             return True
     return False
 
@@ -720,24 +379,13 @@ def _partition_accessible_evidence(
 
 
 def _evidence_supports_safe_partial_answer(evidence: list[RetrievedEvidence]) -> bool:
-    safe_slots = {
-        "date", "time", "arrival_time", "location", "provider", "procedure",
-        "visit_type", "status", "prep_instruction", "instruction", "safe_wording",
-        "broad_summary_customer_text", "broad_customer_safe_wording",
-    }
     for row in evidence:
         if is_logistics_memory(content=row.content, scope=row.scope, memory_type=row.memory_type):
             return True
         meta_slots = dict((row.metadata or {}).get("slots") or {})
-        if safe_slots & set(meta_slots.keys()):
+        if meta_slots and str(row.scope or "").casefold() in {"public", "broad", "safe_summary", "logistics", "schedule", "appointment"}:
             return True
-        lowered = str(row.content or "").lower()
-        if (
-            "broad summaries should say" in lowered
-            or "broad customer-safe wording" in lowered
-            or "sponsor-safe wording should continue to use" in lowered
-            or "safe wording" in lowered
-        ):
+        if str(row.scope or "").casefold() in {"public", "broad", "safe_summary"}:
             return True
     return False
 
@@ -766,19 +414,11 @@ def _row_has_stage2_utility_capability(row: RetrievedEvidence) -> bool:
 
 
 def _evidence_targets_household_state(evidence: list[RetrievedEvidence]) -> bool:
-    household_slots = {
-        "visit_window",
-        "entry_method",
-        "package_rule",
-        "approved_areas",
-        "parking_pass",
-        "arrival_contact_rule",
-    }
     for row in evidence:
         if str(getattr(row, "memory_type", "") or "").lower() == "household_plan":
             return True
-        meta_slots = dict((row.metadata or {}).get("slots") or {})
-        if household_slots & set(meta_slots.keys()):
+        record = dict((row.metadata or {}).get("structured_record") or {})
+        if str(record.get("record_type") or "").casefold() == "household_plan":
             return True
     return False
 
@@ -791,17 +431,7 @@ def _normalize_query_type(query_type: str | None, question: str, evidence: list[
 
 
 def _evidence_has_restricted_communication_signal(evidence: list[RetrievedEvidence]) -> bool:
-    restriction_tokens = [
-        "do not mention",
-        "generic callback wording",
-        "generic wording only",
-        "on any message",
-        "without naming",
-    ]
-    for row in evidence:
-        lowered = str(row.content or "").lower()
-        if any(token in lowered for token in restriction_tokens):
-            return True
+    del evidence
     return False
 
 
@@ -812,23 +442,12 @@ def _question_requests_record_transfer_or_documentation(question: str) -> bool:
 
 
 def _evidence_has_deleted_secret_signal(evidence: list[RetrievedEvidence]) -> bool:
-    deleted_tokens = [
-        "delete",
-        "deleted",
-        "rotated",
-        "retired",
-        "replaced",
-        "clear temporary",
-        "remove from memory",
-        "treated as deleted",
-        "unavailable going forward",
-    ]
     for row in evidence:
-        lowered = str(row.content or "").lower()
         status = str((row.metadata or {}).get("memory_status") or "").lower()
         if status in {"deleted", "superseded"}:
             return True
-        if any(token in lowered for token in deleted_tokens):
+        ledger = (row.metadata or {}).get("symbolic_state_ledger") or {}
+        if any(str(field.get("status") or "").casefold() in {"deleted", "superseded", "canceled"} for field in (ledger.get("fields") or {}).values() if isinstance(field, dict)):
             return True
     return False
 
@@ -837,76 +456,8 @@ def _is_deleted_secret_safety_request(question: str, evidence: list[RetrievedEvi
     # DISABLED: benchmark-shaped question triggers (legacy implementation is
     # retained below).  Lifecycle safety is derived from structured memory
     # status and the question-only semantic contract in the active caller.
+    del question, evidence
     return False
-    '''
-    profile = _build_question_disclosure_profile(question)
-    lowered = str(question or "").lower()
-    if profile.get("asks_contact_secret"):
-        return _is_contact_secret_safety_request(question, evidence)
-    asks_history = bool(profile.get("asks_historical_or_deleted_secret")) or _matches_any_pattern(
-        lowered,
-        [
-            r"\bdelete(?:d|ion)?\b",
-            r"\bearlier\b",
-            r"\bold\b",
-            r"\bretired\b",
-            r"\bused to be\b",
-            r"\bbefore we switched\b",
-            r"\bbefore the rotation\b",
-            r"\bwhat was the old\b",
-            r"\bwhat was the earlier\b",
-        ],
-    )
-    asks_secret_object = any(
-        token in lowered
-        for token in [
-            "access code",
-            "access code",
-            "room code",
-            " code",
-            "token",
-            "pin",
-            "keypad",
-            "credential",
-            "release phrase",
-            "secure storage",
-            "key",
-            "sponsor",
-            "company",
-            "customer",
-            "mapped to",
-            "mapping",
-            "wording",
-            "voicemail",
-            "phrase",
-            "amount",
-            "digits",
-            "alias",
-            "label",
-        ]
-    )
-    asks_fragment_reconstruction = any(
-        token in lowered
-        for token in [
-            "first two digits",
-            "first digits",
-            "digits",
-            "exact wording",
-            "deleted wording",
-            "what exact company used to be mapped",
-            "used to be mapped",
-            "what was the deleted wording",
-        ]
-    )
-    if asks_history and (asks_secret_object or asks_fragment_reconstruction) and (
-        _evidence_has_deleted_secret_signal(evidence) or not evidence
-    ):
-        return True
-    if not profile.get("asks_sensitive_secret_content"):
-        return bool(asks_history and asks_fragment_reconstruction and _evidence_has_deleted_secret_signal(evidence))
-    if asks_history:
-        return True
-    return False'''
 
 
 def _is_contact_secret_safety_request(question: str, evidence: list[RetrievedEvidence]) -> bool:
@@ -1407,7 +958,6 @@ class GovernedActionPredictor:
             and (
                 semantic_scope in {"historical", "deleted", "retired"}
                 or profile.get("asks_historical_or_deleted_secret")
-                or re.search(r"\b(?:deleted|retired|old|earlier|before)\b", str(question or "").lower())
             )
         )
         if (deleted_secret_safety_request or historical_safety_request) and regime != "privacy":

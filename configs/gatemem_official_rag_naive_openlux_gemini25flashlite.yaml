@@ -1,0 +1,36 @@
+# GateMem paper RAG-Naive baseline, reproduced through the vendored official
+# runner. This deliberately excludes every Gov-Mem Stage-2/symbolic component.
+out_dir: experiments/runs/gatemem_official_rag_naive_gemini25flashlite_full_20260917
+agent: rag_naive
+
+llm_provider: openlux
+llm_model: gemini-2.5-flash-lite
+temperature: 0.2
+max_output_tokens: 4096
+timeout_s: 120
+max_retries: 3
+api_base: https://api.openlux.ai/v1
+api_key_env: OPENLUX_API_KEY
+api_keys_env: OPENLUX_API_KEYS
+
+retrieval_backend: embedding
+embedding_impl: native
+embed_provider: openai
+embed_model: text-embedding-3-small
+embed_api_base: https://api.openlux.ai
+embed_api_key_env: OPENLUX_API_KEY
+embed_batch_size: 16
+top_k: 20
+chunk_mode: turn
+
+use_llm_judge: true
+judge_provider: openlux
+judge_model: gpt-4o
+judge_temperature: 0.0
+judge_max_output_tokens: 4096
+judge_api_keys_env: OPENLUX_API_KEYS
+gate_by_action: false
+
+episode_concurrency: 8
+judge_concurrency: 8
+show_ingest_progress: false

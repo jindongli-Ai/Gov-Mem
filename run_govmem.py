@@ -85,6 +85,12 @@ def main() -> None:
     parser.add_argument("--llm_api_key_env", default=None)
     parser.add_argument("--base_model", default=None)
     parser.add_argument(
+        "--memory_governed_slot_graph",
+        choices=["true", "false"],
+        default=None,
+        help="Override the optional ingestion-time governed slot graph channel.",
+    )
+    parser.add_argument(
         "--embedding_model",
         default=None,
         help="Override the configured embedding model for retrieval experiments.",
@@ -121,6 +127,12 @@ def main() -> None:
         config = deep_update(config, {"llm": llm_updates})
     if args.embedding_model is not None:
         config = deep_update(config, {"embedding": {"model": args.embedding_model}})
+    if args.memory_governed_slot_graph is not None:
+        config = deep_update(config, {
+            "memory_governed_slot_graph": {
+                "enabled": args.memory_governed_slot_graph == "true",
+            }
+        })
     if args.policy_ablation:
         ablation_updates = {
             "full": {"mode": "full"},

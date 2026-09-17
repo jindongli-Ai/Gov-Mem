@@ -720,3 +720,27 @@ The unresolved questions for external advice are:
 Until these questions are answered, no classifier architecture or training
 recipe is final, and no full-benchmark MGS claim should be based on the cleanup
 smoke runs.
+
+### 16.6 Four-table cleanup validation (2026-09-09)
+
+The final residual tables identified during the audit were removed without
+replacing them with benchmark-specific strings. The active path uses the LLM
+semantic contract, verified source-grounded atoms, and the existing governed
+symbolic graph. A one-episode-per-domain run covered every query in each
+selected episode (102 checkpoints total), followed by the official OpenLux
+judge with 20-key concurrency.
+
+| Domain | Checkpoints | U | A | F | OR | MGS |
+|---|---:|---:|---:|---:|---:|---:|
+| Medical | 28 | 30.00% | 33.33% | 0.00% | 70.00% | **20.00%** |
+| Office | 32 | 66.67% | 30.00% | 15.38% | 22.22% | **39.49%** |
+| Education | 18 | 16.67% | 16.67% | 0.00% | 50.00% | **13.89%** |
+| Household | 24 | 37.50% | 25.00% | 0.00% | 50.00% | **28.13%** |
+| **Four-domain arithmetic mean** | **102** | — | — | — | — | **25.38%** |
+
+The official judge completed all 102 records with zero parse failures. MGS is
+the only final metric; U/A/F/OR are diagnostic decompositions. Relative to the
+previous 8-episode cleanup smoke (26.20%), this stricter four-table removal is
+-0.82 percentage points. The drop indicates a semantic-recall gap, not that
+the removed tables were methodologically acceptable. The artifact is
+`experiments/runs/govmem_v7_lexicon_free_after_four_table_cleanup_complete4_20260909/suite_summary.json`.

@@ -36,7 +36,7 @@ embedding:
   request_timeout: 90
   retry_backoff_seconds: 3.0
   max_retry_backoff_seconds: 30.0
-  cache_dir: /tmp/govmem_v4_symbolic_text_embedding_3_small_gpt4omini_dev7
+  cache_dir: /mnt/data_disk/home/fuyali/cache/govmem_v4_symbolic_text_embedding_3_small_gpt4omini_dev7
   allow_fallback: false
 
 pipeline:
@@ -50,6 +50,12 @@ self_evolving:
 
 rag:
   naive_top_k: 20
+
+# Independent optional retrieval channel. Dense RAG remains the baseline when
+# this flag is false; the graph never makes authorization decisions.
+memory_governed_slot_graph:
+  enabled: false
+  top_k: 20
 
 semantic_compiler:
   enabled: true
@@ -104,7 +110,7 @@ evaluation:
     model: gpt-4o
     temperature: 0.0
     max_output_tokens: 4096
-    concurrency: 1
+    concurrency: 20
     gate_by_action: false
 
 runner:

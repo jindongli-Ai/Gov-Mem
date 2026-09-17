@@ -19,11 +19,11 @@ OFFICIAL_BENCH_ROOT = (
 if str(OFFICIAL_BENCH_ROOT) not in sys.path:
     sys.path.insert(0, str(OFFICIAL_BENCH_ROOT))
 
-from gov_mem.backbones.common import (
+from gov_mem.backbones.v4_support import (
     BackboneRunResult,
     RAGChunk,
     build_reasoning_state,
-    _chunk_to_memory_item,
+    chunk_to_memory_item as _chunk_to_memory_item,
     save_rag_chunks,
 )
 from gov_mem.data.schema import (
@@ -40,25 +40,19 @@ from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
 from gov_mem.llm.model_registry import resolve_llm_model
 from gov_mem.reasoning.operators import build_required_slot_plan
 from gov_mem.memory.dense_index import DenseMemoryIndex
+from gov_mem.memory.governed_slot_graph import (
+    build_memory_governed_slot_graph,
+    graph_retrieval_evidence,
+)
 from gov_mem.backbones.stage2_typed_rerank import (
-    _DATE_RE,
-    _TIME_RE,
-    _candidate_matches_request_slot,
-    _is_competing_sensitive_evidence,
-    _slot_has_concrete_value,
-    _WEEKDAY_RE,
     Stage2Decision,
     deletion_gate_reason,
     explicit_sensitive_boundary_reason,
     project_mixed_current_state_evidence,
     reason_mixed_evidence_with_llm,
-    resolve_long_context_field_ledger,
     rerank_typed_scalar_evidence,
     build_summary_only_evidence,
     summary_only_boundary_reason,
-    _STALE_MARKERS,
-    _CURRENT_TERMS,
-    _contains_marker,
     _query_safety_profile,
     _safety_requests_protected_fact,
     analyze_query_with_llm,
@@ -68,10 +62,27 @@ from gov_mem.backbones.symbolic_evidence import (
     build_symbolic_evidence,
 )
 from gov_mem.backbones.semantic_compiler import compile_semantics
-from bench.domains import format_relationship_fact, get_domain_label, get_query_policy_block
+from gov_mem.governance_runtime.evidence_frames import compile_evidence_frames
+from bench.domains import format_relationship_fact
 
 
 OFFICIAL_QUERY_PROMPT = OFFICIAL_BENCH_ROOT / "bench" / "prompts" / "query_prompt.txt"
+
+# The released benchmark prompt contains placeholders for its domain-specific
+# policy appendix. The paper-facing Gov-Mem path deliberately supplies only a
+# neutral policy contract; benchmark domain labels and policy blocks are not
+# runtime inputs to the model.
+NEUTRAL_DOMAIN_LABEL = "unspecified"
+NEUTRAL_ACCESS_POLICY = (
+    "- Use only source-grounded evidence and the symbolic governance context.\n"
+    "- Apply explicit allow, deny, revoke, lifecycle, and scope constraints.\n"
+    "- Do not infer authorization from a role alone.\n"
+    "- An unknown authorization state is not a denial: when the requested value is "
+    "source-grounded and no explicit deny, revoke, conflict, deletion, or scope "
+    "constraint applies, answer from the evidence.\n"
+    "- Do not disclose a value only when the symbolic governance layer gives an "
+    "explicit deny, revoke, conflict, deletion, or out-of-scope decision."
+)
 
 
 def _structured_message_record(
@@ -151,6 +162,29 @@ def _build_turn_chunks(instance: MemoryInstance) -> list[RAGChunk]:
     return chunks
 
 
+def _is_current_query_item(item: Any, instance: MemoryInstance) -> bool:
+    """Identify the visible checkpoint question, which is not memory evidence.
+
+    GateMem checkpoints can expose a normalized ``query_text`` that differs
+    from the question text stored in the final visible turn (for example, a
+    name may be expanded).  The adapter's observable ``as_of_turn_id`` is the
+    structural checkpoint boundary and therefore the only reliable identity
+    for excluding that turn.  Text equality remains a compatibility fallback
+    for non-checkpoint callers that do not provide the boundary metadata.
+    """
+    metadata = dict(getattr(item, "metadata", {}) or {})
+    record = dict(metadata.get("structured_record") or {})
+    checkpoint_turn_id = str(
+        ((instance.metadata.get("observable") or {}).get("as_of_turn_id")) or ""
+    ).strip()
+    record_turn_id = str(record.get("turn_id") or record.get("message_id") or "").strip()
+    if checkpoint_turn_id and record_turn_id:
+        return record_turn_id == checkpoint_turn_id
+    record_text = " ".join(str(record.get("text") or "").split()).casefold()
+    question_text = " ".join(str(instance.question or "").split()).casefold()
+    return bool(question_text) and record_text == question_text
+
+
 def _relationship_block(instance: MemoryInstance) -> str:
     raw_episode = dict((instance.metadata.get("raw_sample") or {}).get("episode") or {})
     entities = dict(raw_episode.get("entities") or {})
@@ -174,6 +208,7 @@ def _source_grounded_access_context(
     instance: MemoryInstance,
     symbolic_trace: dict[str, Any],
     semantic_contract: Any,
+    semantic_atoms: list[dict[str, Any]] | None = None,
     query_analysis: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Project query-relevant graph assignments without making an access decision."""
@@ -269,12 +304,35 @@ def _source_grounded_access_context(
     policy_decision = str(
         temporal.get("decision") or policy.get("decision") or "unknown"
     ).casefold()
-    # This is a deterministic application of the existing global policy:
-    # a declared assignment path with no scoped limitation supports ordinary
-    # operational delivery, but never a protected/confirmation request.
-    operational_assignment_in_scope = bool(compact_paths) and ordinary_operational_request and (
-        not path_has_scoped_limit
-    ) and policy_decision not in {"deny", "revoke", "conflict"}
+    # A complete set of verified, source-grounded query slots is sufficient to
+    # deliver an ordinary operational answer even when the relation graph does
+    # not contain an explicit assignment path.  This is evidence delivery, not
+    # an authorization grant: explicit deny/revoke/conflict remains blocking.
+    required_slot_ids = {
+        str(slot.slot_id)
+        for slot in getattr(semantic_contract, "requested_slots", []) or []
+        if bool(getattr(slot, "required_for_answer", True))
+    }
+    grounded_slot_ids = {
+        str(atom.get("slot_id") or "")
+        for atom in semantic_atoms or []
+        if isinstance(atom, dict)
+        and str(atom.get("slot_id") or "")
+        and isinstance(atom.get("source"), dict)
+        and str(dict(atom.get("source") or {}).get("chunk_id") or "")
+    }
+    semantic_delivery_support = bool(required_slot_ids) and required_slot_ids.issubset(
+        grounded_slot_ids
+    )
+    # A declared assignment path is evidence that the requester/target binding
+    # is observable.  A scoped path is not itself a denial: only an explicit
+    # negative symbolic certificate blocks delivery.  Field-level scope is
+    # still carried in requested_slot_delivery for the answer model.
+    operational_assignment_in_scope = (
+        (bool(compact_paths) or semantic_delivery_support)
+        and ordinary_operational_request
+        and policy_decision not in {"deny", "revoke", "conflict"}
+    )
     requested_slot_delivery = []
     for slot in getattr(semantic_contract, "requested_slots", []) or []:
         if not hasattr(slot, "slot_id"):
@@ -294,7 +352,10 @@ def _source_grounded_access_context(
             ),
         })
     return {
-        "source_grounded": bool(compact_paths),
+        "source_grounded": bool(compact_paths) or semantic_delivery_support,
+        "semantic_delivery_support": semantic_delivery_support,
+        "required_slot_ids": sorted(required_slot_ids),
+        "grounded_slot_ids": sorted(grounded_slot_ids),
         "requester": requester,
         "target_nodes": sorted(target_ids),
         "assignment_paths": compact_paths,
@@ -309,23 +370,75 @@ def _source_grounded_access_context(
     }
 
 
+def _merge_question_safety_into_contract(
+    *,
+    semantic_contract: Any,
+    query_analysis: dict[str, Any] | None,
+    question: str,
+) -> bool:
+    """Lift an independently compiled question safety profile to slot scope.
+
+    Query induction and Stage-2 safety analysis are separate neural views. If
+    the question-only safety contract identifies a protected fact, every
+    requested slot is marked for field-level governance before symbolic
+    projection. This does not grant or deny access and does not inspect
+    evidence text or use a domain lexicon.
+    """
+    profile = _query_safety_profile(
+        query_analysis or {}, question=question, use_lexical_backstop=False,
+    )
+    category = str(profile.get("category") or "none").casefold()
+    delivery_mode = str(profile.get("delivery_mode") or "unknown").casefold()
+    protected = bool(profile.get("sensitive")) and (
+        delivery_mode in {"protected_fact", "permission", "historical"}
+        or bool(profile.get("exact"))
+        or bool(profile.get("confirmation"))
+        or bool(profile.get("existence"))
+        or category in {"credential", "identity", "restricted"}
+    )
+    if not protected:
+        return False
+    changed = False
+    for slot in getattr(semantic_contract, "requested_slots", []) or []:
+        if not getattr(slot, "sensitivity_possible", False):
+            slot.sensitivity_possible = True
+            changed = True
+        if not getattr(slot, "authorization_relevant", False):
+            slot.authorization_relevant = True
+            changed = True
+    return changed
+
+
 def _format_retrieved_memory(evidence: list[RetrievedEvidence]) -> str:
     if not evidence:
         return "(none)"
     lines = []
-    state_ledger = next(
-        (
-            (row.metadata or {}).get("symbolic_state_ledger")
-            for row in evidence
-            if isinstance((row.metadata or {}).get("symbolic_state_ledger"), dict)
-        ),
-        None,
-    )
-    if state_ledger:
-        lines.append(
-            "[SYMBOLIC_STATE_LEDGER] "
-            + json.dumps(state_ledger, ensure_ascii=False, sort_keys=True)
-        )
+    # The full state ledger is an internal symbolic artifact and may contain
+    # exact values for fields that were not released to the answer model.
+    # Keep it out of the answer prompt unconditionally; the governed source
+    # rows and the value-free certificates below are sufficient for delivery.
+    def _safe_certificate(value: Any, *, kind: str) -> dict[str, Any] | None:
+        """Expose only value-free governance status to answer-side prompts.
+
+        The symbolic graph has already been consumed before answer realization.
+        Its resource names, principal assignments, graph edges, and current
+        authorization entries can contain protected source values, so they
+        must never be serialized into the neural answer context.  Keep only
+        aggregate certificate status and counts needed to interpret a boundary.
+        """
+        if not isinstance(value, dict):
+            return None
+        keep = {
+            "version", "mode", "decision", "enforcement_applied",
+            "conflict_count", "event_count", "unknown_event_count",
+            "semantic_candidate_event_count", "ignored_future_event_count",
+            "fact_count", "new_llm_calls",
+        }
+        safe = {key: value[key] for key in keep if key in value}
+        safe["redacted_for_answer_context"] = True
+        safe["certificate_kind"] = kind
+        return safe
+
     policy_certificate = next(
         (
             (row.metadata or {}).get("symbolic_policy_certificate")
@@ -334,10 +447,10 @@ def _format_retrieved_memory(evidence: list[RetrievedEvidence]) -> str:
         ),
         None,
     )
-    if policy_certificate:
+    if (safe_policy_certificate := _safe_certificate(policy_certificate, kind="policy")):
         lines.append(
             "[SYMBOLIC_POLICY_CERTIFICATE] "
-            + json.dumps(policy_certificate, ensure_ascii=False, sort_keys=True)
+            + json.dumps(safe_policy_certificate, ensure_ascii=False, sort_keys=True)
         )
     temporal_authorization_certificate = next(
         (
@@ -347,10 +460,12 @@ def _format_retrieved_memory(evidence: list[RetrievedEvidence]) -> str:
         ),
         None,
     )
-    if temporal_authorization_certificate:
+    if (safe_temporal_certificate := _safe_certificate(
+        temporal_authorization_certificate, kind="temporal_authorization"
+    )):
         lines.append(
             "[SYMBOLIC_TEMPORAL_AUTHORIZATION_CERTIFICATE] "
-            + json.dumps(temporal_authorization_certificate, ensure_ascii=False, sort_keys=True)
+            + json.dumps(safe_temporal_certificate, ensure_ascii=False, sort_keys=True)
         )
     for index, row in enumerate(evidence, 1):
         metadata = dict(row.metadata or {})
@@ -372,13 +487,17 @@ def _format_retrieved_memory(evidence: list[RetrievedEvidence]) -> str:
                 "source_turn": record.get("source_turn"),
                 "symbolic_provenance": metadata.get("symbolic_provenance"),
                 "symbolic_consistency": metadata.get("symbolic_consistency"),
-                "symbolic_permission_claim": metadata.get("symbolic_permission_claim"),
-                "symbolic_lifecycle_claim": metadata.get("symbolic_lifecycle_claim"),
-                "symbolic_state_claims": metadata.get("symbolic_state_claims"),
-                "symbolic_policy_facts": metadata.get("symbolic_policy_facts"),
-                "symbolic_policy_certificate": metadata.get("symbolic_policy_certificate"),
-                "symbolic_temporal_authorization_events": metadata.get("symbolic_temporal_authorization_events"),
-                "symbolic_temporal_authorization_certificate": metadata.get("symbolic_temporal_authorization_certificate"),
+                # Value-bearing symbolic claims/events are intentionally not
+                # copied into the answer prompt.  Symbolic reasoning has
+                # already consumed them; only source text and certificates
+                # (which are sanitized before this function) remain visible.
+                "symbolic_policy_certificate": _safe_certificate(
+                    metadata.get("symbolic_policy_certificate"), kind="policy"
+                ),
+                "symbolic_temporal_authorization_certificate": _safe_certificate(
+                    metadata.get("symbolic_temporal_authorization_certificate"),
+                    kind="temporal_authorization",
+                ),
             }
             lines.append(
                 f"Memory {index} [STRUCTURED_RECORD] "
@@ -390,25 +509,544 @@ def _format_retrieved_memory(evidence: list[RetrievedEvidence]) -> str:
     return "\n".join(lines)
 
 
+def _semantic_context_boundary(
+    *,
+    evidence: list[RetrievedEvidence],
+    semantic_contract: Any,
+    semantic_atoms: list[dict[str, Any]] | None,
+    symbolic_trace: dict[str, Any],
+    query_analysis: dict[str, Any] | None = None,
+) -> tuple[list[RetrievedEvidence], dict[str, Any]]:
+    """Project protected query atoms before exposing context to the answer LLM.
+
+    The projection is driven only by the open-vocabulary query contract and
+    verified atom source spans. Authorization remains symbolic: a protected
+    span is withheld only when the temporal authorization certificate gives an
+    explicit ``deny``, ``revoke``, or ``conflict`` decision. An unknown state is
+    not a denial and leaves source-grounded evidence available. No lexical
+    field table participates in this boundary.
+    """
+    requested_slot_ids = {
+        str(slot.slot_id)
+        for slot in getattr(semantic_contract, "requested_slots", []) or []
+        if getattr(slot, "slot_id", None)
+    }
+    protected_slots = {
+        str(slot.slot_id)
+        for slot in getattr(semantic_contract, "requested_slots", []) or []
+        if bool(getattr(slot, "sensitivity_possible", False))
+        or bool(getattr(slot, "authorization_relevant", False))
+    }
+    # The slot-level compiler is intentionally high-recall, but a provider can
+    # under-mark one slot in a multi-field protected request.  The independent
+    # question-only safety contract is therefore allowed to lift the boundary
+    # to every requested slot when it explicitly requests protected delivery.
+    # This is still neural query interpretation plus symbolic authorization;
+    # it does not inspect field names or source text.
+    safety = dict((query_analysis or {}).get("safety") or {})
+    protected_delivery = (
+        bool(safety.get("sensitive"))
+        and str(safety.get("delivery_mode") or "").casefold()
+        in {"protected_fact", "historical", "permission"}
+    ) or (
+        bool(safety.get("sensitive"))
+        and any(bool(safety.get(key)) for key in ("exact", "confirmation", "existence"))
+    )
+    if protected_delivery:
+        protected_slots.update(
+            str(slot.slot_id)
+            for slot in getattr(semantic_contract, "requested_slots", []) or []
+            if getattr(slot, "slot_id", None)
+        )
+    relevance_boundary_enabled = bool(requested_slot_ids and semantic_atoms)
+    audit: dict[str, Any] = {
+        "enabled": bool(protected_slots or relevance_boundary_enabled),
+        "relevance_slot_ids": sorted(requested_slot_ids),
+        "protected_slot_ids": sorted(protected_slots),
+        "query_level_protected_delivery": bool(protected_delivery),
+        "authorization_decision": "unknown",
+        "projected_memory_ids": [],
+        "filtered_memory_ids": [],
+        "redacted_atom_ids": [],
+        "evidence_boundary": "stage1_top_k_closed_set",
+    }
+    if not protected_slots and not relevance_boundary_enabled:
+        audit["enforcement_applied"] = False
+        return list(evidence), audit
+
+    temporal = dict(symbolic_trace.get("temporal_authorization") or {})
+    policy = dict(symbolic_trace.get("policy_consistency") or {})
+    decision = str(temporal.get("decision") or policy.get("decision") or "unknown").casefold()
+    audit["authorization_decision"] = decision
+    # Unknown authorization is not a reason to shrink ordinary utility
+    # evidence. Keep the closed Stage-1 set intact so semantic extraction and
+    # reranking can recover every requested field. Explicitly protected or
+    # confirmation-style requests still use the source-grounded projection
+    # below; explicit deny/revoke/conflict remains blocking.
+    if (
+        decision == "unknown"
+        and not protected_slots
+        and not protected_delivery
+    ):
+        audit["mode"] = "unknown_authorization_passthrough"
+        audit["enforcement_applied"] = False
+        return list(evidence), audit
+    # Missing authorization evidence is not itself a policy conflict. The
+    # boundary is fail-closed only for an explicit negative symbolic state.
+    release_protected = decision not in {"deny", "revoke", "conflict"}
+    if release_protected:
+        # Unknown and allow do not deny any grounded value.  We still keep the
+        # answer context closed over query-conditioned, source-grounded atoms:
+        # this is a relevance/provenance boundary, not an authorization rule.
+        # Without this distinction, every unrelated Top-20 private row reaches
+        # the answer model and is counted as context leakage.
+        atoms_by_memory: dict[str, list[dict[str, Any]]] = {}
+        temporal_spans_by_memory: dict[str, list[str]] = {}
+        for atom in semantic_atoms or []:
+            if not isinstance(atom, dict):
+                continue
+            source = dict(atom.get("source") or {})
+            memory_id = str(source.get("chunk_id") or source.get("memory_id") or "")
+            span = str(source.get("span") or "").strip()
+            if memory_id and span:
+                atoms_by_memory.setdefault(memory_id, []).append(atom)
+            slot_id = str(atom.get("slot_id") or "")
+            if slot_id in protected_slots:
+                continue
+            temporal = dict(atom.get("temporal") or {})
+            anchor_span = str(temporal.get("anchor_span") or "").strip()
+            anchor_source = dict(temporal.get("anchor_source") or {})
+            anchor_id = str(
+                anchor_source.get("chunk_id")
+                or anchor_source.get("memory_id")
+                or memory_id
+                or ""
+            )
+            if anchor_span and anchor_id:
+                temporal_spans_by_memory.setdefault(anchor_id, []).append(anchor_span)
+        if not atoms_by_memory and not temporal_spans_by_memory:
+            audit["enforcement_applied"] = False
+            return list(evidence), audit
+        grounded_rows: list[RetrievedEvidence] = []
+        for row in evidence:
+            row_atoms = atoms_by_memory.get(row.memory_id, [])
+            anchor_spans = temporal_spans_by_memory.get(row.memory_id, [])
+            if not row_atoms and not anchor_spans:
+                continue
+            record = dict((row.metadata or {}).get("structured_record") or {})
+            source_text = str(record.get("text") or row.content or "")
+            source_normalized = " ".join(source_text.split()).casefold()
+            spans: list[str] = []
+            for atom in row_atoms:
+                span = str(dict(atom.get("source") or {}).get("span") or "").strip()
+                if span and " ".join(span.split()).casefold() in source_normalized:
+                    if span not in spans:
+                        spans.append(span)
+            for anchor_span in anchor_spans:
+                if (
+                    anchor_span
+                    and " ".join(anchor_span.split()).casefold() in source_normalized
+                    and anchor_span not in spans
+                ):
+                    spans.append(anchor_span)
+            if not spans:
+                continue
+            projected_text = " ".join(spans)
+            metadata = dict(row.metadata or {})
+            if record:
+                projected_record = dict(record)
+                projected_record["text"] = projected_text
+                if isinstance(projected_record.get("source_turn"), dict):
+                    projected_record["source_turn"] = {
+                        **projected_record["source_turn"], "text": projected_text,
+                    }
+                metadata["structured_record"] = projected_record
+            metadata["semantic_context_boundary"] = {
+                "mode": "source_grounded_span_relevance",
+                "projected": projected_text != source_text,
+                "authorization_decision": decision,
+            }
+            if projected_text != source_text:
+                audit["projected_memory_ids"].append(row.memory_id)
+            grounded_rows.append(replace(row, content=projected_text, metadata=metadata))
+        audit["filtered_memory_ids"] = [
+            row.memory_id for row in evidence if row.memory_id not in atoms_by_memory
+        ]
+        audit["enforcement_applied"] = False
+        return grounded_rows, audit
+    atoms_by_memory: dict[str, list[dict[str, Any]]] = {}
+    temporal_spans_by_memory: dict[str, list[str]] = {}
+    for atom in semantic_atoms or []:
+        if not isinstance(atom, dict):
+            continue
+        source = dict(atom.get("source") or {})
+        memory_id = str(source.get("chunk_id") or source.get("memory_id") or "")
+        span = str(source.get("span") or "").strip()
+        if memory_id and span:
+            atoms_by_memory.setdefault(memory_id, []).append(atom)
+        # Temporal anchors are source-grounded auxiliary spans. They may be
+        # carried to the answer boundary only for an unprotected slot.
+        slot_id = str(atom.get("slot_id") or "")
+        if slot_id in protected_slots:
+            continue
+        temporal = dict(atom.get("temporal") or {})
+        anchor_span = str(temporal.get("anchor_span") or "").strip()
+        anchor_source = dict(temporal.get("anchor_source") or {})
+        anchor_id = str(
+            anchor_source.get("chunk_id")
+            or anchor_source.get("memory_id")
+            or memory_id
+            or ""
+        )
+        if anchor_span and anchor_id:
+            temporal_spans_by_memory.setdefault(anchor_id, []).append(anchor_span)
+
+    def _safe_certificate(value: Any, *, kind: str) -> dict[str, Any] | None:
+        """Keep governance state while removing value/resource-bearing detail.
+
+        The symbolic graph is still consumed before this projection.  Once a
+        protected value is denied or unresolved, the answer-side neural
+        prompts only need the certificate outcome and aggregate diagnostics;
+        carrying the full ledger/policy graph would reintroduce the very value
+        that the source span projection removed.
+        """
+        if not isinstance(value, dict):
+            return None
+        keep = {
+            "version", "mode", "decision", "enforcement_applied",
+            "conflict_count", "event_count", "unknown_event_count",
+            "semantic_candidate_event_count", "ignored_future_event_count",
+            "fact_count", "new_llm_calls",
+        }
+        safe = {key: value[key] for key in keep if key in value}
+        safe["redacted_for_answer_context"] = True
+        safe["certificate_kind"] = kind
+        return safe
+
+    def _strip_value_bearing_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+        """Remove semantic values from every carrier visible to answer prompts."""
+        sanitized = dict(metadata)
+        for key in (
+            "semantic_compiler_atoms",
+            "symbolic_state_claims",
+            "symbolic_state_ledger",
+            "symbolic_policy_facts",
+            "symbolic_permission_claim",
+            "symbolic_lifecycle_claim",
+            "symbolic_lifecycle_target_binding",
+            "symbolic_temporal_authorization_events",
+        ):
+            sanitized.pop(key, None)
+        policy = _safe_certificate(sanitized.get("symbolic_policy_certificate"), kind="policy")
+        if policy is not None:
+            sanitized["symbolic_policy_certificate"] = policy
+        else:
+            sanitized.pop("symbolic_policy_certificate", None)
+        temporal = _safe_certificate(
+            sanitized.get("symbolic_temporal_authorization_certificate"),
+            kind="temporal_authorization",
+        )
+        if temporal is not None:
+            sanitized["symbolic_temporal_authorization_certificate"] = temporal
+        else:
+            sanitized.pop("symbolic_temporal_authorization_certificate", None)
+        record = sanitized.get("structured_record")
+        if isinstance(record, dict):
+            record = dict(record)
+            for key in (
+                "semantic_compiler_atoms",
+                "symbolic_state_claims",
+                "symbolic_state_ledger",
+                "symbolic_policy_facts",
+                "symbolic_permission_claim",
+                "symbolic_lifecycle_claim",
+                "symbolic_lifecycle_target_binding",
+                "symbolic_temporal_authorization_events",
+            ):
+                record.pop(key, None)
+            sanitized["structured_record"] = record
+        return sanitized
+
+    projected: list[RetrievedEvidence] = []
+    for row in evidence:
+        row_atoms = atoms_by_memory.get(row.memory_id, [])
+        anchor_spans = temporal_spans_by_memory.get(row.memory_id, [])
+        if not row_atoms and not anchor_spans:
+            # A protected query must not expose an ungrounded full source row.
+            audit["filtered_memory_ids"].append(row.memory_id)
+            continue
+        record = dict((row.metadata or {}).get("structured_record") or {})
+        source_text = str(record.get("text") or row.content or "")
+        pieces: list[str] = []
+        seen: set[tuple[str, str]] = set()
+        for atom in row_atoms:
+            source = dict(atom.get("source") or {})
+            span = str(source.get("span") or "").strip()
+            if not span or " ".join(span.split()).casefold() not in " ".join(source_text.split()).casefold():
+                continue
+            slot_id = str(atom.get("slot_id") or "")
+            protected = slot_id in protected_slots
+            piece = span
+            if protected and not release_protected:
+                piece = "[REDACTED GOVERNED CLAIM]"
+                audit["redacted_atom_ids"].append(str(atom.get("atom_id") or ""))
+            key = (piece, slot_id)
+            if key not in seen:
+                seen.add(key)
+                pieces.append(piece)
+        for anchor_span in anchor_spans:
+            if (
+                anchor_span
+                and " ".join(anchor_span.split()).casefold()
+                in " ".join(source_text.split()).casefold()
+            ):
+                key = (anchor_span, "__temporal_anchor__")
+                if key not in seen:
+                    seen.add(key)
+                    pieces.append(anchor_span)
+        if not pieces:
+            audit["filtered_memory_ids"].append(row.memory_id)
+            continue
+        projected_text = " ".join(pieces)
+        metadata = dict(row.metadata or {})
+        if record:
+            projected_record = dict(record)
+            projected_record["text"] = projected_text
+            if protected_slots and not release_protected:
+                # The state ledger and typed semantic annotations are useful to
+                # symbolic reasoning, but they may contain the exact value
+                # outside the projected source text.  Do not pass those
+                # value-bearing carriers to the answer LLM on an unknown/deny
+                # path.  Authorization certificates remain available through
+                # the non-value-bearing fields and the governance context.
+                for key in (
+                    "semantic_compiler_atoms",
+                    "symbolic_state_claims",
+                    "symbolic_state_ledger",
+                    "symbolic_policy_facts",
+                    "symbolic_permission_claim",
+                    "symbolic_lifecycle_claim",
+                    "symbolic_lifecycle_target_binding",
+                    "symbolic_temporal_authorization_events",
+                ):
+                    projected_record.pop(key, None)
+            if isinstance(projected_record.get("source_turn"), dict):
+                projected_record["source_turn"] = {
+                    **projected_record["source_turn"],
+                    "text": projected_text,
+                }
+            metadata["structured_record"] = projected_record
+        if protected_slots and not release_protected:
+            # The top-level metadata is what _format_retrieved_memory uses to
+            # populate its typed symbolic fields.  Sanitizing only the nested
+            # record is insufficient and previously leaked exact atom values.
+            metadata = _strip_value_bearing_metadata(metadata)
+        metadata["semantic_context_boundary"] = {
+            "protected_slot_ids": sorted(protected_slots),
+            "authorization_decision": decision,
+            "projected": projected_text != source_text,
+        }
+        if projected_text != source_text:
+            audit["projected_memory_ids"].append(row.memory_id)
+        projected.append(replace(row, content=projected_text, metadata=metadata))
+    audit["enforcement_applied"] = bool(
+        audit["projected_memory_ids"] or audit["filtered_memory_ids"]
+    )
+    return projected, audit
+
+
 def _preserve_symbolic_state_carriers(
     *,
     selected: list[RetrievedEvidence],
     available: list[RetrievedEvidence],
     symbolic_trace: dict[str, Any],
 ) -> list[RetrievedEvidence]:
-    """Keep source rows for resolved governed slots and reattach certificates."""
+    """Keep source rows for resolved semantic slots and reattach certificates.
+
+    Stage 2 is allowed to reorder/compact evidence, but it must not discard
+    the only closed-set source carrier for a verified query slot.  Reattached
+    rows are projected to the atom's verified source spans; the original full
+    Top-20 row is never reintroduced into the answer prompt.  This keeps the
+    carrier boundary source-grounded while making the operation domain
+    agnostic.
+    """
 
     rows = list(selected)
     available_by_id = {row.memory_id: row for row in available}
     selected_ids = {row.memory_id for row in rows}
     ledger = dict(symbolic_trace.get("state_ledger") or {})
+    authorization = dict(symbolic_trace.get("temporal_authorization") or {})
+    authorization_decision = str(authorization.get("decision") or "unknown").casefold()
+    # Explicit negative governance remains authoritative.  In particular, do
+    # not use carrier preservation to route around a deny/revoke/conflict
+    # boundary applied by the symbolic layer.
+    carrier_recovery_allowed = authorization_decision not in {"deny", "revoke", "conflict"}
+
+    semantic_audit = dict(symbolic_trace.get("semantic_compiler") or {})
+    contract = dict(semantic_audit.get("query_contract") or {})
+    required_slot_ids = {
+        str(slot.get("slot_id") or "")
+        for slot in contract.get("requested_slots") or []
+        if isinstance(slot, dict)
+        and bool(slot.get("required_for_answer", True))
+        and str(slot.get("slot_id") or "")
+    }
+    protected_slot_ids = {
+        str(slot.get("slot_id") or "")
+        for slot in contract.get("requested_slots") or []
+        if isinstance(slot, dict)
+        and (
+            bool(slot.get("sensitivity_possible"))
+            or bool(slot.get("authorization_relevant"))
+        )
+    }
+    atoms = [
+        atom for atom in semantic_audit.get("final_grounded_atoms") or []
+        if isinstance(atom, dict)
+        and str(atom.get("slot_id") or "") in required_slot_ids
+        and isinstance(atom.get("source"), dict)
+    ]
+    atoms_by_slot: dict[str, list[dict[str, Any]]] = {}
+    for atom in atoms:
+        atoms_by_slot.setdefault(str(atom.get("slot_id") or ""), []).append(atom)
+
+    def projected_carrier(row: RetrievedEvidence, row_atoms: list[dict[str, Any]]) -> RetrievedEvidence | None:
+        record = dict((row.metadata or {}).get("structured_record") or {})
+        source_text = str(record.get("text") or row.content or "")
+        source_normalized = " ".join(source_text.split()).casefold()
+        spans: list[str] = []
+        for atom in row_atoms:
+            span = str(dict(atom.get("source") or {}).get("span") or "").strip()
+            if span and " ".join(span.split()).casefold() in source_normalized and span not in spans:
+                spans.append(span)
+        if not spans:
+            return None
+        projected_text = " ".join(spans)
+        metadata = dict(row.metadata or {})
+        if record:
+            projected_record = dict(record)
+            projected_record["text"] = projected_text
+            if isinstance(projected_record.get("source_turn"), dict):
+                projected_record["source_turn"] = {
+                    **projected_record["source_turn"], "text": projected_text,
+                }
+            metadata["structured_record"] = projected_record
+        metadata["semantic_carrier_preservation"] = {
+            "source_grounded": True,
+            "projected": projected_text != source_text,
+            "atom_ids": [str(atom.get("atom_id") or "") for atom in row_atoms],
+        }
+        return replace(row, content=projected_text, metadata=metadata)
+
+    def projected_temporal_carrier(
+        row: RetrievedEvidence,
+        anchor_spans: list[str],
+    ) -> RetrievedEvidence | None:
+        record = dict((row.metadata or {}).get("structured_record") or {})
+        source_text = str(record.get("text") or row.content or "")
+        normalized = " ".join(source_text.split()).casefold()
+        spans = [
+            span for span in dict.fromkeys(str(value).strip() for value in anchor_spans)
+            if span and " ".join(span.split()).casefold() in normalized
+        ]
+        if not spans:
+            return None
+        projected_text = " ".join(spans)
+        metadata = dict(row.metadata or {})
+        if record:
+            projected_record = dict(record)
+            projected_record["text"] = projected_text
+            if isinstance(projected_record.get("source_turn"), dict):
+                projected_record["source_turn"] = {
+                    **projected_record["source_turn"], "text": projected_text,
+                }
+            metadata["structured_record"] = projected_record
+        metadata["semantic_carrier_preservation"] = {
+            "source_grounded": True,
+            "temporal_anchor_only": True,
+            "projected": projected_text != source_text,
+        }
+        return replace(row, content=projected_text, metadata=metadata)
+
     for field in (ledger.get("fields") or {}).values():
         if not isinstance(field, dict) or field.get("status") != "resolved":
             continue
+        if str(field.get("slot_id") or "") in protected_slot_ids:
+            continue
         source_id = str(field.get("source_memory_id") or "")
         if source_id and source_id not in selected_ids and source_id in available_by_id:
-            rows.append(available_by_id[source_id])
-            selected_ids.add(source_id)
+            if carrier_recovery_allowed:
+                source_atoms = [
+                    atom for atom in atoms
+                    if str(dict(atom.get("source") or {}).get("chunk_id") or "") == source_id
+                ]
+                carrier = projected_carrier(available_by_id[source_id], source_atoms)
+                if carrier is not None:
+                    rows.append(carrier)
+                    selected_ids.add(source_id)
+
+    # A field can be absent from the post-rerank ledger because the carrier
+    # was dropped before symbolic state projection. Recover it only when all
+    # verified candidates for that slot agree on one source row. Multiple
+    # source rows remain a symbolic conflict/choice and are not reintroduced.
+    if carrier_recovery_allowed:
+        for slot_id, slot_atoms in atoms_by_slot.items():
+            if not slot_atoms:
+                continue
+            if slot_id in protected_slot_ids:
+                continue
+            source_ids = {
+                str(dict(atom.get("source") or {}).get("chunk_id") or "")
+                for atom in slot_atoms
+                if str(dict(atom.get("source") or {}).get("chunk_id") or "")
+            }
+            if len(source_ids) != 1:
+                continue
+            source_id = next(iter(source_ids))
+            if source_id in selected_ids or source_id not in available_by_id:
+                continue
+            carrier = projected_carrier(available_by_id[source_id], slot_atoms)
+            if carrier is not None:
+                rows.append(carrier)
+                selected_ids.add(source_id)
+
+        # Recover a closed-set calendar anchor that was separated from the
+        # latest value update. Only the exact anchor span is reattached; the
+        # full historical source row is never exposed to the answer model.
+        anchor_by_source: dict[str, list[str]] = {}
+        for atom in atoms:
+            if str(atom.get("slot_id") or "") in protected_slot_ids:
+                continue
+            temporal = dict(atom.get("temporal") or {})
+            anchor_span = str(temporal.get("anchor_span") or "").strip()
+            anchor_source = dict(temporal.get("anchor_source") or {})
+            anchor_id = str(
+                anchor_source.get("chunk_id")
+                or anchor_source.get("memory_id")
+                or ""
+            )
+            if anchor_span and anchor_id:
+                anchor_by_source.setdefault(anchor_id, []).append(anchor_span)
+        for field in (ledger.get("fields") or {}).values():
+            if not isinstance(field, dict) or str(field.get("slot_id") or "") in protected_slot_ids:
+                continue
+            anchor = dict(field.get("temporal_anchor") or {})
+            anchor_span = str(anchor.get("span") or "").strip()
+            anchor_source = dict(anchor.get("source") or {})
+            anchor_id = str(
+                anchor_source.get("chunk_id")
+                or anchor_source.get("memory_id")
+                or ""
+            )
+            if anchor_span and anchor_id:
+                anchor_by_source.setdefault(anchor_id, []).append(anchor_span)
+        for source_id, anchor_spans in anchor_by_source.items():
+            if source_id in selected_ids or source_id not in available_by_id:
+                continue
+            carrier = projected_temporal_carrier(available_by_id[source_id], anchor_spans)
+            if carrier is not None:
+                rows.append(carrier)
+                selected_ids.add(source_id)
     if not rows:
         return rows
     metadata = dict(rows[0].metadata or {})
@@ -417,34 +1055,12 @@ def _preserve_symbolic_state_carriers(
     policy = symbolic_trace.get("policy_consistency")
     if isinstance(policy, dict) and policy.get("enabled") is not False:
         metadata["symbolic_policy_certificate"] = policy
-    authorization = symbolic_trace.get("temporal_authorization")
     if isinstance(authorization, dict) and authorization.get("enabled") is not False:
         metadata["symbolic_temporal_authorization_certificate"] = authorization
     rows[0] = replace(rows[0], metadata=metadata)
     return rows
 
 
-_STAGE2_FIELD_LABELS = {
-    "date": "date/day",
-    "visit_window": "visit or arrival window",
-    "setup_window": "setup window",
-    "helper_window": "helper window",
-    "desk_buzz_rule": "desk buzz rule",
-    "delivery_window": "delivery/staging window",
-    "entry_method": "entry/entrance method",
-    "approved_areas": "approved spaces/areas",
-    "signoff_window": "signoff window",
-    "overflow_point": "overflow point",
-    "label_color": "label color",
-    "release_rule": "release rule",
-    "fallback_rule": "fallback/contingency rule",
-    "handling_constraints": "handling constraints",
-}
-
-_REDACTED_CONFIRMATION_QUERY_RE = re.compile(
-    r"^\s*(?:is|are|was|were|does|do|did|has|have)\b",
-    re.IGNORECASE,
-)
 def _answer_redacted_confirmation_boundary_reason(
     *,
     question: str,
@@ -497,7 +1113,9 @@ def _explicit_private_negative_delivery_boundary_reason(
     symbolic authorization result. It does not inspect field names, infer a
     policy from a keyword, or treat an unknown graph state as a denial.
     """
-    if action != "answer_redacted" or str(authorization_decision).casefold() == "allow":
+    if action != "answer_redacted" or str(authorization_decision).casefold() not in {
+        "deny", "revoke", "conflict"
+    }:
         return None
     # The compiler signal is computed solely from atoms that have passed the
     # closed Top-20/source-span verifier. It is not an access decision:
@@ -571,6 +1189,8 @@ def _sanitize_answer_redacted_sensitive_values(
     *,
     semantic_atoms: list[dict[str, Any]] | None,
     semantic_contract: Any,
+    query_analysis: dict[str, Any] | None = None,
+    authorization_decision: str = "unknown",
 ) -> AnswerResult:
     """Prevent a redacted response from echoing a grounded protected value.
 
@@ -578,27 +1198,59 @@ def _sanitize_answer_redacted_sensitive_values(
     open-vocabulary slot IDs.  It is not a domain keyword filter and does not
     alter an ordinary ``answer`` response.
     """
-    if answer_result.action != "answer_redacted":
-        return answer_result
+    safety = dict((query_analysis or {}).get("safety") or {})
+    query_level_protected = bool(safety.get("sensitive")) and (
+        str(safety.get("delivery_mode") or "").casefold()
+        in {"protected_fact", "historical", "permission"}
+        or any(bool(safety.get(key)) for key in ("exact", "confirmation", "existence"))
+    )
+    decision = str(authorization_decision or "unknown").casefold()
+    if query_level_protected and decision in {"deny", "revoke", "conflict"} and answer_result.action == "answer":
+        safe_text = "I cannot provide that information under the current access policy."
+        return replace(
+            answer_result,
+            prediction=safe_text,
+            answer_text=safe_text,
+            answer_structured={},
+            used_memory_ids=[],
+            refused_memory_ids=list(answer_result.used_memory_ids or []),
+            action="refuse",
+            reasoning_summary=(
+                f"{answer_result.reasoning_summary} "
+                "Query-level protected delivery requires symbolic authorization."
+            ),
+        )
     sensitive_slots = {
         str(slot.slot_id)
         for slot in getattr(semantic_contract, "requested_slots", []) or []
         if bool(getattr(slot, "sensitivity_possible", False))
         or bool(getattr(slot, "authorization_relevant", False))
     }
-    if not sensitive_slots:
+    protected_values = [
+        " ".join(str(atom.get("value") or "").split()).strip()
+        for atom in semantic_atoms or []
+        if isinstance(atom, dict)
+        and (
+            str(atom.get("slot_id") or "") in sensitive_slots
+            or str(dict(atom.get("sensitivity_semantics") or {}).get("type") or "").casefold()
+            in {"restricted", "confidential"}
+        )
+        and str(atom.get("value") or "").strip()
+    ]
+    if not protected_values:
         return answer_result
     answer_text = str(answer_result.answer_text or answer_result.prediction or "")
     normalized_answer = " ".join(answer_text.split()).casefold()
-    leaked = False
-    for atom in semantic_atoms or []:
-        if not isinstance(atom, dict) or str(atom.get("slot_id") or "") not in sensitive_slots:
-            continue
-        value = " ".join(str(atom.get("value") or "").split()).strip()
-        if value and value.casefold() in normalized_answer:
-            leaked = True
-            break
+    leaked = any(value.casefold() in normalized_answer for value in protected_values)
     if not leaked:
+        return answer_result
+    # A protected exact value must not survive in either a redacted answer or
+    # a refusal explanation. Unknown authorization is not a denial for ordinary
+    # fields, but it is not permission to echo a verified protected value.
+    if answer_result.action not in {"answer_redacted", "refuse"} and not (
+        query_level_protected
+        and decision in {"unknown", "deny", "revoke", "conflict"}
+    ):
         return answer_result
     safe_text = (
         "I can provide a high-level summary for the requested matter, "
@@ -781,10 +1433,9 @@ def _stage2_answer_instruction(
                 for value in (row.metadata or {}).get("projection_requested_slots") or []
             )
     requested_slots = list(dict.fromkeys(requested_slots))
-    labels = [
-        _STAGE2_FIELD_LABELS.get(slot.rsplit(".", 1)[-1], slot)
-        for slot in requested_slots
-    ]
+    # Every v4 field is an open-vocabulary phrase emitted at runtime. There is
+    # no canonical label or alias map between the query and this prompt.
+    labels = requested_slots
     if len(labels) < 2 and not decision.long_context_applied:
         return ""
     instructions = []
@@ -802,20 +1453,6 @@ def _stage2_answer_instruction(
             "Some fields are backed by a verified Stage 2 long-context ledger. "
             "Use its source-bound quotes for the named fields, and do not add any "
             "fact that is not present in those quotes or the other retrieved evidence."
-        )
-    if any(slot.endswith(".date") or slot == "date" for slot in requested_slots):
-        instructions.append(
-            "The date/day field is an explicitly requested answer field. Include the "
-            "weekday or calendar date shown in its verified source quote (for example, "
-            "Saturday); do not silently omit it or infer a different day."
-        )
-    if " and " in question.casefold() and any(
-        marker in question.casefold() for marker in ("plan", "state", "summary", "entity")
-    ):
-        instructions.append(
-            "The question names multiple plans or entities. Keep their fields separate "
-            "and include every requested current field for each named plan/entity; a "
-            "value from one plan must not stand in for another."
         )
     return "\n".join(instructions)
 
@@ -838,48 +1475,21 @@ def _append_missing_verified_date(
     # a date or weekday.  A ledger quote can be stale or refer to another
     # carrier; adding it beside an existing value creates a contradictory
     # answer instead of repairing an omission.
-    if _WEEKDAY_RE.search(answer_text) or _DATE_RE.search(answer_text):
-        return answer_text
-    lowered_answer = answer_text.casefold()
-    for row in evidence:
-        metadata = dict(row.metadata or {})
-        slot = str(metadata.get("stage2_long_context_slot") or "")
-        if slot != "date" and not slot.endswith(".date"):
-            continue
-        quote = str(metadata.get("stage2_long_context_quote") or "")
-        match = _WEEKDAY_RE.search(quote) or _DATE_RE.search(quote)
-        if match and match.group(0).casefold() not in lowered_answer:
-            return f"{answer_text}\nDate/day: {match.group(0)}."
+    # The current v4 path does not run the legacy long-context date repair.
+    # Date values must be rendered from verified semantic atoms/ledger claims,
+    # never rediscovered by a calendar-word regex.
+    del evidence
     return answer_text
 
 
 def _verified_field_value(*, slot: str, quote: str) -> str | None:
-    """Extract one closed-set field value from an already verified quote."""
+    """Disabled legacy scalar repair hook.
 
-    text = str(quote or "").strip()
-    lowered_slot = str(slot or "").casefold()
-    if lowered_slot in {"target_date", "public_event_date", "date"}:
-        match = _DATE_RE.search(text)
-        return match.group(0) if match else None
-    if lowered_slot in {"monthly_stipend", "approved_budget", "approved_discount_cap"}:
-        match = re.search(r"(?:\$\s*\d[\d,]*(?:\.\d+)?|\b\d[\d,]*(?:\.\d+)?\s*(?:USD|dollars)\b)", text, re.IGNORECASE)
-        return match.group(0) if match else None
-    if lowered_slot == "access_badge":
-        match = re.search(
-            r"\b(?:badge|access\s+code|token)\b[^.!?]{0,50}?\b(?=[a-z0-9_-]*\d)[a-z][a-z0-9]*(?:[_-][a-z0-9]+){1,}\b",
-            text,
-            re.IGNORECASE,
-        )
-        return match.group(0).split()[-1] if match else None
-    if lowered_slot == "blocker":
-        match = re.search(
-            r"\b(?:active\s+)?blocker(?:\s+(?:is|are|now|still|remains?))?\s+"
-            r"(?P<value>[^.!?;,]+?)(?=\s+(?:inside|out\s+of|private|even\s+if|and\s+only|for\s+the|may\s+be)\b|[.!?;,]|$)",
-            text,
-            re.IGNORECASE,
-        )
-        if match:
-            return match.group("value").strip()
+    Gov-Mem v4 does not translate open-vocabulary slots through fixed labels
+    or extract values with field-specific regexes.  Values come only from
+    verified semantic atoms and the governed state ledger.
+    """
+    del slot, quote
     return None
 
 
@@ -889,99 +1499,14 @@ def _repair_requester_bound_scalar_values(
     answer: str,
     evidence: list[RetrievedEvidence],
 ) -> str:
-    """Preserve concrete current requester-owned code and expiry values."""
+    """Disabled legacy answer mutation hook.
 
-    question = str(instance.question or "").casefold()
-    if not any(term in question for term in ("expire", "expiry", "expires")):
-        return str(answer or "").strip()
-    requester = str(instance.asking_user_id or "").strip()
-    if not requester:
-        return str(answer or "").strip()
-    message_order = {
-        str(message.get("message_id") or ""): index
-        for index, message in enumerate(instance.messages)
-        if isinstance(message, dict)
-    }
-    candidates: list[tuple[int, str, str, str | None]] = []
-    code_pattern = re.compile(r"\b(?=[a-z0-9_-]*\d)[a-z][a-z0-9]*(?:[_-][a-z0-9]+){2,}\b", re.IGNORECASE)
-    for row in evidence:
-        metadata = dict(row.metadata or {})
-        owner = str(metadata.get("speaker_id") or row.user_id or "").strip()
-        if owner != requester:
-            continue
-        text = str(row.content or "").strip()
-        lowered = text.casefold()
-        if not any(_contains_marker(lowered, marker) for marker in _CURRENT_TERMS):
-            continue
-        if not re.search(r"\b(?:access\s+code|credential|token|badge)\b", lowered):
-            continue
-        code_match = re.search(
-            r"\b(?:access\s+code|credential|token|badge)\b"
-            r"(?:\s+(?:is|was|remains|now|still|for)\b)?\s*"
-            r"(?P<value>[a-z][a-z0-9]*(?:[_-][a-z0-9]+){2,})",
-            text,
-            re.IGNORECASE,
-        )
-        code = code_match.group("value") if code_match else None
-        expiry = None
-        if re.search(r"\b(?:expir(?:y|es|ed)|active\s+through)\b", lowered):
-            date = _DATE_RE.search(text)
-            time = _TIME_RE.search(text) or re.search(r"\b\d{1,2}:\d{2}\b", text)
-            if date:
-                expiry = date.group(0) + (f" at {time.group(0)}" if time else "")
-        current_value = bool(
-            re.search(r"\b(?:current|active|new|rotat(?:ed|ion)|replac(?:es|ing))\b", lowered)
-        )
-        if code and expiry and current_value:
-            order = max((message_order.get(source_id, -1) for source_id in row.source_message_ids), default=-1)
-            candidates.append((order, code, expiry, text))
-    if not candidates:
-        return str(answer or "").strip()
-    _, code, expiry, _ = max(candidates, key=lambda item: item[0])
-    repaired = str(answer or "").strip()
-    available_match = re.search(
-        r"\baccess\s+code\b\s+is\s+(?:currently\s+)?available\b",
-        repaired,
-        re.IGNORECASE,
-    )
-    if available_match:
-        repaired = (
-            repaired[:available_match.start()]
-            + f"access code is {code}"
-            + repaired[available_match.end():]
-        )
-    answer_codes = list(re.finditer(
-        r"\baccess\s+code\b[^.!?]{0,30}?\b(?=[a-z0-9_-]*\d)[a-z][a-z0-9]*(?:[_-][a-z0-9]+){2,}\b",
-        repaired,
-        re.IGNORECASE,
-    ))
-    if answer_codes:
-        match = answer_codes[0]
-        value_match = re.search(
-            r"\b(?=[a-z0-9_-]*\d)[a-z][a-z0-9]*(?:[_-][a-z0-9]+){2,}\b",
-            match.group(0),
-            re.IGNORECASE,
-        )
-        if value_match:
-            value_start = match.start() + value_match.start()
-            value_end = match.start() + value_match.end()
-            repaired = repaired[:value_start] + code + repaired[value_end:]
-    elif code.casefold() not in repaired.casefold():
-        repaired = f"{repaired} The current active access code is {code}."
-    if expiry.casefold() not in repaired.casefold():
-        date_match = _DATE_RE.search(repaired)
-        if date_match:
-            repaired = repaired[:date_match.start()] + expiry + repaired[date_match.end():]
-        else:
-            repaired = f"{repaired} It expires {expiry}."
-    else:
-        repaired = re.sub(
-            r"(\b\d{1,2}:\d{2}\b)(?:\s*,?\s*at\s+\1)+",
-            r"\1",
-            repaired,
-            flags=re.IGNORECASE,
-        )
-    return repaired.strip()
+    It previously recognized concrete access artifacts and expiry wording with
+    fixed patterns.  v4 refuses to rewrite an answer from raw text; any
+    recovery must be represented by a source-grounded semantic atom first.
+    """
+    del instance, evidence
+    return str(answer or "").strip()
 
 
 def _repair_answer_with_verified_fields(
@@ -996,64 +1521,12 @@ def _repair_answer_with_verified_fields(
     not infer values from raw Stage 1 evidence or make an authorization choice.
     """
 
-    if not decision.long_context_applied:
-        return str(answer or "").strip()
-    answer_text = str(answer or "").strip()
-    if not answer_text:
-        return answer_text
-    verified: list[tuple[str, str]] = []
-    for row in evidence:
-        metadata = dict(row.metadata or {})
-        slot = str(metadata.get("stage2_long_context_slot") or "").strip()
-        quote = str(metadata.get("stage2_long_context_quote") or "").strip()
-        if not slot or not quote:
-            continue
-        value = _verified_field_value(slot=slot, quote=quote)
-        if value:
-            verified.append((slot, value))
-
-    repaired = answer_text
-    requested_date_slots = {
-        slot for slot, _ in verified
-        if slot in {"target_date", "public_event_date", "date"}
-    }
-    if len(requested_date_slots) == 1:
-        value = next(value for slot, value in verified if slot in requested_date_slots)
-        if value.casefold() not in repaired.casefold():
-            answer_dates = list(_DATE_RE.finditer(repaired))
-            if len(answer_dates) == 1:
-                match = answer_dates[0]
-                repaired = repaired[:match.start()] + value + repaired[match.end():]
-
-    for slot, value in verified:
-        if slot == "access_badge":
-            missing_badge = re.search(
-                r"\b(?:badge|access\s+code)\b[^.!?]{0,60}\b(?:not\s+specified|unavailable|unknown)\b",
-                repaired,
-                re.IGNORECASE,
-            )
-            if missing_badge:
-                repaired = repaired[:missing_badge.start()] + f"active badge is {value}" + repaired[missing_badge.end():]
-                continue
-        if value.casefold() in repaired.casefold():
-            continue
-        if slot == "blocker":
-            blocker_match = re.search(
-                r"\bblockers?\b(?:\s+(?:is|are|for|of))?\s+[^.!?;,]+",
-                repaired,
-                re.IGNORECASE,
-            )
-            if blocker_match:
-                repaired = (
-                    repaired[:blocker_match.start()]
-                    + f"blocker: {value}"
-                    + repaired[blocker_match.end():]
-                )
-            else:
-                repaired = f"{repaired} Verified current blocker: {value}."
-        else:
-            repaired = f"{repaired} Verified current {slot.replace('_', ' ')}: {value}."
-    return repaired.strip()
+    # This compatibility hook is intentionally inert.  Field-specific answer
+    # mutation was a deterministic fallback that could leak benchmark-shaped
+    # semantics.  The active v4 path leaves realization to the answer LLM and
+    # the source-grounded provenance verifier.
+    del evidence, decision
+    return str(answer or "").strip()
 
 
 def _append_missing_verified_area_details(
@@ -1065,73 +1538,8 @@ def _append_missing_verified_area_details(
 ) -> str:
     """Restore omitted area nouns from verified, non-sensitive source rows."""
 
-    if not decision.long_context_applied or not any(
-        slot == "approved_areas" or slot.endswith(".approved_areas")
-        for slot in decision.long_context_fields
-    ):
-        return answer
-    answer_text = str(answer or "").strip()
-    message_order = {
-        str(message.get("message_id") or ""): index
-        for index, message in enumerate(instance.messages)
-        if isinstance(message, dict)
-    }
-    area_terms = re.compile(
-        r"\b(?:trough|rack|boxes|balcony|counter|cart|cooling rack|shelf|tray|bin)\b",
-        re.IGNORECASE,
-    )
-    candidates: list[tuple[int, int, str, str]] = []
-    for row in evidence:
-        quote = str(row.content or "").strip()
-        if (
-            not quote
-            or not _candidate_matches_request_slot(quote.casefold(), "approved_areas")
-            or not _slot_has_concrete_value(quote.casefold(), "approved_areas")
-            or _is_competing_sensitive_evidence(
-                text=quote,
-                requested_slots=["approved_areas"],
-            )
-        ):
-            continue
-        terms = {match.casefold() for match in area_terms.findall(quote)}
-        if not terms:
-            continue
-        source_order = max(
-            (message_order.get(source_id, -1) for source_id in row.source_message_ids),
-            default=-1,
-        )
-        candidates.append((len(terms), source_order, quote, " ".join(sorted(terms))))
-    if not candidates:
-        return answer_text
-
-    # Keep the most specific source for each named entity.  For a single
-    # entity, this also prefers the sentence that contains the actual area
-    # nouns over a later "same planters" shorthand.
-    named_entities = [
-        " ".join(match)
-        for match in re.findall(r"\b([A-Z][a-z0-9]+\s+[A-Z][a-z0-9]+)\b", instance.question)
-    ]
-    selected: list[str] = []
-    groups = named_entities or [""]
-    for entity in groups:
-        entity_candidates = [
-            item for item in candidates
-            if not entity or entity.casefold() in item[2].casefold()
-        ]
-        if not entity_candidates:
-            continue
-        selected.append(max(entity_candidates, key=lambda item: (item[0], item[1]))[2])
-    selected = list(dict.fromkeys(selected))
-    lowered_answer = answer_text.casefold()
-    missing_quotes = [
-        quote for quote in selected
-        if any(term not in lowered_answer for term in {
-            match.casefold() for match in area_terms.findall(quote)
-        })
-    ]
-    if missing_quotes:
-        return answer_text + "\nVerified area detail: " + " | ".join(missing_quotes)
-    return answer_text
+    del instance, evidence, decision
+    return str(answer or "").strip()
 
 
 def _append_missing_verified_safe_wording(
@@ -1142,46 +1550,8 @@ def _append_missing_verified_safe_wording(
 ) -> str:
     """Preserve omitted concrete clauses from a verified safe-wording carrier."""
 
-    if not decision.long_context_applied or "safe_wording" not in decision.long_context_fields:
-        return str(answer or "").strip()
-    answer_text = str(answer or "").strip()
-    if not answer_text:
-        return answer_text
-    missing_quotes: list[str] = []
-    for row in evidence:
-        metadata = dict(row.metadata or {})
-        if str(metadata.get("stage2_long_context_slot") or "").strip() != "safe_wording":
-            continue
-        quote = str(metadata.get("stage2_long_context_quote") or "").strip()
-        if not quote or re.search(
-            r"\b(?:pin|password|passcode|token|access\s+code|keypad|credential)\b",
-            quote,
-            re.IGNORECASE,
-        ) or _is_competing_sensitive_evidence(
-            text=quote,
-            requested_slots=["safe_wording"],
-        ):
-            continue
-        # A source-bound safe wording field is a composite carrier.  Repair only
-        # when the answer omitted a concrete time or an explicit association
-        # (person/place) from that carrier; this keeps ordinary paraphrases
-        # concise while preserving requested operations.
-        quote_times = {match.group(0).casefold() for match in _TIME_RE.finditer(quote)}
-        answer_times = {match.group(0).casefold() for match in _TIME_RE.finditer(answer_text)}
-        missing_details = []
-        for pattern in (
-            r"\bwith\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b",
-            r"\bnear\s+((?:the\s+)?[a-z]+(?:\s+[a-z]+){0,3})(?=[.;]|$)",
-        ):
-            for match in re.finditer(pattern, quote):
-                detail = re.sub(r"\s+", " ", match.group(1)).strip().casefold()
-                if detail and detail not in answer_text.casefold():
-                    missing_details.append(detail)
-        if (quote_times and not quote_times.issubset(answer_times)) or missing_details:
-            missing_quotes.append(quote)
-    if not missing_quotes:
-        return answer_text
-    return answer_text + "\nVerified current safe wording: " + " | ".join(dict.fromkeys(missing_quotes))
+    del evidence, decision
+    return str(answer or "").strip()
 
 
 def _direct_answer(
@@ -1204,8 +1574,8 @@ def _direct_answer(
     template = OFFICIAL_QUERY_PROMPT.read_text(encoding="utf-8")
     before, after = template.split("[REQUEST CONTEXT]", 1)
     system_prompt = before.replace("[SYSTEM]", "").strip().format(
-        domain_label=get_domain_label(instance.domain),
-        global_access_policy_block=get_query_policy_block(instance.domain or ""),
+        domain_label=NEUTRAL_DOMAIN_LABEL,
+        global_access_policy_block=NEUTRAL_ACCESS_POLICY,
     )
     user_prompt = ("[REQUEST CONTEXT]" + after).format(
         asker_principal_id=instance.asking_user_id or "",
@@ -1213,8 +1583,8 @@ def _direct_answer(
         relationship_facts_block=_relationship_block(instance),
         retrieved_memory_block=_format_retrieved_memory(evidence),
         query_text=instance.question,
-        domain_label=get_domain_label(instance.domain),
-        global_access_policy_block=get_query_policy_block(instance.domain or ""),
+        domain_label=NEUTRAL_DOMAIN_LABEL,
+        global_access_policy_block=NEUTRAL_ACCESS_POLICY,
     )
     answer_instruction = _stage2_answer_instruction(
         instance=instance,
@@ -1241,7 +1611,9 @@ def _direct_answer(
             "scope and use answer_redacted for fields outside it when a safe summary "
             "is possible. Do not turn the whole multi-field answer into a refusal "
             "because one different slot is restricted, and do not treat a scoped "
-            "assignment as an unscoped grant."
+            "assignment as an unscoped grant. An unknown assignment or authorization "
+            "state is not a denial; deliver source-grounded fields unless an explicit "
+            "negative symbolic certificate blocks them."
         )
     safety_context = dict((stage2_decision.query_analysis or {}).get("safety") or {})
     if (
@@ -1315,7 +1687,14 @@ def _direct_answer(
             if str(((row.metadata or {}).get("symbolic_state_ledger") or {}).get("version") or "")
             .startswith("state-ledger-v2")
         ), None)
-        if semantic_ledger is None:
+        # The v4 paper-facing path has no deterministic field/value repair.
+        # Its only semantic source is the query-conditioned compiler and the
+        # verified symbolic ledger.  Legacy regex repairs stay unreachable in
+        # v4 even if a malformed provider response omitted the ledger.
+        compiler_contract = bool(
+            (stage2_decision.query_analysis or {}).get("semantic_compiler_contract")
+        )
+        if semantic_ledger is None and not compiler_contract:
             # Compatibility only for historical ablations. The paper-facing
             # compiler path relies on its open-vocabulary ledger and answer LLM.
             answer = _repair_requester_bound_scalar_values(
@@ -1789,11 +2168,66 @@ class RAGNaiveBackbone:
         self.config = config
         self.output_dir = output_dir
         self.dataset_name = dataset_name
+        # Checkpoint benchmark instances expose progressively longer prefixes
+        # of the same episode. Keep the auxiliary Entity Relation List
+        # episode-local so later checkpoints only extract newly arrived turns.
+        self._entity_graph_cache: dict[str, tuple[Any, set[str]]] = {}
 
     def run_instance(self, instance: MemoryInstance) -> BackboneRunResult:
         chunks = _build_turn_chunks(instance)
         save_rag_chunks(self.output_dir, self.dataset_name, instance.instance_id, chunks)
         items = [_chunk_to_memory_item(chunk) for chunk in chunks]
+        graph_cfg = dict(self.config.get("memory_governed_slot_graph") or {})
+        graph_enabled = bool(graph_cfg.get("enabled", False))
+        graph_build = None
+        graph_retrieved: list[dict[str, Any]] = []
+        graph_entity_lists: list[dict[str, Any]] = []
+        graph_evidence: list[RetrievedEvidence] = []
+        if graph_enabled:
+            # The graph is built from the same observable prefix as RAG.  The
+            # checkpoint question turn is a query, not a memory, and is
+            # excluded before the graph LLM sees it.
+            graph_chunks = [
+                chunk for chunk in chunks
+                if not _is_current_query_item(_chunk_to_memory_item(chunk), instance)
+            ]
+            conversation_id = str(instance.conversation_id or instance.instance_id)
+            cached_graph, processed_chunk_ids = self._entity_graph_cache.get(
+                conversation_id,
+                (None, set()),
+            )
+            current_chunk_ids = {str(chunk.chunk_id) for chunk in graph_chunks}
+            cache_reset = bool(processed_chunk_ids and not processed_chunk_ids.issubset(current_chunk_ids))
+            if cache_reset:
+                # Checkpoint manifests are often grouped by query type rather
+                # than chronological turn order. A shorter prefix must not
+                # inherit relations extracted from a later, invisible turn.
+                cached_graph = None
+                processed_chunk_ids = set()
+            graph_chunks_to_extract = [
+                chunk for chunk in graph_chunks
+                if str(chunk.chunk_id) not in processed_chunk_ids
+            ]
+            graph_build = build_memory_governed_slot_graph(
+                chunks=graph_chunks,
+                llm_client=self.llm_client,
+                model_name=resolve_llm_model(self.config, "memory_ingestion"),
+                config=self.config,
+                existing_graph=cached_graph,
+                processed_chunk_ids=processed_chunk_ids,
+            )
+            processed_chunk_ids.update(str(chunk.chunk_id) for chunk in graph_chunks)
+            self._entity_graph_cache[conversation_id] = (
+                graph_build.graph,
+                processed_chunk_ids,
+            )
+            graph_build.graph.audit.update({
+                "cache_key": conversation_id,
+                "cache_hit": cached_graph is not None,
+                "cache_reset": cache_reset,
+                "new_chunks_extracted": len(graph_chunks_to_extract),
+                "visible_history_chunks": len(graph_chunks),
+            })
         index = DenseMemoryIndex.build(
             items=items,
             llm_client=self.embedding_client,
@@ -1804,21 +2238,93 @@ class RAGNaiveBackbone:
             allow_fallback=bool(self.config["embedding"].get("allow_fallback", True)),
         )
         top_k = int((self.config.get("rag") or {}).get("naive_top_k", 20))
-        rows = index.query(
+        # The checkpoint's own question is present in the observable prefix,
+        # but it is a query, not a memory. Retrieve one extra row so removing
+        # that structural self-match still leaves the configured Stage-1
+        # evidence budget.
+        dense_rows = index.query(
             query_texts=[instance.question],
-            top_k=top_k,
+            top_k=top_k + 1,
             llm_client=self.embedding_client,
             embedding_model=str(self.config["embedding"]["model"]),
             allow_fallback=bool(self.config["embedding"].get("allow_fallback", True)),
         )
         memory_by_id = {item.memory_id: item for item in items}
+        chunk_by_id = {chunk.chunk_id: chunk for chunk in chunks}
+        if graph_build is not None:
+            graph_top_k = int(graph_cfg.get("top_k", top_k))
+            try:
+                graph_retrieved = graph_build.graph.retrieve(
+                    question=instance.question,
+                    embedding_client=self.embedding_client,
+                    embedding_model=str(self.config["embedding"]["model"]),
+                    top_k=graph_top_k,
+                )
+                graph_entity_lists = graph_build.graph.retrieve_entity_lists(
+                    question=instance.question,
+                    embedding_client=self.embedding_client,
+                    embedding_model=str(self.config["embedding"]["model"]),
+                    top_k=graph_top_k,
+                )
+                # An entity list is only useful to symbolic reasoning when
+                # every relation's source chunk is also in the closed
+                # evidence set. Promote those chunks into the graph channel
+                # even if the entity node and source-node rankings differ.
+                graph_by_chunk = {str(item.get("chunk_id") or ""): item for item in graph_retrieved}
+                for entity_item in graph_entity_lists:
+                    entity_score = float(entity_item.get("score") or 0.0)
+                    entity_id = str(entity_item.get("entity_id") or "")
+                    for relation in entity_item.get("relations") or []:
+                        source_id = str((relation or {}).get("source_chunk_id") or "")
+                        if not source_id:
+                            continue
+                        candidate = graph_by_chunk.setdefault(
+                            source_id,
+                            {"chunk_id": source_id, "score": entity_score, "node_ids": []},
+                        )
+                        candidate["score"] = max(float(candidate.get("score") or 0.0), entity_score)
+                        if entity_id and entity_id not in candidate["node_ids"]:
+                            candidate["node_ids"].append(entity_id)
+                graph_retrieved = list(graph_by_chunk.values())
+            except Exception as exc:
+                # The feature flag is a reversible ablation boundary. A
+                # graph embedding outage must degrade to Dense RAG rather
+                # than alter the paper-facing baseline or abort the run.
+                graph_retrieved = []
+                graph_entity_lists = []
+                graph_build.graph.audit.update({
+                    "query_failure": type(exc).__name__,
+                    "fallback": "dense_only_for_query",
+                })
+        graph_evidence = graph_retrieval_evidence(
+                retrieved=graph_retrieved,
+                chunk_by_id=chunk_by_id,
+            )
+
+        # Keep the answer/fact path on the official dense retrieval channel.
+        # The Entity Relation List is an auxiliary Stage-2 authorization
+        # signal, not a second fact retriever: graph hits must not replace or
+        # reorder source chunks that become semantic/compiler answer context.
+        dense_by_id = {str(memory_id): float(score) for memory_id, score in dense_rows}
+        graph_by_id = {row.memory_id: float(row.score) for row in graph_evidence}
+        governed_entity_lists = {
+            str(item.get("entity_id") or ""): list(item.get("relations") or [])
+            for item in graph_entity_lists
+            if str(item.get("entity_id") or "").strip()
+        }
+        rows = [
+            (memory_id, float(score))
+            for memory_id, score in dense_rows
+            if memory_id in memory_by_id
+            and not _is_current_query_item(memory_by_id[memory_id], instance)
+        ][:top_k]
         evidence = [
             RetrievedEvidence(
                 memory_id=memory_by_id[memory_id].memory_id,
                 content=memory_by_id[memory_id].content,
                 score=float(score),
                 retrieval_source="dense",
-                reason="official-compatible naive top-k retrieval",
+                reason="official-compatible naive top-k retrieval; Entity Relation List is Stage-2 authorization-only",
                 user_id=memory_by_id[memory_id].user_id,
                 memory_type="chunk",
                 source_message_ids=memory_by_id[memory_id].source_message_ids,
@@ -1833,10 +2339,24 @@ class RAGNaiveBackbone:
                         .get("role")
                     ),
                     "source_timestamp": memory_by_id[memory_id].time,
+                    # Marks the paper-facing semantic boundary. Evidence
+                    # frame compilation must not fall back to legacy lexical
+                    # interpretation when the LLM contract is enabled,
+                    # including the empty-contract/parse-failure case.
+                    "semantic_compiler_contract": bool(
+                        (self.config.get("semantic_compiler") or {}).get("enabled", False)
+                    ),
                 },
             )
             for memory_id, score in rows
             if memory_id in memory_by_id
+            and not _is_current_query_item(memory_by_id[memory_id], instance)
+        ]
+        excluded_query_chunk_ids = [
+            memory_by_id[memory_id].memory_id
+            for memory_id, _score in dense_rows
+            if memory_id in memory_by_id
+            and _is_current_query_item(memory_by_id[memory_id], instance)
         ]
         semantic_result = compile_semantics(
             question=instance.question,
@@ -1866,7 +2386,21 @@ class RAGNaiveBackbone:
         )
         if not query_analysis:
             query_analysis = _generic_fallback_query_analysis(instance.question)
-        if semantic_result.query_contract.requested_slots:
+        safety_contract_lifted = _merge_question_safety_into_contract(
+            semantic_contract=semantic_result.query_contract,
+            query_analysis=query_analysis,
+            question=instance.question,
+        )
+        if safety_contract_lifted:
+            semantic_audit = semantic_result.to_dict()
+        # Once the semantic compiler is enabled, its contract owns the query
+        # semantic boundary even when the provider returns zero slots. An
+        # empty contract is a conservative result; it must never reactivate
+        # legacy benchmark-shaped regex/alias extraction downstream.
+        semantic_compiler_enabled = bool(
+            (self.config.get("semantic_compiler") or {}).get("enabled", False)
+        )
+        if semantic_compiler_enabled:
             query_analysis = {
                 **dict(query_analysis or {}),
                 "fields": [
@@ -1909,6 +2443,7 @@ class RAGNaiveBackbone:
                 temporal_authorization_enforcement=bool(temporal_auth_cfg.get("enforcement", False)),
                 query_analysis=query_analysis,
                 semantic_atoms=semantic_result.final_grounded_atoms,
+                governed_entity_lists=governed_entity_lists,
             )
             symbolic_trace["semantic_compiler"] = semantic_audit
             symbolic_available_evidence = list(evidence)
@@ -2004,9 +2539,24 @@ class RAGNaiveBackbone:
                     raw_response={"stage2_policy_gate": stage2_decision.to_dict()},
                 )
             else:
+                # Protect every downstream neural Stage-2 prompt as well as
+                # the final answer prompt.  Symbolic governance has already
+                # consumed the unprojected Top-20 evidence above; reranking,
+                # lifecycle summarization, and long-context repair must use
+                # the same closed, query-conditioned projection so their
+                # prompt sidecars cannot expose protected values.
+                stage2_llm_evidence, stage2_boundary = _semantic_context_boundary(
+                    evidence=evidence,
+                    semantic_contract=semantic_result.query_contract,
+                    semantic_atoms=semantic_result.final_grounded_atoms,
+                    symbolic_trace=symbolic_trace,
+                    query_analysis=stage2_decision.query_analysis,
+                )
+                if stage2_boundary.get("enabled"):
+                    symbolic_trace["stage2_semantic_context_boundary"] = stage2_boundary
                 evidence, llm_reasoning_info = reason_mixed_evidence_with_llm(
                     instance=instance,
-                    evidence=evidence,
+                    evidence=stage2_llm_evidence,
                     llm_client=self.llm_client,
                     model_name=resolve_llm_model(self.config, "reasoning"),
                     config=self.config,
@@ -2054,36 +2604,13 @@ class RAGNaiveBackbone:
                         ],
                         llm_reasoning_confidence=llm_reasoning_info.get("confidence"),
                     )
-                evidence, long_context_info = resolve_long_context_field_ledger(
-                    instance=instance,
-                    evidence=evidence,
-                    llm_client=self.llm_client,
-                    model_name=resolve_llm_model(self.config, "answering"),
-                    config=self.config,
-                    query_analysis=stage2_decision.query_analysis,
-                )
-                long_context_audit = long_context_info.get("prompt_audit")
-                if long_context_audit is not None:
-                    existing_audits = (
-                        list(stage2_prompt_audit)
-                        if isinstance(stage2_prompt_audit, list)
-                        else [stage2_prompt_audit]
-                        if isinstance(stage2_prompt_audit, dict)
-                        else []
-                    )
-                    stage2_prompt_audit = [*existing_audits, long_context_audit]
                 stage2_decision = replace(
                     stage2_decision,
                     selected_memory_ids=[row.memory_id for row in evidence],
-                    long_context_applied=bool(long_context_info.get("applied")),
-                    long_context_fields=[
-                        str(value) for value in long_context_info.get("fields") or []
-                    ],
-                    long_context_source_message_ids=[
-                        str(value)
-                        for value in long_context_info.get("source_message_ids") or []
-                    ],
-                    long_context_reason=str(long_context_info.get("reason") or "") or None,
+                    long_context_applied=False,
+                    long_context_fields=[],
+                    long_context_source_message_ids=[],
+                    long_context_reason="disabled in Gov-Mem-v4 retrieved-evidence-only path",
                 )
                 if not summary_only_reason:
                     evidence = _preserve_symbolic_state_carriers(
@@ -2099,6 +2626,7 @@ class RAGNaiveBackbone:
                     instance=instance,
                     symbolic_trace=symbolic_trace,
                     semantic_contract=semantic_result.query_contract,
+                    semantic_atoms=semantic_result.final_grounded_atoms,
                     query_analysis=stage2_decision.query_analysis,
                 )
                 # Keep the certificate in the runtime audit.  It is derived
@@ -2106,9 +2634,17 @@ class RAGNaiveBackbone:
                 # decision; downstream delivery still applies the symbolic
                 # policy/lifecycle boundaries.
                 symbolic_trace["source_grounded_access_context"] = access_context
+                answer_evidence, context_boundary = _semantic_context_boundary(
+                    evidence=evidence,
+                    semantic_contract=semantic_result.query_contract,
+                    semantic_atoms=semantic_result.final_grounded_atoms,
+                    symbolic_trace=symbolic_trace,
+                    query_analysis=stage2_decision.query_analysis,
+                )
+                symbolic_trace["semantic_context_boundary"] = context_boundary
                 answer_result = _direct_answer(
                     instance=instance,
-                    evidence=evidence,
+                    evidence=answer_evidence,
                     stage2_decision=stage2_decision,
                     stage2_prompt_audit=stage2_prompt_audit,
                     access_context=access_context,
@@ -2122,6 +2658,12 @@ class RAGNaiveBackbone:
                     answer_result,
                     semantic_atoms=semantic_result.final_grounded_atoms,
                     semantic_contract=semantic_result.query_contract,
+                    query_analysis=stage2_decision.query_analysis,
+                    authorization_decision=str(
+                        (symbolic_trace.get("temporal_authorization") or {}).get("decision")
+                        or (symbolic_trace.get("policy_consistency") or {}).get("decision")
+                        or "unknown"
+                    ),
                 )
                 answer_result = _realize_certified_operational_answer(
                     answer_result,
@@ -2188,6 +2730,9 @@ class RAGNaiveBackbone:
         raw_response["semantic_delivery_signal"] = _semantic_delivery_signal(
             semantic_result.final_grounded_atoms,
         )
+        raw_response["semantic_context_boundary"] = dict(
+            symbolic_trace.get("semantic_context_boundary") or {}
+        )
         answer_result = replace(answer_result, raw_response=raw_response)
         if not isinstance(raw_response.get("prompt_audit"), dict):
             raw_response["prompt_audit"] = {
@@ -2228,12 +2773,48 @@ class RAGNaiveBackbone:
             grounding["provenance_explanation"] = provenance_explanation
             raw_response["answer_grounding"] = grounding
             answer_result = replace(answer_result, raw_response=raw_response)
+        # Preserve the governed-slot graph products in the public
+        # ReasoningState object as well as in the debug trace.  This keeps the
+        # symbolic layer a real pipeline stage for downstream consumers and
+        # avoids silently presenting an empty state to any evaluator or
+        # answer-side audit.  Frame compilation is source-bound and, because
+        # every v4 row carries semantic_compiler_contract, cannot reactivate
+        # the legacy raw-text parser.
+        selected_frames = compile_evidence_frames(evidence)
+        state_ledger = dict(symbolic_trace.get("state_ledger") or {})
+        ledger_fields = dict(state_ledger.get("fields") or {})
+        covered_slots = [
+            str(name) for name, payload in ledger_fields.items()
+            if isinstance(payload, dict)
+            and str(payload.get("status") or "") in {"resolved", "conflict", "unavailable"}
+        ]
+        missing_slots = [
+            str(name) for name, payload in ledger_fields.items()
+            if isinstance(payload, dict)
+            and str(payload.get("status") or "") == "missing"
+        ]
+        required_names = [
+            str(item.get("name") or "")
+            for item in (query_analysis.get("fields") or [])
+            if isinstance(item, dict) and str(item.get("name") or "").strip()
+        ]
         reasoning_state = build_reasoning_state(
             evidence,
             trace=[
                 f"official-compatible rag_naive selected {len(evidence)} turn chunks with one query.",
+                "v4 symbolic governance consumed verified semantic atoms and emitted a governed-slot state ledger.",
             ],
-            selected_frames=[],
+            selected_frames=selected_frames,
+            current_state_ledger=state_ledger,
+            slot_coverage={
+                "required_slots": required_names,
+                "covered_slots": covered_slots,
+                "missing_slots": missing_slots,
+                "coverage_ratio": (
+                    len(covered_slots) / len(required_names)
+                    if required_names else 1.0
+                ),
+            },
             required_slot_plan=required_slot_plan,
         )
         action_decision = GovernedActionDecision(
@@ -2280,7 +2861,35 @@ class RAGNaiveBackbone:
             "retrieval_candidates": [
                 {"chunk_id": memory_id, "score": float(score)}
                 for memory_id, score in rows
+                if memory_id in memory_by_id
+                and not _is_current_query_item(memory_by_id[memory_id], instance)
             ],
+            "excluded_query_chunk_ids": excluded_query_chunk_ids,
+            "memory_governed_slot_graph": (
+                {
+                    "enabled": True,
+                    # Keep the graph itself in the isolated graph index; the
+                    # per-query audit stores counts/status only to avoid
+                    # duplicating source values into every debug artifact.
+                    "build": {
+                        **dict(graph_build.graph.audit),
+                        "llm_calls": int(graph_build.llm_calls),
+                        "parse_failure": bool(graph_build.parse_failure),
+                        "error": graph_build.error,
+                        # The graph is intentionally a small entity ->
+                        # append-only relation-list artifact.  Consumers can
+                        # replay permission/lifecycle changes without
+                        # treating the latest value as the whole history.
+                        "entity_lists": graph_build.graph.to_dict().get("entity_lists", {}),
+                        "edges": list(graph_build.graph.edges),
+                        "retrieved_entity_lists": list(graph_entity_lists),
+                    },
+                    "retrieved": list(graph_retrieved),
+                    "retrieved_chunk_ids": sorted(graph_by_id),
+                }
+                if graph_build is not None
+                else {"enabled": False}
+            ),
         }
         retrieval_result = {
             "retrieved_before_stage2": stage2_before,
@@ -2289,12 +2898,24 @@ class RAGNaiveBackbone:
             "filtered_evidence": [],
             "query_variants": [instance.question],
             "retrieval_candidates": debug_payload["retrieval_candidates"],
+            "excluded_query_chunk_ids": excluded_query_chunk_ids,
             "rag_chunks": [asdict(chunk) for chunk in chunks],
             "retrieval_backend": index.last_query_backend,
             "index_backend": index.backend,
             "embedding_model": str(self.config["embedding"]["model"]),
             "embedding_fallback_reason": index.fallback_reason,
             "symbolic_trace": symbolic_trace,
+            "memory_governed_slot_graph": (
+                {
+                    "enabled": True,
+                    "audit": dict(graph_build.graph.audit),
+                    "retrieved": list(graph_retrieved),
+                    "entity_lists": graph_build.graph.to_dict().get("entity_lists", {}),
+                    "retrieved_entity_lists": list(graph_entity_lists),
+                }
+                if graph_build is not None
+                else {"enabled": False}
+            ),
         }
         return BackboneRunResult(
             query_plan=plan,

@@ -1,5 +1,6 @@
 # Experiment outputs and local runtime state
 outputs/
+experiments/runs/
 cache/
 tmp/
 work/

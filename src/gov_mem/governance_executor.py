@@ -241,11 +241,6 @@ _FIVE_W_ONE_H_DIMENSIONS = ("when", "who", "where", "what", "how")
 _FIVE_W_ONE_H_STATUSES = {"covered", "unknown", "omitted", "not_applicable"}
 
 
-_GENERIC_OBJECT_TERMS = (
-    "pet", "parcel", "package", "delivery", "project", "program", "course",
-    "case", "account", "thread", "plan", "appointment", "household",
-)
-
 _ACCESS_ARTIFACT_LABELS = re.compile(
     r"\b(?:credential|code|password|passcode|pin|token|access\s+key|secret\s+key|"
     r"api\s+key|portal\s+key|login\s+key)\b",
@@ -1364,21 +1359,9 @@ def _binding_signals(
                 "candidates": [item["value"] for item in artifacts],
                 "current_candidates": current,
             })
-    if safe_summary and observable_named_subjects:
-        draft_text = str(answer_contract.get("answer_text") or "").lower()
-        source_text = " ".join(str(row.get("text") or "") for row in evidence_payload).lower()
-        generic_terms = [term for term in _GENERIC_OBJECT_TERMS if re.search(rf"\b{re.escape(term)}\b", draft_text + " " + source_text)]
-        missing_named_subjects = [
-            item for item in observable_named_subjects
-            if str(item.get("subject") or "").strip()
-            and str(item.get("subject") or "").lower() not in draft_text
-        ]
-        if generic_terms and missing_named_subjects:
-            signals.append({
-                "kind": "named_object_grounding",
-                "generic_terms": list(dict.fromkeys(generic_terms)),
-                "observable_subject_catalog": list(missing_named_subjects),
-            })
+    # Named-object disambiguation is delegated to the answer model using the
+    # observable subject catalog.  No fixed generic-object vocabulary is
+    # consulted here.
     if safe_summary:
         for row in evidence_payload:
             source = str(row.get("text") or "")
@@ -1795,44 +1778,9 @@ def _enforce_grounding_postconditions(
                 repairs.append(f"explicit_action:{phrase}")
                 break
 
-    if safe_summary and observable_named_subjects:
-        subject_rows = [
-            str(item.get("subject") or "").strip()
-            for item in observable_named_subjects
-            if str(item.get("subject") or "").strip()
-        ]
-        hints = {
-            "pet": {"pet", "animal", "dog", "cat", "paws", "vet"},
-            "parcel": {"parcel", "package", "delivery", "courier", "shipment", "grocery"},
-            "project": {"project", "initiative", "program", "case"},
-            "program": {"program", "course", "project", "initiative"},
-        }
-        signal_terms = {
-            term
-            for signal in binding_signals
-            if signal.get("kind") == "named_object_grounding"
-            for term in signal.get("generic_terms") or ()
-        }
-        for generic, head_terms in hints.items():
-            if generic not in signal_terms and not re.search(rf"\b{re.escape(generic)}\b", text, re.IGNORECASE):
-                continue
-            matches = [
-                subject for subject in subject_rows
-                if set(re.findall(r"[a-z0-9]+", subject.lower())).intersection(head_terms)
-                and subject.lower() not in text.lower()
-            ]
-            if not matches:
-                continue
-            subject = matches[0]
-            pattern = rf"\b{re.escape(generic)}\s+(?:care|plans?|thread|note)\b"
-            replacement = f"{generic} ({subject})"
-            updated, count = re.subn(pattern, replacement, text, count=1, flags=re.IGNORECASE)
-            if count:
-                text = updated
-                repairs.append(f"named_subject:{generic}->{subject}")
-            elif subject.lower() not in text.lower():
-                text = text.rstrip(" .") + f" The related {generic} thread is {subject}."
-                repairs.append(f"named_subject:{generic}->{subject}")
+    # Named-object disambiguation remains an LLM responsibility.  The
+    # deterministic layer only verifies source IDs/spans and never rewrites
+    # a generic noun using a hand-written noun table.
 
     if text != contract.get("answer_text"):
         contract = dict(contract)
@@ -1968,18 +1916,6 @@ def _answer_contract_needs_repair(
             )
             if any(not re.search(rf"\b{re.escape(word)}\b", text, re.IGNORECASE) for word in action_words):
                 return True
-
-    if safe_summary and observable_named_subjects:
-        lowered_text = text.lower()
-        generic_terms = [
-            term for term in _GENERIC_OBJECT_TERMS
-            if re.search(rf"\b{re.escape(term)}\b", lowered_text)
-        ]
-        if generic_terms and any(
-            str(item.get("subject") or "").strip().lower() not in lowered_text
-            for item in observable_named_subjects
-        ):
-            return True
 
     # Preserve clock qualifiers such as AM/PM when an allowed source provides
     # them.  This is a source-grounding check, not a time-value generator.

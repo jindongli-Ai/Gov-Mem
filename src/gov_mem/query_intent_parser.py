@@ -72,20 +72,10 @@ _SENSITIVITY_CATEGORIES = {
 # DISABLED: benchmark/domain-specific fallback hint table. Sensitivity is
 # obtained from the question-only LLM contract; an unavailable contract must
 # not silently classify GateMem entities by keyword.
-_SENSITIVE_TOPIC_HINTS: dict[str, tuple[str, ...]] = {
-    "health": ("diagnosis", "condition", "symptom", "clinical", "medical", "health"),
-    "medication": ("medication", "medicine", "drug", "dose", "prescription", "treatment"),
-    "laboratory": ("lab", "laboratory", "bloodwork", "test result", "measurement"),
-    "imaging": ("imaging", "scan", "ultrasound", "mri", "pathology"),
-    "identity": ("identity", "same person", "account holder"),
-    "private_location": ("private room", "private site", "exact room", "address"),
-    "private_contact": ("phone", "mobile", "number", "contact", "email"),
-    "credential": ("credential", "password", "passcode", "pin", "token", "key"),
-    "finance": ("budget", "amount", "discount", "payment", "invoice", "financial"),
-    "legal": ("contract", "legal", "counsel", "agreement"),
-    "access_control": ("permission", "authorization", "access", "share", "private file"),
-    "privacy": ("private", "confidential", "restricted", "sensitive"),
-}
+# Retained only as an empty compatibility symbol.  Semantic categories are
+# supplied by the question-only LLM contract; no built-in phrase table is
+# consulted on either the v4 path or the unavailable-LLM fallback.
+_SENSITIVE_TOPIC_HINTS: dict[str, tuple[str, ...]] = {}
 
 
 def _fallback_sensitivity(query: str) -> tuple[str, ...]:

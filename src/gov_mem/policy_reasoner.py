@@ -37,15 +37,6 @@ def _intent_requires_sensitive_authorization(*, question: str, intent) -> bool:
     return bool(categories and mode in {"exact", "yes_no", "historical"})
 
 
-_SAFE_PROJECTION_TOPICS = {
-    # These are broad, ordinary operational channels.  They are deliberately
-    # topic-level categories rather than dataset nouns or answer values.
-    "logistics",
-    "scheduling",
-    "communication",
-}
-
-
 def _requests_explicit_safe_projection(*, question: str, intent) -> bool:
     """Return whether the query asks for an independent safe field.
 
@@ -61,7 +52,10 @@ def _requests_explicit_safe_projection(*, question: str, intent) -> bool:
         for topic in (getattr(intent, "requested_topics", ()) or ())
         if str(topic).strip()
     }
-    if topics.intersection(_SAFE_PROJECTION_TOPICS):
+    # Scope is supplied by the question-only semantic contract. Do not
+    # maintain a built-in list of domain channels here.
+    target_scope = str(getattr(intent, "target_scope", "") or "").strip().lower()
+    if target_scope and target_scope not in {"private", "exact", "restricted", "unknown"}:
         return True
     # A public/safe audience is itself an explicit projection boundary.  The
     # requester may ask for a mixed exact record, but only the independently
@@ -142,7 +136,6 @@ def _partial_disclosure_memory_ids(
     """
     safe_scopes = {"public", "broad", "safe_summary"}
     allowed = set(allowed_memory_ids)
-    sensitive_topics = {"health", "laboratory", "medication", "imaging", "clinical"}
     requested = set(requested_topics)
     requested.update(
         token
@@ -150,7 +143,6 @@ def _partial_disclosure_memory_ids(
         for token in re.findall(r"[a-z][a-z0-9_-]{2,}", str(attribute).lower())
         if token not in {"current", "exact", "tell", "give", "what", "the", "and", "for"}
     )
-    operational_topics = {"logistics", "scheduling", "communication"}
     return tuple(
         item.memory_id
         for item in state.memory_items
@@ -159,16 +151,6 @@ def _partial_disclosure_memory_ids(
         and (
             item.scope in safe_scopes
             or "public_projection" in set(item.topics)
-            or (
-                bool(operational_topics.intersection(item.topics))
-                and bool(requested.intersection(set(item.topics)))
-                and not sensitive_topics.intersection(item.topics)
-                and bool(re.search(
-                    r"\b(?:only|just|help(?:ing)?\s+with|logistics|rides?|check[- ]?in|pickup|callback)\b",
-                    item.provenance.evidence_text,
-                    re.IGNORECASE,
-                ))
-            )
         )
     )
 
@@ -545,18 +527,8 @@ class StatefulPolicyReasoner:
             ):
                 return True
         # Direct ownership is an explicit self-disclosure route, but it still
-        # needs a semantic carrier. A continuation may omit the query nouns
-        # while retaining a calendar-shaped source value; an unrelated owner
-        # record must not authorize an exact diagnosis.
-        date_terms = {"date", "day", "deadline", "visit", "appointment", "schedule"}
-        time_terms = {"time", "window", "hour", "schedule"}
-        date_surface = re.compile(
-            r"\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|"
-            r"january|february|march|april|may|june|july|august|september|"
-            r"october|november|december)\b|\b\d{1,2}(?:[:/]\d{1,2}){1,2}\b",
-            re.IGNORECASE,
-        )
-        time_surface = re.compile(r"\b\d{1,2}:\d{2}\s*(?:am|pm)?\b", re.IGNORECASE)
+        # needs a semantic carrier. Query-conditioned field metadata is the
+        # only source for attribute binding; no date/time phrase table is used.
         for item in state.memory_items:
             if (
                 item.memory_id not in relevant_ids
@@ -575,23 +547,15 @@ class StatefulPolicyReasoner:
             semantic_link = bool(requested_tokens.intersection(
                 set(re.findall(r"[a-z0-9][a-z0-9_-]{2,}", item_text))
             ))
-            if date_terms.intersection(requested_tokens) and date_surface.search(item_text):
-                semantic_link = True
-            if time_terms.intersection(requested_tokens) and time_surface.search(item_text):
-                semantic_link = True
             if semantic_link:
                 return True
-        sensitive_terms = {
-            "credential", "code", "host", "customer", "diagnosis", "clinical",
-            "private", "exact", "restricted", "label", "secret", "password",
-        }
         for relation in state.scope_constraints:
             if not isinstance(relation, dict):
                 continue
             if str(relation.get("principal_id") or relation.get("grantee") or "") != requester:
                 continue
             scope = str(relation.get("access_scope") or relation.get("scope") or "").lower()
-            if any(term in scope for term in sensitive_terms):
+            if scope in {"private", "confidential", "restricted", "protected"}:
                 return True
             relation_type = str(relation.get("type") or "").lower()
             query_text = " ".join(prov.evidence_text for prov in intent.provenance).lower()

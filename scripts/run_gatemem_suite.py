@@ -202,9 +202,10 @@ def _set_child_provider_key(
         return
     key_env = str(provider_config.get("api_key_env") or _default_api_key_env(provider))
     child_env[key_env] = keys[key_index]
-    # Restrict retries to the episode's leased key. Otherwise a failed request
-    # could rotate into a key belonging to another concurrent episode.
-    child_env[_pool_env(key_env)] = keys[key_index]
+    # Expose the complete pool so each child can rotate away from transient
+    # provider throttling. The scheduler still assigns a distinct initial key
+    # to each concurrent episode through the single-key environment variable.
+    child_env[_pool_env(key_env)] = ",".join(keys)
 
 
 def _episode_groups(entries: list[dict]) -> dict[str, list[dict]]:
@@ -374,6 +375,12 @@ def main() -> None:
         "--embedding_model",
         default=None,
         help="Override the configured embedding model for every domain subprocess.",
+    )
+    parser.add_argument(
+        "--memory_governed_slot_graph",
+        choices=["true", "false"],
+        default=None,
+        help="Override the optional ingestion-time governed slot graph channel.",
     )
     parser.add_argument("--resume", action="store_true", help="Strictly resume compatible interrupted domain runs.")
     parser.add_argument(
@@ -561,6 +568,8 @@ def main() -> None:
             cmd.extend(["--base_model", args.base_model])
         if args.embedding_model:
             cmd.extend(["--embedding_model", args.embedding_model])
+        if args.memory_governed_slot_graph is not None:
+            cmd.extend(["--memory_governed_slot_graph", args.memory_governed_slot_graph])
         if resume_existing_run:
             cmd.append("--resume")
         prediction_path = episode_output_dir / "predictions" / "checkpoint_benchmark" / "predictions.jsonl"

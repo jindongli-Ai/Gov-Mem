@@ -14,80 +14,47 @@ from datetime import datetime
 from typing import Any
 
 from gov_mem.data.schema import MemoryInstance, RetrievedEvidence
-# The former 61-term governance ontology is intentionally excluded from the
-# Gov-Mem-v4 main path.  It is retained in general_lexicon.py only as a
-# historical ablation artifact and is never imported or injected into prompts.
-from gov_mem.query_semantics import (
-    HOUSEHOLD_DELIVERY_SLOT_ALIASES,
-    HOUSEHOLD_SLOT_ALIASES,
-    infer_household_composite_required_slots,
-    infer_household_delivery_slots,
-    infer_household_slots,
-)
+# The former governance ontology is removed from the repository's release
+# path. Stage 2 receives only query-conditioned semantic contracts.
 
 
 ROUTES = {"typed_scalar", "semantic_state", "access_policy", "mixed"}
 
-# Benchmark-shaped aliases remain below for audit/legacy ablations only.
-# The Gov-Mem v4 symbolic path relies on a question-only LLM contract.
-ENABLE_LEGACY_ALIAS_FALLBACK = False
-
-_TYPED_QUERY_SLOTS = {
-    "target_date": "date_time",
-    "public_event_date": "date_time",
-    "approved_budget": "money",
-    "monthly_stipend": "money",
-    "access_room": "location",
-    "public_room": "location",
+# These are method-internal schema enums, not query/evidence word lists. They
+# are emitted by the LLM semantic contract and are never inferred from raw
+# text by the paper-facing path.
+_VALUE_TYPE_TO_FAMILY = {
     "date": "date_time",
-    "visit_window": "date_time",
-    "entry_method": "location",
-    "approved_areas": "location",
-    "access_badge": "identifier",
-    "access_token": "identifier",
-    "access_expiry": "date_time",
-    "coordination_label": "identifier",
-    "parking_pass": "identifier",
+    "time": "date_time",
+    "datetime": "date_time",
+    "date_time": "date_time",
+    "amount": "money",
+    "percentage": "money",
+    "money": "money",
+    "identifier": "identifier",
+    "credential": "identifier",
+    "location": "location",
 }
-_SEMANTIC_QUERY_SLOTS = {
-    "blocker", "safe_wording", "operational_result", "contract_structure",
-    "selected_vendor", "family_release_scope", "package_rule",
-    "arrival_contact_rule",
-}
+_SEMANTIC_VALUE_TYPES = frozenset({
+    "date", "time", "datetime", "date_time", "amount", "percentage",
+    "money", "identifier", "credential", "location", "state", "status",
+    "text", "wording", "instruction", "person", "role", "unknown",
+})
 
-_CURRENT_TERMS = {
-    "active", "approved", "as of now", "current", "currently", "latest", "now",
-    "right now", "still", "today", "updated",
-}
-_HISTORICAL_TERMS = {
-    "before", "earlier", "former", "initial", "old", "previous", "retired", "stale",
-    "superseded", "deleted",
-}
-_POSITIVE_MARKERS = {
-    "active", "approved", "as of now", "confirmed", "current", "currently",
-    "latest", "now", "remains", "selected", "updated", "revised",
-}
-_CHRONOLOGY_UPDATE_MARKERS = _POSITIVE_MARKERS | {
-    "active", "changed", "final", "moved", "revised", "superseded",
-}
-_STALE_MARKERS = {
-    "canceled", "cancelled", "deleted", "earlier", "former", "initial", "old",
-    "previous", "replaced", "retired", "stale", "superseded",
-}
-_EXPLICIT_SCOPE_CUES = (
-    "allowed to use", "allowed summary", "actual task", "can use",
-    "allowed helper summary", "helper summary", "helper-only",
-    "task summary", "operational summary", "logistics summary",
-    "concise operational summary", "logistics-only", "signoff-safe",
-    "sponsor-safe", "customer-safe", "safe case wording", "safe label",
-    "safe wording", "household-safe state", "safe summary", "safe state",
-    "without leaking restricted material",
-)
-_EXPLICIT_REDACTED_SUMMARY_CUES = (
-    "customer-safe", "sponsor-safe", "summary-only", "keep it high level",
-    "one-line status", "do not include the exact", "do not include exact",
-    "without the exact", "only need enough wording",
-)
+# No fixed query-slot vocabulary is used by the v4 path.  Value types and
+# requested slots come from the open-vocabulary semantic compiler contract.
+_TYPED_QUERY_SLOTS: dict[str, str] = {}
+_SEMANTIC_QUERY_SLOTS: set[str] = set()
+# Temporal/lifecycle and delivery intent are supplied by structured LLM
+# contracts.  Only schema/status enums remain below; no natural-language
+# marker table is consulted on the v4 path.
+_CURRENT_TERMS: set[str] = set()
+_HISTORICAL_TERMS: set[str] = set()
+_POSITIVE_MARKERS: set[str] = set()
+_CHRONOLOGY_UPDATE_MARKERS: set[str] = set()
+_STALE_MARKERS: set[str] = set()
+_EXPLICIT_SCOPE_CUES: tuple[str, ...] = ()
+_EXPLICIT_REDACTED_SUMMARY_CUES: tuple[str, ...] = ()
 _NON_SUBSTANTIVE_ANSWER_PATTERNS = (
     re.compile(r"^i\s+(?:cannot|can't)\s+provide\b", re.IGNORECASE),
     re.compile(r"^i\s+do\s+not\s+have\s+memory\b", re.IGNORECASE),
@@ -95,85 +62,7 @@ _NON_SUBSTANTIVE_ANSWER_PATTERNS = (
     re.compile(r"^i\s+cannot\s+help\s+with\s+that\.?$", re.IGNORECASE),
 )
 
-# These are generic authorization statements used when checking whether a
-# visible source explicitly grants access. They do not name a benchmark field.
-_AUTHORIZATION_POSITIVE_PATTERNS = (
-    re.compile(r"\b(?:explicitly|directly)\s+authorized\b"),
-    re.compile(r"\b(?:has|have|was|were)\s+(?:explicit\s+)?permission\b"),
-    re.compile(r"\b(?:allowed|permitted)\s+to\s+(?:access|use|receive|share)\b"),
-    re.compile(r"\bmay\s+(?:access|use|receive|share)\b"),
-)
-_AUTHORIZATION_NEGATIVE_PATTERNS = (
-    re.compile(r"\b(?:not|does not|do not|never|without)\s+(?:authorize|allow|permit)\b"),
-    re.compile(r"\b(?:not|no)\s+(?:permission|authorization)\b"),
-    re.compile(r"\b(?:restricted|internal only|keep .* private|do not share)\b"),
-)
-
-
 _TOKEN_RE = re.compile(r"[a-z0-9]+(?:[-'][a-z0-9]+)*", re.IGNORECASE)
-_DATE_RE = re.compile(
-    r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
-    r"jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|"
-    r"dec(?:ember)?)\s+\d{1,2}(?:,\s*\d{4})?\b|\b\d{4}-\d{1,2}-\d{1,2}\b",
-    re.IGNORECASE,
-)
-_WEEKDAY_RE = re.compile(
-    r"\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
-    re.IGNORECASE,
-)
-_TIME_RE = re.compile(r"\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b", re.IGNORECASE)
-_MONEY_RE = re.compile(r"(?:\$\s*\d[\d,]*(?:\.\d+)?|\b\d[\d,]*(?:\.\d+)?\s*(?:usd|dollars)\b)", re.IGNORECASE)
-_NUMBER_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\b")
-
-# Generic semantic backstops for question-only safety analysis.  These are
-# ordinary language classes, not GateMem entities, names, values, or scenario
-# triggers.  They are intentionally used only for an interrogative/probing
-# question; a normal request for a schedule or care plan remains open.
-_HEALTH_QUERY_CUES_RE = re.compile(
-    r"\b(?:health|medical|clinical|patient|diagnos\w*|lab\w*|test\w*|scan\w*|"
-    r"imaging|ultrasound|heartbeat|hormone\w*|result\w*|finding\w*|condition|"
-    r"symptom\w*|treatment|medicat\w*|medicine|disease|pregnan\w*|cancer|"
-    r"tumou?r|lesion\w*|biops\w*|mass|blood\s+pressure|follow[- ]?up)\b",
-    re.IGNORECASE,
-)
-_PROBING_INTENT_RE = re.compile(
-    r"^\s*(?:is|are|was|were|does|did|has|have|can|could)\b|"
-    r"\b(?:whether|yes\s+or\s+no|mean(?:s)?|indicat(?:e|es|ed)|because|"
-    r"definitely|really|normal|abnormal|positive|negative|clear|spread|"
-    r"viable|on\s+file|connected\s+to|same\s+.*\s+or\s+.*)\b",
-    re.IGNORECASE,
-)
-_DIRECT_HEALTH_PROBE_RE = re.compile(
-    r"^\s*(?:what|which|who|tell|give)\b.*\b(?:diagnos\w*|result\w*|"
-    r"finding\w*|condition|disease|scan\s+result|lab\s+result|"
-    r"test\s+result|health\s+status)\b",
-    re.IGNORECASE,
-)
-_DIRECT_CONTACT_PROBE_RE = re.compile(
-    r"^\s*(?:what|which|who|tell|give|remind)\b.*\b(?:phone|mobile|"
-    r"number|contact|address|location|room|suite|site|credential|"
-    r"password|passcode|pin|token|badge|access\s+code)\b",
-    re.IGNORECASE,
-)
-_ORDINARY_PLAN_REQUEST_RE = re.compile(
-    r"\b(?:care|treatment|medication|medicine|home\s+blood\s+pressure|"
-    r"biopsy[- ]?prep|current)\s+plan\b|"
-    r"\b(?:treatment|medication|medicine)\s+(?:changes?|instructions?)\b|"
-    r"\bwhat\s+(?:should\s+I|do\s+I|to)\s+(?:start|stop|continue|take|use)\b",
-    re.IGNORECASE,
-)
-_SCHEDULE_ONLY_RE = re.compile(
-    r"\b(?:day|date|time|when|arrival|appointment|schedule|scheduling|"
-    r"pickup|pick\s+up|drop[- ]?off|drive|ride)\b",
-    re.IGNORECASE,
-)
-_CONTACT_QUERY_CUES_RE = re.compile(
-    r"\b(?:phone|mobile|number|contact|address|location|room|suite|site|"
-    r"credential|password|passcode|pin|token|badge|access\s+code)\b",
-    re.IGNORECASE,
-)
-
-
 @dataclass(frozen=True)
 class Stage2Decision:
     """Auditable result of the first Stage 2 pilot."""
@@ -243,10 +132,9 @@ def _route_from_query_analysis(
         if not isinstance(item, dict):
             continue
         value_type = str(item.get("value_type") or "").casefold()
-        if value_type in {"date", "time"}:
-            families.add("date_time")
-        elif value_type in {"location", "money", "identifier"}:
-            families.add(value_type)
+        family = _VALUE_TYPE_TO_FAMILY.get(value_type)
+        if family:
+            families.add(family)
 
     temporal = query_analysis.get("temporal")
     orientation = (
@@ -305,15 +193,6 @@ def _query_has_policy_intent(query_analysis: dict[str, Any] | None) -> bool:
     )
 
 
-def _question_has_policy_language(question: str) -> bool:
-    text = str(question or "").casefold()
-    return bool(re.search(
-        r"\b(?:can|may|am i|do i have|allowed to)\b[^?]{0,100}\b"
-        r"(?:access|use|share|receive|disclose|permission|authorized?)\b",
-        text,
-    ))
-
-
 def route_query(
     question: str,
     *,
@@ -324,82 +203,24 @@ def route_query(
     if query_analysis:
         return _route_from_query_analysis(question, query_analysis)
 
-    text = str(question or "").lower()
-    # No closed value-head vocabulary is used in this compatibility path.
-    # With an LLM contract, _route_from_query_analysis is authoritative.  If
-    # analysis is unavailable, only structured slots and explicit formats
-    # provide a typed-family signal.
-    # When question analysis is unavailable, structural formats can provide
-    # only a narrow date/time or money hint.  There is intentionally no
-    # current-state field vocabulary fallback; retaining Stage 1 evidence is
-    # safer than guessing a benchmark-shaped slot.
-    scalar_families: set[str] = set()
-    if _DATE_RE.search(text) or _TIME_RE.search(text):
-        scalar_families.add("date_time")
-    if _MONEY_RE.search(text):
-        scalar_families.add("money")
-    query_slots = set(infer_household_slots(text))
-    delivery_slots = set(infer_household_delivery_slots(text))
-    query_slots.update(delivery_slots)
-    composite_slots = set(infer_household_composite_required_slots(text))
-    query_slots.update(slot.rsplit(".", 1)[-1] for slot in composite_slots)
-    scalar_families.update(
-        _TYPED_QUERY_SLOTS[slot]
-        for slot in query_slots
-        if slot in _TYPED_QUERY_SLOTS
-    )
-    scalar_families.update(
-        "date_time"
-        for slot in delivery_slots.intersection({"date", "visit_window", "signoff_window"})
-    )
-    scalar_families.update(
-        "location"
-        for slot in delivery_slots.intersection({"entry_method", "approved_areas", "overflow_point"})
-    )
-    if _DATE_RE.search(text):
-        scalar_families.add("date_time")
-    historical_hit = _contains_any_phrase(text, _HISTORICAL_TERMS)
-    semantic_hit = (
-        bool(query_slots.intersection(_SEMANTIC_QUERY_SLOTS))
-        or bool(delivery_slots)
-        or bool(composite_slots)
-    )
-    families = sorted(scalar_families)
-
-    permission_question = bool(re.search(
-        r"\b(?:can|may|am i|do i have|is it possible)\b[^?]{0,80}"
-        r"\b(?:access|use|share|receive|disclose|permission|authorized?)\b",
-        text,
-    ))
-    if historical_hit or permission_question:
-        return "access_policy", families
-    if families and not semantic_hit and len(query_slots) <= 1 and not re.search(r"\band\b", text):
-        return "typed_scalar", families
-    if families or delivery_slots or composite_slots:
-        return "mixed", families
+    # In the absence of an LLM contract, retain Stage-1 order. No raw query
+    # regex or keyword matcher is permitted to recover a semantic route.
+    del question
     return "semantic_state", []
 
 
 def _generic_fallback_query_analysis(question: str) -> dict[str, Any]:
-    """Build a vocabulary-free fallback contract for v4 symbolic runs.
-
-    This intentionally recognizes only structural value formats. It never
-    calls the GateMem-shaped slot/domain alias tables.
-    """
-    text = str(question or "")
+    """Return an unavailable semantic contract without raw-text inference."""
+    del question
     return {
         "request_shape": "unknown",
         "fields": [],
-        "temporal": {
-            "orientation": "unspecified",
-            "has_date": bool(_DATE_RE.search(text)),
-            "has_time": bool(_TIME_RE.search(text)),
-        },
+        "temporal": {"orientation": "unspecified", "has_date": False, "has_time": False},
         "value_types": {
-            "date": bool(_DATE_RE.search(text)),
-            "time": bool(_TIME_RE.search(text)),
+            "date": False,
+            "time": False,
             "location": False,
-            "money": bool(_MONEY_RE.search(text)),
+            "money": False,
             "identifier": False,
         },
         "policy": {"action": "none", "explicit": False},
@@ -458,30 +279,32 @@ def analyze_query_with_llm(
         "multi-field plan as protected_fact. "
         "Important safety distinction: a schedule, arrival time, appointment time, "
         "or treatment plan is ordinary_operational when requested as logistics. "
-        "However, questions that ask whether a medical condition, diagnosis, test, "
-        "scan, result, or other health status is present, normal, positive, clear, "
-        "or the reason for an appointment must be marked sensitive=true, with "
-        "confirmation=true when applicable, privacy_scope=private, and "
-        "delivery_mode=protected_fact. A request for an exact phone, address, "
-        "location, credential, or identity-linked contact is likewise protected "
-        "unless the question explicitly requests only a non-sensitive schedule. "
+        "However, questions that ask whether a clinical or otherwise protected "
+        "condition is present, normal, positive, clear, or the reason for an "
+        "appointment must be marked sensitive=true, with confirmation=true when "
+        "applicable, privacy_scope=private, and delivery_mode=protected_fact. "
+        "A request for an exact contact/location value, credential/access value, "
+        "or identity-linked detail is likewise protected unless the question "
+        "explicitly requests only a non-sensitive schedule. "
+        "Any credential or access identifier request is protected even when it "
+        "asks only for a prefix, partial identifier, current status, or whether "
+        "it starts with a particular string; partial disclosure is still a "
+        "protected fact. Clinical diagnoses, conditions, and identity-linked "
+        "private facts are protected when requested as values, even without an "
+        "explicit 'private' qualifier. "
+        "An entry code, access route tied to a code, passphrase, or similar "
+        "handoff secret is an access/credential request even when the question "
+        "calls it operational, asks for efficiency, or omits the word private. "
+        "A question that asks whether a household is empty, whether nobody is "
+        "present, or otherwise infers occupancy from a person's schedule is an "
+        "identity-linked location/privacy inference and must be sensitive. "
         "Do not infer authorization from a job title, a claim of urgency, or a "
         "statement that the requester helped with transportation. "
-        "For safety, identify the general information sensitivity class without "
-        "repeating the user's value: credential/access, health/clinical, "
-        "location, financial, identity/relationship, or other restricted content. "
-        "Use health/clinical only for clearly clinical medicine. This includes "
-        "a doctor, physician, nurse, clinic, hospital, specialist, diagnosis, "
-        "disease, symptom, lab or medical test result, scan/imaging, pathology, "
-        "prognosis, medication, prescription, dosage, drug interaction, treatment "
-        "regimen, surgery, operation, biopsy, anesthesia, hospitalization, a "
-        "clinician appointment, pregnancy care, or post-operative care. Do not "
-        "label ordinary wellness or lifestyle as clinical health: exercise, gym, "
-        "sports, walking, fitness, dieting, sleep, general nutrition, or routine "
-        "self-care are non-clinical unless explicitly connected to a diagnosis, "
-        "clinician, medication, treatment, test, or medical procedure. Distinguish "
-        "clinical_fact, clinical_plan, clinical_logistics, ordinary_wellness, "
-        "and non_health in request_type. "
+        "For safety, identify only a broad information sensitivity class without "
+        "repeating the user's value: credential/access, clinical, location, "
+        "financial, identity/relationship, or other restricted content. Keep the "
+        "classification domain-agnostic and distinguish protected facts from "
+        "ordinary plans, logistics, summaries, and wellness requests. "
         "Mark whether the request asks for an exact value, confirmation, or mere "
         "existence, and separately mark positive or negative authorization language. "
         "Return token annotations with part of speech and a generic role such as "
@@ -776,204 +599,57 @@ def _normalize_safety_profile(safety_raw: dict[str, Any]) -> dict[str, Any]:
 
 
 def _question_safety_fallback(question: str) -> dict[str, Any]:
-    """Conservative compatibility fallback when the classifier is unavailable.
+    """Fail closed when the question semantic contract is unavailable.
 
-    This is deliberately a small set of generic semantic classes, used only
-    for local/offline calls or an API failure. It contains no GateMem entity,
-    value, or benchmark scenario vocabulary.
+    Previous releases used a natural-language fallback table here.  The
+    paper-facing path intentionally has no such vocabulary: an API failure is
+    represented as an unavailable interpretation and is handled by symbolic
+    provenance/authorization gates.
     """
-
-    text = str(question or "").casefold()
-    category_patterns = {
-        "credential": r"\b(?:credential|password|passcode|pin|token|badge|access\s+code|keypad\s+code)\b",
-        "health": r"\b(?:diagnosis|medical|clinical|patient|pregnan\w*|lab(?:s|oratory)?|"
-                  r"test\s+result|scan\s+result|scan\s+(?:number|finding|value)|"
-                  r"blood\s+pressure|medication|medicine|clot|lesion|pathology|"
-                  r"confirmatory\s+test|finding)\b|"
-                  r"\b[a-z][a-z-]{2,}\s+(?:value|result|level|finding)\b",
-        "location": r"\b(?:private|restricted|confidential)\s+(?:room|bay|site|address|location|suite)\b",
-        "financial": r"\b(?:private|restricted|confidential|exact)\s+(?:budget|amount|salary|payment|invoice)\b",
-        "identity": r"\b(?:customer|account|identity|visitor)\b",
-    }
-    category = next(
-        (name for name, pattern in category_patterns.items() if re.search(pattern, text)),
-        "none",
-    )
-    restricted_scope = bool(re.search(r"\b(?:private|restricted|confidential|secret|hidden)\b", text))
-    confirmation = bool(
-        re.match(r"\s*(?:is|are|was|were|does|did|has|have)\b", text)
-        or re.search(r"\b(?:does|did|whether|yes\s+or\s+no)\b", text)
-    )
-    existence = bool(re.search(r"\b(?:exists?|existence|on\s+file|still\s+have)\b", text))
-    exact = bool(re.search(r"\b(?:exact|precise|specific|exactly)\b", text))
-    direct_value_request = bool(re.match(r"\s*(?:what|which|who|give|tell)\b", text))
-    field_cue_count = sum(
-        bool(re.search(pattern, text))
-        for pattern in (
-            r"\b(?:date|time|window|route|area|areas|scope|blocker|"
-            r"amount|budget|room|suite|site|label|color|wording|"
-            r"point|status|expire|expires)\b",
-            r"\b(?:plan|summary|recap|including)\b",
-        )
-    )
-    multi_field_plan = (
-        field_cue_count >= 2
-        or bool(re.search(r"\bwhen\b[^?]{0,60}\b(?:expire|expires|expiry)\b", text))
-    )
-    exact = exact or (
-        direct_value_request
-        and category in {"credential", "health"}
-        and not multi_field_plan
-    )
-    if multi_field_plan:
-        # "exact active state ... including ..." describes the requested
-        # state contract, not necessarily an exact protected value.
-        exact = False
-    request_type = "permission" if re.search(
-        r"\b(?:allowed|permission|authorize|access)\b", text
-    ) else (
-        "summary" if re.search(r"\b(?:summary|summarize|recap|plan)\b", text) else "fact"
-    )
-    if request_type == "summary":
-        exact = False
-    # An exact credential/health value is protected even when no explicit
-    # privacy scope was supplied by the fallback classifier.
-    fallback_scope = (
-        "confidential"
-        if restricted_scope or (exact and category in {"credential", "health"})
-        else "ordinary"
-    )
-    return {
-        "sensitive": category != "none" or restricted_scope,
-        "exact": exact,
-        "confirmation": confirmation,
-        "existence": existence,
-        "request_type": request_type,
-        "category": category,
-        "privacy_scope": fallback_scope,
-        "delivery_mode": (
-            "permission" if request_type == "permission" else
-            "protected_fact" if exact or confirmation or existence else
-            "ordinary_operational"
-        ),
-        "available": False,
-    }
+    del question
+    return _unavailable_safety_profile()
 
 
 def _apply_question_safety_backstop(
     profile: dict[str, Any],
     question: str | None,
 ) -> dict[str, Any]:
-    """Add a narrow, generic guard when a provider under-calls a privacy probe.
-
-    The LLM contract is authoritative for ordinary planning and logistics.  A
-    small deterministic backstop is still needed because an occasional
-    ``gpt-4o-mini`` response labels a health interpretation or exact contact
-    probe as ordinary.  The backstop only upgrades interrogative/probing
-    requests and never adds a benchmark term or reads retrieved evidence.
-    """
-
-    text = str(question or "")
-    lowered = text.casefold()
-    if not lowered:
-        return profile
-
-    probing = bool(
-        _PROBING_INTENT_RE.search(lowered)
-        or _DIRECT_HEALTH_PROBE_RE.search(lowered)
-        or _DIRECT_CONTACT_PROBE_RE.search(lowered)
-    )
-    if not probing:
-        return profile
-
-    schedule_only = bool(_SCHEDULE_ONLY_RE.search(lowered)) and not bool(
-        re.search(
-            r"\b(?:why|because|mean(?:s)?|indicat(?:e|es|ed)|result\w*|"
-            r"diagnos\w*|condition|disease|normal|abnormal|positive|negative|"
-            r"clear|spread|viab\w*|exact|specific|whether)\b",
-            lowered,
-        )
-    )
-    health_probe = bool(_HEALTH_QUERY_CUES_RE.search(lowered)) and not schedule_only
-    contact_probe = bool(_CONTACT_QUERY_CUES_RE.search(lowered)) and not schedule_only
-    if not health_probe and not contact_probe:
-        return profile
-
-    mixed_operational_request = bool(_SCHEDULE_ONLY_RE.search(lowered)) and bool(
-        _HEALTH_QUERY_CUES_RE.search(lowered)
-    ) and not bool(
-        re.search(r"\b(?:exact|specific|value|result|diagnos\w*|credential|"
-                  r"password|passcode|pin|token|badge)\b", lowered)
-    )
-    guarded = dict(profile)
-    guarded["sensitive"] = True
-    if health_probe:
-        guarded["category"] = "health"
-    elif guarded.get("category") in {None, "none", "other"}:
-        guarded["category"] = "location"
-    if guarded.get("privacy_scope") in {None, "unknown", "ordinary"}:
-        guarded["privacy_scope"] = "private"
-    # A logistics question that also asks for a broad clinical reason should
-    # be delivered as a safe summary, not treated as an exact confirmation
-    # probe.  This preserves appointment details while preventing the answer
-    # model from expanding into the underlying clinical record.
-    if mixed_operational_request:
-        guarded["confirmation"] = False
-        guarded["exact"] = False
-        guarded["existence"] = False
-        guarded["delivery_mode"] = "ordinary_operational"
-    else:
-        guarded["confirmation"] = True
-        guarded["delivery_mode"] = "protected_fact"
-    if guarded.get("request_type") in {None, "unknown"}:
-        guarded["request_type"] = "interpretation" if health_probe else "fact"
-    return guarded
+    """Compatibility no-op; semantic safety comes from the LLM contract."""
+    del question
+    return profile
 
 
 def _restore_ordinary_plan_delivery(
     profile: dict[str, Any],
     question: str | None,
 ) -> dict[str, Any]:
-    """Keep current plans actionable when a provider overcalls health privacy.
-
-    A plan can mention medicines or clinical context without asking for a
-    protected diagnosis/result.  This correction is based on the question's
-    generic request shape only; it never inspects memory or names a benchmark
-    field.  Explicit exact/confirmation/existence probes remain protected.
-    """
-
-    text = str(question or "")
-    if not _ORDINARY_PLAN_REQUEST_RE.search(text):
-        return profile
-    if any(_coerce_bool(profile.get(key)) for key in ("exact", "confirmation", "existence")):
-        return profile
-    if profile.get("delivery_mode") in {"permission", "historical"}:
-        return profile
-    if re.search(
-        r"\b(?:diagnos\w*|result\w*|finding\w*|condition|disease|"
-        r"normal|abnormal|positive|negative|clear|spread|viab\w*|"
-        r"why|because|mean(?:s)?|indicat(?:e|es|ed)|whether)\b",
-        text,
-        re.IGNORECASE,
-    ) and not re.search(r"\b(?:start|stop|continue|take|use|change|instruction)\w*\b", text, re.IGNORECASE):
-        return profile
-    restored = dict(profile)
-    restored["privacy_scope"] = "ordinary"
-    restored["delivery_mode"] = "ordinary_operational"
-    restored["request_type"] = "plan"
-    return restored
+    """Compatibility no-op; do not infer intent from raw query words."""
+    del question
+    return profile
 
 
 def _query_safety_profile(
     query_analysis: dict[str, Any] | None,
     *,
     question: str | None = None,
-    use_lexical_backstop: bool = True,
+    use_lexical_backstop: bool = False,
 ) -> dict[str, Any]:
-    """Return the validated, question-only safety classification."""
+    """Return the validated, question-only safety classification.
+
+    The v4 paper path deliberately does not run a natural-language keyword
+    backstop. Safety semantics come from the LLM contract; downstream gates
+    consume only that contract and symbolic evidence certificates.
+    """
 
     safety = (query_analysis or {}).get("safety")
     if not isinstance(safety, dict):
+        # In the paper-facing v4 path a missing LLM safety contract is an
+        # unavailable interpretation, not permission to reactivate a
+        # deterministic natural-language trigger table.  Structural gates
+        # may still fail closed elsewhere, but this helper must not infer a
+        # protected category from raw question words.
+        if bool((query_analysis or {}).get("semantic_compiler_contract")):
+            return _unavailable_safety_profile()
         # Generic, domain-agnostic fallback keeps normal utility behavior when
         # the provider omits the safety object. It contains no benchmark
         # entities, answer values, or scenario phrases.
@@ -1166,6 +842,9 @@ def rerank_typed_scalar_evidence(
     if not query_analysis and str((config or {}).get("experiment", {}).get("mode") or "") == "govmem_v4_symbolic":
         query_analysis = _generic_fallback_query_analysis(instance.question)
     route, families = route_query(instance.question, query_analysis=query_analysis)
+    semantic_compiler_path = bool(
+        (query_analysis or {}).get("semantic_compiler_contract")
+    )
     original_ids = [row.memory_id for row in evidence]
     if route != "typed_scalar" or not evidence or not families:
         decision = Stage2Decision(
@@ -1218,19 +897,31 @@ def rerank_typed_scalar_evidence(
     for original_rank, row in enumerate(evidence):
         text = str(row.content or "")
         lower = text.lower()
-        row_tokens = set(_TOKEN_RE.findall(lower))
-        overlap = len(query_tokens.intersection(row_tokens))
-        anchor_score = min(1.0, overlap / max(1, len(query_tokens)))
-        family_hits = [family for family in families if _candidate_matches_family(lower, family)]
+        overlap = (
+            0
+            if semantic_compiler_path
+            else len(query_tokens.intersection(set(_TOKEN_RE.findall(lower))))
+        )
+        anchor_score = (
+            0.0
+            if semantic_compiler_path
+            else min(1.0, overlap / max(1, len(query_tokens)))
+        )
+        family_hits = [
+            family for family in families
+            if _candidate_matches_family(row, family, query_analysis=query_analysis)
+        ]
         lifecycle_status = lifecycle_statuses.get(row.memory_id, "")
         positive_count = (
             2 if lifecycle_status == "current"
             else 0 if lifecycle_status in {"historical", "superseded", "deleted"}
+            else 0 if semantic_compiler_path
             else sum(_contains_marker(lower, marker) for marker in _POSITIVE_MARKERS)
         )
         stale_count = (
             2 if lifecycle_status in {"historical", "superseded", "deleted"}
             else 0 if lifecycle_status == "current"
+            else 0 if semantic_compiler_path
             else sum(_contains_marker(lower, marker) for marker in _STALE_MARKERS)
         )
         current_signal = 0.0
@@ -1350,11 +1041,7 @@ def project_mixed_current_state_evidence(
     contract = dict(query_contract or {})
     contract_fields = [str(value) for value in contract.get("fields") or [] if str(value).strip()]
     query_field_specs = _query_analysis_field_specs(query_analysis)
-    compatibility_rule_slots: list[str] = list(dict.fromkeys(
-        [*infer_household_slots(instance.question),
-         *infer_household_delivery_slots(instance.question),
-         *infer_household_composite_required_slots(instance.question)]
-    )) if query_analysis is None else []
+    compatibility_rule_slots: list[str] = []
     if query_field_specs:
         # The question-only contract is authoritative for current-state
         # fields. Do not reconstruct canonical field names from the legacy
@@ -1365,14 +1052,13 @@ def project_mixed_current_state_evidence(
         # contains no executable field. Falling back to the delivery aliases
         # for a partial LLM response would silently re-enable that lexicon.
         # The safe degradation is to retain the Stage 1 evidence unchanged;
-        # compatibility aliases remain available only when no analysis was
-        # produced at all.
+        # no analysis was produced at all.
         rule_slots = []
     else:
         # No current-state alias fallback remains in this ablation.  If the
         # question analyzer is unavailable, keep the Stage 1 candidate set
         # intact rather than silently rebuilding a benchmark-shaped contract.
-        rule_slots = compatibility_rule_slots
+        rule_slots = []
     # The LLM contract may fill an under-specified rule contract, but it must
     # not add new mandatory slots to a projection that the v2 vocabulary can
     # already execute. That preserves established evidence-carrier choices.
@@ -1421,17 +1107,30 @@ def project_mixed_current_state_evidence(
         families,
         query_analysis=query_analysis,
     )
+    semantic_compiler_path = bool(
+        (query_analysis or {}).get("semantic_compiler_contract")
+    )
     scored: list[tuple[float, int, RetrievedEvidence, dict[str, Any]]] = []
     for original_rank, row in enumerate(evidence):
         lower = str(row.content or "").lower()
-        row_tokens = set(_TOKEN_RE.findall(lower))
-        overlap = len(query_tokens.intersection(row_tokens))
-        anchor_score = min(1.0, overlap / max(1, len(query_tokens)))
-        family_hits = [family for family in families if _candidate_matches_family(lower, family)]
+        overlap = (
+            0
+            if semantic_compiler_path
+            else len(query_tokens.intersection(set(_TOKEN_RE.findall(lower))))
+        )
+        anchor_score = (
+            0.0
+            if semantic_compiler_path
+            else min(1.0, overlap / max(1, len(query_tokens)))
+        )
+        family_hits = [
+            family for family in families
+            if _candidate_matches_family(row, family, query_analysis=query_analysis)
+        ]
         slot_hits = [
             slot for slot in requested_slots
             if _candidate_matches_request_slot(
-                lower,
+                row,
                 slot,
                 field_spec=query_field_specs.get(slot),
             )
@@ -1440,11 +1139,13 @@ def project_mixed_current_state_evidence(
         positive_count = (
             2 if lifecycle_status == "current"
             else 0 if lifecycle_status in {"historical", "superseded", "deleted"}
+            else 0 if semantic_compiler_path
             else sum(_contains_marker(lower, marker) for marker in _POSITIVE_MARKERS)
         )
         stale_count = (
             2 if lifecycle_status in {"historical", "superseded", "deleted"}
             else 0 if lifecycle_status == "current"
+            else 0 if semantic_compiler_path
             else sum(_contains_marker(lower, marker) for marker in _STALE_MARKERS)
         )
         current_signal = min(1.0, positive_count / 2.0) - min(1.0, stale_count / 3.0)
@@ -1490,7 +1191,7 @@ def project_mixed_current_state_evidence(
         for row in selected
         for slot in requested_slots
         if _candidate_matches_request_slot(
-            str(row.content or "").lower(),
+            row,
             slot,
             field_spec=query_field_specs.get(slot),
         )
@@ -1555,12 +1256,13 @@ def _query_analysis_field_specs(
             continue
         name = str(item.get("name") or "").strip()
         value_type = str(item.get("value_type") or "unknown").casefold()
-        if not name or value_type not in {
-            "date", "time", "location", "money", "identifier",
-            "state", "text", "unknown",
-        }:
+        if not name or value_type not in _SEMANTIC_VALUE_TYPES:
             continue
-        specs[name] = {"name": name, "value_type": value_type}
+        specs[name] = {
+            "name": name,
+            "value_type": value_type,
+            "slot_id": str(item.get("slot_id") or ""),
+        }
     return specs
 
 
@@ -1575,36 +1277,15 @@ def _mixed_reasoning_requested_slots(
         return analyzed_fields
 
     lowered = str(question or "").casefold()
-    if query_analysis is None and any(cue in lowered for cue in (
-        "outward-safe state", "outward safe state",
-        "release-safe state", "safe state",
-    )):
-        return [
-            "household_plan.setup_window",
-            "household_plan.helper_window",
-            "household_plan.desk_buzz_rule",
-            "household_plan.delivery_window",
-            "household_plan.release_rule",
-            "household_plan.signoff_window",
-            "household_plan.approved_areas",
-        ]
     if query_analysis:
         # Do not recover canonical household delivery slots after a
         # question-analysis response. The response's copied field spans are
         # the only normal-path field contract in this ablation; an empty or
         # partial contract must not reactivate the legacy alias vocabulary.
         return []
-    slots = [
-        *infer_household_slots(question),
-        *infer_household_delivery_slots(question),
-        *infer_household_composite_required_slots(question),
-    ]
-    if slots:
-        normalized = [slot for slot in dict.fromkeys(slots) if slot != "task_scope"]
-        if any(slot in {"target_date", "public_event_date"} for slot in normalized):
-            normalized = [slot for slot in normalized if slot != "date"]
-        return normalized
-    return [slot for slot in dict.fromkeys(slots) if slot != "task_scope"]
+    # No question-shape alias fallback remains on the paper-facing path.  An
+    # unavailable LLM contract means no executable multi-field contract.
+    return []
 
 
 def _mixed_reasoning_prompt(
@@ -1625,6 +1306,19 @@ def _mixed_reasoning_prompt(
         text = str(row.content or "")
         metadata = dict(row.metadata or {})
         structured_record = metadata.get("structured_record")
+        # The answer-side Stage-2 prompt may receive only a projected copy of
+        # a record. Never forward value-bearing symbolic carriers (ledger,
+        # claims, policy events) even when an upstream caller forgot to strip
+        # them. Symbolic governance has already consumed those artifacts.
+        if isinstance(structured_record, dict):
+            structured_record = dict(structured_record)
+            for key in (
+                "symbolic_state_claims", "symbolic_state_ledger",
+                "symbolic_policy_facts", "symbolic_permission_claim",
+                "symbolic_lifecycle_claim", "symbolic_temporal_authorization_events",
+                "semantic_compiler_atoms",
+            ):
+                structured_record.pop(key, None)
         candidate = {
             # Dataset checkpoint/message IDs can encode the test domain and
             # attack type. Only process-local aliases may cross this boundary.
@@ -1644,12 +1338,10 @@ def _mixed_reasoning_prompt(
                 "symbolic_provenance",
                 "symbolic_consistency",
                 "graph_context",
-                "symbolic_permission_claim",
-                "symbolic_lifecycle_claim",
-                "symbolic_state_claims",
-                "symbolic_policy_facts",
+                # Value-bearing symbolic carriers are kept out of the neural
+                # reranker context. Only sanitized certificates/annotations
+                # may cross this boundary.
                 "symbolic_policy_certificate",
-                "symbolic_temporal_authorization_events",
                 "symbolic_temporal_authorization_certificate",
             )
             if key in metadata
@@ -1699,7 +1391,7 @@ def _validate_mixed_reasoning_output(
     raw: Any,
     evidence: list[RetrievedEvidence],
     requested_slots: list[str],
-    allow_legacy_field_aliases: bool = True,
+    allow_legacy_field_aliases: bool = False,
 ) -> tuple[list[RetrievedEvidence], dict[str, Any], str | None]:
     """Accept only a closed-set, field-covering candidate selection."""
 
@@ -1758,37 +1450,10 @@ def _validate_mixed_reasoning_output(
 
     # The reasoner is allowed to map natural-language fields onto evidence;
     # the deterministic layer only checks that this mapping stays closed-set.
-    # Requiring the old lexical matcher to rediscover every semantic field
-    # rejected valid rerank results (for example, "bay" vs. "room").
     field_support = raw.get("field_support", {})
     normalized_support: dict[str, list[str]] = {}
     field_support_validated = False
     requested_slot_set = set(requested_slots)
-    field_aliases = {
-        "review date": "target_date",
-        "target date": "target_date",
-        "showcase date": "public_event_date",
-        "public date": "public_event_date",
-        "amount": "monthly_stipend",
-        "approved amount": "monthly_stipend",
-        "support amount": "monthly_stipend",
-        "stipend": "monthly_stipend",
-        "budget": "approved_budget",
-        "discount": "approved_discount_cap",
-        "maximum discount": "approved_discount_cap",
-        "discount cap": "approved_discount_cap",
-        "room": "access_room",
-        "bay": "access_room",
-        "booth": "access_room",
-        "suite": "access_room",
-        "badge": "access_badge",
-        "safe label": "safe_wording",
-        "safe wording": "safe_wording",
-        "blocker state": "blocker",
-        "release scope": "family_release_scope",
-        "family release scope": "family_release_scope",
-    } if allow_legacy_field_aliases else {}
-
     def normalize_field_name(value: Any) -> str:
         raw_name = str(value).strip().lower()
         if re.fullmatch(r"\d+", raw_name):
@@ -1797,22 +1462,10 @@ def _validate_mixed_reasoning_output(
                 return requested_slots[index]
         if raw_name in requested_slot_set:
             return raw_name
-        field_name = re.sub(r"[_-]+", " ", raw_name)
-        field_name = " ".join(field_name.split())
-        alias = field_aliases.get(field_name)
-        if alias in requested_slot_set:
-            # Generic labels such as "room" are safe only when the query has
-            # one possible room slot; public and private rooms must not merge.
-            if field_name in {"room", "date", "amount"}:
-                same_family = {
-                    "room": {"access_room", "public_room"},
-                    "date": {"date", "target_date", "public_event_date"},
-                    "amount": {"monthly_stipend", "approved_budget"},
-                }[field_name]
-                if len(requested_slot_set & same_family) != 1:
-                    return field_name
-            return alias
-        return field_name
+        # A non-identical label is not accepted as support for a requested
+        # field. This preserves the open-vocabulary contract without a hidden
+        # alias/ontology map.
+        return re.sub(r"[_-]+", " ", raw_name).strip()
 
     if isinstance(field_support, dict):
         support_is_well_formed = True
@@ -1979,7 +1632,7 @@ def reason_mixed_evidence_with_llm(
             raw=raw,
             evidence=bounded_evidence,
             requested_slots=requested_slots,
-            allow_legacy_field_aliases=not bool(_query_analysis_field_specs(query_analysis)),
+            allow_legacy_field_aliases=False,
         )
     except Exception as exc:
         base["reason"] = f"reasoning failed: {type(exc).__name__}"
@@ -2096,15 +1749,7 @@ def _long_context_requested_slots(
         return []
     if query_analysis:
         return list(_query_analysis_field_specs(query_analysis))
-    slots = [
-        *infer_household_slots(question),
-        *infer_household_delivery_slots(question),
-        *infer_household_composite_required_slots(question),
-    ]
-    normalized = [slot for slot in dict.fromkeys(slots) if slot != "task_scope"]
-    if any(slot in {"target_date", "public_event_date"} for slot in normalized):
-        normalized = [slot for slot in normalized if slot != "date"]
-    return normalized
+    return []
 
 
 def _long_context_transcript(
@@ -2471,27 +2116,14 @@ def _is_competing_sensitive_evidence(
     text: str,
     requested_slots: list[str],
 ) -> bool:
-    """Hide unrequested concrete credentials from a verified plan answer."""
+    """Disabled lexical redaction heuristic.
 
-    lowered = str(text or "").casefold()
-    sensitive_slots_requested = any(
-        slot in {"access_badge", "access_token", "coordination_label"}
-        or slot.endswith(".access_badge")
-        or slot.endswith(".access_token")
-        for slot in requested_slots
-    )
-    if sensitive_slots_requested:
-        return False
-    credential_value = bool(
-        re.search(r"\b(?:code|pin|token|password|passcode|latch|phrase)\b", lowered)
-        and (_NUMBER_RE.search(lowered) or re.search(r"\b[a-z]{2,}[-_][a-z0-9]{2,}\b", lowered))
-    )
-    if not credential_value:
-        return False
-    return bool(
-        any(_contains_marker(lowered, marker) for marker in _HISTORICAL_TERMS | _STALE_MARKERS)
-        or re.search(r"\b(?:temporary|opening|backup|internal|exact)\b", lowered)
-    )
+    This function previously guessed sensitive material from fixed natural
+    language patterns.  The v4 path instead uses query-contract slot IDs,
+    grounded source spans, and the symbolic authorization certificate.
+    """
+    del text, requested_slots
+    return False
 
 
 def resolve_long_context_field_ledger(
@@ -2648,54 +2280,8 @@ def _contract_slots(fields: list[str]) -> list[str]:
     state table would reintroduce the ablation under a different function.
     """
 
-    if not ENABLE_LEGACY_ALIAS_FALLBACK:
-        return []
-
-    aliases: dict[str, list[str]] = {
-        **HOUSEHOLD_SLOT_ALIASES,
-        "visit_window": [
-            "arrival window", "setup window", "delivery window",
-            "service window", "support window", "time window",
-        ],
-        "entry_method": ["entry path", "access path", "door", "entrance"],
-        "approved_areas": [
-            "approved setup zones", "setup zones", "approved zones", "permitted areas",
-            "handling areas", "work areas",
-        ],
-        "package_rule": ["package handling", "item handling", "handling rule"],
-        "family_release_scope": ["family release scope", "family-release scope"],
-    }
-    matched: list[str] = []
-    for field_text in fields:
-        lowered = str(field_text or "").lower()
-        for slot, slot_aliases in aliases.items():
-            if any(_lexicon_term_hit(lowered, alias) for alias in slot_aliases):
-                matched.append(slot)
-        if re.search(
-            r"\b(?:safe|public|broad|shareable)(?:\s+[a-z0-9-]+){0,2}\s+"
-            r"(?:wording|label|summary)\b",
-            lowered,
-        ):
-            matched.append("safe_wording")
-        if re.search(
-            r"\b(?!(?:current|active|exact|the|this|that|my|your)\s)"
-            r"[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?\s+window\b",
-            lowered,
-        ):
-            matched.append("visit_window")
-        if re.search(
-            r"\b(?!(?:current|active|exact|the|this|that|my|your)\s)"
-            r"[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?\s+(?:route|path)\b",
-            lowered,
-        ):
-            matched.append("entry_method")
-        if re.search(
-            r"\b(?:approved|permitted|authorized|allowed)(?:\s+[a-z0-9-]+){0,2}\s+"
-            r"(?:areas?|zones?|spaces?)\b",
-            lowered,
-        ):
-            matched.append("approved_areas")
-    return list(dict.fromkeys(matched))
+    del fields
+    return []
 
 
 def mixed_answer_boundary_reason(
@@ -2707,99 +2293,9 @@ def mixed_answer_boundary_reason(
     instance: MemoryInstance | None = None,
     evidence: list[RetrievedEvidence] | None = None,
 ) -> str | None:
-    """Return a narrow reason to undo an over-redacted mixed answer.
-
-    The answer model may conservatively choose ``answer_redacted`` after it
-    has received a complete, explicitly scoped current-state utility summary.
-    We normalize that action only when the request itself names an ordinary
-    safe delivery scope and the model supplied substantive content. Explicit
-    high-level privacy-summary wording and exact credential-like requests stay
-    under the model's original action.
-    """
-
-    text = str(question or "").lower()
-    if action != "answer_redacted":
-        return None
-    if decision.route not in {"typed_scalar", "mixed", "semantic_state", "access_policy"}:
-        return None
-    complete_long_context = bool(
-        decision.long_context_applied
-        and len(decision.long_context_fields) >= 2
-        and decision.selected_memory_ids
-    )
-    if deletion_gate_reason(text, query_analysis=decision.query_analysis) or _query_has_policy_intent(
-        decision.query_analysis
-    ):
-        return None
-    requester_bound = _requester_bound_current_sensitive_evidence(
-        instance=instance,
-        evidence=evidence or [],
-    )
-    if any(cue in text for cue in _EXPLICIT_REDACTED_SUMMARY_CUES):
-        return None
-    safety_profile = _query_safety_profile(decision.query_analysis, question=text)
-    if (
-        safety_profile["sensitive"]
-        and safety_profile["exact"]
-        and safety_profile["privacy_scope"] in {"private", "confidential", "restricted"}
-        and not requester_bound
-    ):
-        return None
-    if (
-        safety_profile["sensitive"]
-        and safety_profile["exact"]
-        and safety_profile["category"] == "credential"
-        and _contains_any_phrase(
-            text,
-            {"credential", "password", "passcode", "pin", "token", "badge", "access code"},
-        )
-    ):
-        return None
-    explicitly_scoped = _contains_safe_qualifier(text) or any(cue in text for cue in _EXPLICIT_SCOPE_CUES)
-    answer_text = str(answer or "").strip()
-    if not answer_text or any(pattern.search(answer_text) for pattern in _NON_SUBSTANTIVE_ANSWER_PATTERNS):
-        return None
-    if requester_bound:
-        return "requester-bound current sensitive evidence was unnecessarily marked answer_redacted"
-    if not explicitly_scoped:
-        # The ordinary path is deliberately narrower than the existing
-        # explicitly-scoped summary path.  A substantive answer is enough to
-        # repair an action-label mismatch only when the question is plainly a
-        # current operational request, not a credential, identity, clinical,
-        # privacy, or existence probe.
-        red_flag_terms = (
-            "private", "restricted", "confidential", "hidden", "secret", "exact",
-            "credential", "password", "passcode", "pin", "token", "badge", "code",
-            "diagnosis", "medical", "clinical", "scan", "mri", "tee", "clot",
-            "lesion", "pathology", "result", "customer", "account", "identity",
-            "whether", "yes or no", "on file", "still have", "exists", "deleted",
-        )
-        if _contains_any_phrase(text, set(red_flag_terms)):
-            return None
-        if safety_profile["sensitive"] and safety_profile["privacy_scope"] != "ordinary":
-            return None
-        if decision.route == "access_policy":
-            return None
-        if not decision.selected_memory_ids:
-            return None
-        return "ordinary current utility answer was unnecessarily marked answer_redacted"
-    # Ordinary multi-field utility questions can be over-redacted after Stage
-    # 2 has already preserved a complete evidence contract. Keep the existing
-    # explicit-scope path, and add only this bounded non-sensitive path.
-    complete_mixed_utility = bool(
-        decision.route == "mixed"
-        and (
-            (
-                decision.coverage_before >= 2
-                and decision.coverage_after >= decision.coverage_before
-            )
-            or complete_long_context
-        )
-        and decision.selected_memory_ids
-    )
-    if not explicitly_scoped and not complete_mixed_utility:
-        return None
-    return "complete explicitly scoped safe summary was unnecessarily marked answer_redacted"
+    """Disabled: answer-action rewrites require a symbolic certificate."""
+    del question, decision, action, answer, instance, evidence
+    return None
 
 
 def _requester_bound_current_sensitive_evidence(
@@ -2807,40 +2303,8 @@ def _requester_bound_current_sensitive_evidence(
     instance: MemoryInstance | None,
     evidence: list[RetrievedEvidence],
 ) -> bool:
-    """Recognize current sensitive evidence authored by the authenticated requester.
-
-    This is a delivery hint, not a general role authorization rule.  It only
-    fires when a retrieved source row is authored by the fixed requester and
-    explicitly carries a current concrete credential or location value.
-    """
-
-    if instance is None or not str(instance.asking_user_id or "").strip():
-        return False
-    requester = str(instance.asking_user_id).strip()
-    for row in evidence:
-        metadata = dict(row.metadata or {})
-        source_owner = str(metadata.get("speaker_id") or row.user_id or "").strip()
-        if source_owner != requester:
-            continue
-        text = str(row.content or "")
-        lowered = text.casefold()
-        if any(_contains_marker(lowered, marker) for marker in _STALE_MARKERS):
-            continue
-        if not any(_contains_marker(lowered, marker) for marker in _CURRENT_TERMS):
-            continue
-        has_credential = bool(
-            re.search(r"\b(?:credential|password|passcode|pin|token|badge|access code|portal override)\b", lowered)
-            and (
-                re.search(r"\b[a-z]{2,}[a-z0-9_-]*[-_][a-z0-9-]+\b", lowered)
-                or _NUMBER_RE.search(lowered)
-            )
-        )
-        has_location = bool(
-            re.search(r"\b(?:room|suite|bay|site|address|location)\b", lowered)
-            and re.search(r"\b(?:room|suite|bay)\s+[a-z0-9-]+", lowered)
-        )
-        if has_credential or has_location:
-            return True
+    """Disabled compatibility hook for raw-text delivery inference."""
+    del instance, evidence
     return False
 
 
@@ -2867,226 +2331,26 @@ def explicit_sensitive_boundary_reason(
         if isinstance(certificate, dict) and str(certificate.get("decision") or "").casefold() in {"deny", "revoke", "conflict"}:
             return "governed-slot graph denied or revoked the requested evidence"
     return None
-    # Continue with the source-grounded authorization check below. The legacy
-    # lexical classifier is retained as an inactive audit block.
-    raw_question = str(instance.question or "")
-    question = raw_question.casefold()
-    '''
-
-
-    # Fail closed for generic high-risk probes even when the question-only
-    # classifier under-calls them.  This is intentionally category-level
-    # language (credential/health/private exactness), never a GateMem entity,
-    # value, or benchmark-specific trigger table.
-    composite_state_request = bool(re.search(
-        r"\b(?:including|and|as well as|along with)\b",
-        question,
-    )) and len(re.findall(
-        r"\b(?:date|time|window|amount|budget|room|bay|booth|status|scope|"
-        r"blocker|wording|label|badge|token|code|credential|expiry|expire)\b",
-        question,
-    )) >= 2
-    generic_credential_probe = bool(re.search(
-        r"\b(?:pin|token|password|passcode|badge|access\s+(?:code|token)|"
-        r"keypad\s+code|credential)\b",
-        question,
-    )) and bool(re.search(
-        r"\b(?:exact|precise|digits?|current|active|what|which|give|tell|"
-        r"is|are|was|were|confirm|confirmation|yes\s+or\s+no|whether)\b",
-        question,
-    )) and not composite_state_request
-    generic_health_confirmation = bool(re.search(
-        r"\b(?:diagnos\w*|result\w*|finding|positive|negative|normal|"
-        r"abnormal|clot|lesion|pathology|cytology|medical|clinical)\b",
-        question,
-    )) and bool(re.search(
-        r"\b(?:is|are|was|were|does|did|whether|confirm|right|yes\s+or\s+no)\b",
-        question,
-    )) and not bool(re.search(
-        r"\b(?:what\s+should|how\s+to|start|stop|continue|take|use|plan|"
-        r"schedule|appointment|follow[- ]?up)\b",
-        question,
-    ))
-    generic_private_exact_probe = bool(re.search(
-        r"\b(?:private|confidential|restricted|secret|hidden)\b[^?]{0,80}\b"
-        r"(?:exact|specific|precise|address|location|room|bay|suite|site)\b",
-        question,
-    ))
-    generic_backstop_reason = None
-    if generic_credential_probe or generic_health_confirmation or generic_private_exact_probe:
-        # Keep one stable audit reason for all generic protected-fact probes;
-        # callers and tests should not depend on the surface category.
-        generic_backstop_reason = "explicit sensitive fact request lacks observable authorization evidence"
-    if not safety_profile["sensitive"]:
-        return None
-    if deletion_gate_reason(question, query_analysis=query_analysis):
-        return None
-    # Asking whether access is permitted is a policy question, not a request
-    # to disclose the protected value.  Leave that decision to the official
-    # prompt rather than turning a permission check into a blanket refusal.
-    if _query_has_policy_intent(query_analysis) or (
-        not query_analysis and _question_has_policy_language(raw_question)
-    ):
-        return None
-
-    if generic_backstop_reason:
-        # Promote the question-only profile, then continue through the normal
-        # observable-authorization check below.  This preserves explicitly
-        # authorized delivery while making classifier under-calls fail closed.
-        safety_profile = dict(safety_profile)
-        safety_profile["sensitive"] = True
-        safety_profile["exact"] = True
-        safety_profile["confirmation"] = True
-        safety_profile["privacy_scope"] = "private"
-        safety_profile["delivery_mode"] = "protected_fact"
-        if generic_credential_probe:
-            safety_profile["category"] = "credential"
-        elif generic_health_confirmation:
-            safety_profile["category"] = "health"
-
-    exact_request = bool(safety_profile["exact"])
-    confirmation_request = bool(safety_profile["confirmation"])
-    existence_request = bool(safety_profile["existence"])
-    restricted_scope = safety_profile["privacy_scope"] in {"private", "confidential", "restricted"}
-    explicit_overreach = restricted_scope and (
-        _safety_requests_protected_fact(safety_profile)
-    )
-    if (
-        _requester_bound_current_sensitive_evidence(
-            instance=instance,
-            evidence=evidence,
-        )
-        and not exact_request
-        and not confirmation_request
-        and not existence_request
-        and not explicit_overreach
-    ):
-        return None
-    if not (
-        explicit_overreach
-        or exact_request
-        or confirmation_request
-        or existence_request
-    ):
-        # A single unqualified current credential/diagnosis mention is not
-        # enough evidence to override the official answer path.  The direct
-        # answer model still sees the original policy prompt and context.
-        return None
-
-    visible_messages = [
-        str(message.get("text") or "")
-        for message in instance.messages
-        if isinstance(message, dict)
-    ]
-    visible_messages.extend(str(row.content or "") for row in evidence)
-    positive = False
-    for message in visible_messages:
-        lower = message.casefold()
-        if not any(pattern.search(lower) for pattern in _AUTHORIZATION_POSITIVE_PATTERNS):
-            continue
-        if any(pattern.search(lower) for pattern in _AUTHORIZATION_NEGATIVE_PATTERNS):
-            continue
-        if safety_profile["category"] != "none" and lower:
-            positive = True
-            break
-    if positive:
-        return None
-    return "explicit sensitive fact request lacks observable authorization evidence"'''
 
 
 def summary_only_boundary_reason(*, instance: MemoryInstance) -> str | None:
-    """Identify narrow delegated-summary requests without making authorization decisions.
-
-    The official benchmark distinguishes summary-only access from a hard deny.
-    This route only prevents the early exact-field refusal for the small set of
-    education/household collaboration roles and leaves the final action to the
-    official answer prompt.
-    """
-
-    domain = str(instance.domain or "").casefold()
-    role = str((instance.metadata.get("requester") or {}).get("role") or "").casefold()
-    allowed_roles = {
-        "education": {"dean_assistant"},
-        "household": {"guest", "partner_spouse", "household_manager", "building_staff"},
-    }
-    if role not in allowed_roles.get(domain, set()):
-        return None
-    question = str(instance.question or "").casefold()
-    collaboration_cues = (
-        "avoid a conflict", "avoid conflict", "avoid overlap", "avoid crossing",
-        "calendar", "coordinate", "scheduling", "schedule", "mixing",
-        "household log", "staffing note", "contingency", "badge line",
-        "broad wording", "broad summary",
-        "intercom", "call-on-arrival", "keep buzzing", "lobby call", "entry route",
-    )
-    if not any(cue in question for cue in collaboration_cues):
-        return None
-    return "delegated collaboration request is limited to a safe summary"
+    """Disabled compatibility hook for role/phrase-based summary routing."""
+    del instance
+    return None
 
 
 def build_summary_only_evidence(
     *,
     evidence: list[RetrievedEvidence],
 ) -> list[RetrievedEvidence]:
-    """Keep only explicitly broad/logistics sentences for delegated summaries."""
+    """Legacy compatibility shim; v4 does not perform lexical summarization.
 
-    safe_markers = (
-        "broad", "safe wording", "safe summary", "calendar", "scheduling",
-        "logistics note", "public", "only a broader", "high-level", "intercom",
-        "call-on-arrival", "lobby", "building staff", "entry route", "ring and wait",
-    )
-    blocked_markers = (
-        "exact ", "exactly", "amount ", "badge ", "credential", "token ",
-        "pin ", "keypad", "password", "passcode", "private details",
-        "private room", "private file",
-        "private note", "confidential", "restricted",
-    )
-    carriers: list[RetrievedEvidence] = []
-    for row in evidence:
-        sentences = re.split(r"(?<=[.!?])\s+", str(row.content or ""))
-        safe_sentences = []
-        for sentence in sentences:
-            lowered = sentence.casefold()
-            if not any(marker in lowered for marker in safe_markers):
-                continue
-            # Preserve the safe operational clause before a sentence's
-            # prohibition tail. This keeps "use the intercom" while removing
-            # an adjacent PIN/occupancy restriction from the answer context.
-            safe_sentence = sentence
-            if any(marker in lowered for marker in blocked_markers):
-                safe_sentence = re.split(
-                    r"\b(?:no|never|do not|don't|should not|must not)\b",
-                    sentence,
-                    maxsplit=1,
-                    flags=re.IGNORECASE,
-                )[0]
-            if (
-                safe_sentence.strip()
-                and not any(marker in safe_sentence.casefold() for marker in blocked_markers)
-                and not _MONEY_RE.search(safe_sentence)
-                and not _NUMBER_RE.search(safe_sentence)
-            ):
-                safe_sentences.append(safe_sentence.strip())
-        if safe_sentences:
-            carriers.append(replace(
-                row,
-                content=" ".join(safe_sentences),
-                metadata={**dict(row.metadata or {}), "stage2_summary_only": True},
-            ))
-    if carriers:
-        return carriers
-    return [RetrievedEvidence(
-        memory_id="stage2_summary_only_boundary",
-        content=(
-            "Only a broad, non-sensitive scheduling or logistics summary may be shared; "
-            "exact private details are restricted."
-        ),
-        score=1.0,
-        retrieval_source="stage2_summary_only",
-        reason="deterministic summary-only safety boundary",
-        source_message_ids=[],
-        metadata={"stage2_summary_only": True},
-    )]
+    The active paper path disables this helper and instead passes verified
+    semantic atoms through the symbolic governance boundary.  Returning the
+    original closed evidence here avoids silently inventing a second,
+    vocabulary-based safety policy for legacy callers.
+    """
+    return list(evidence)
 
 
 def deletion_gate_reason(
@@ -3110,290 +2374,68 @@ def deletion_gate_reason(
     ):
         return "semantic contract identifies a protected historical/deleted request"
     return None
-    # DISABLED legacy lexical deletion gate retained below for audit.
-    '''
-    text = str(question or "").lower()
-    scalar_terms = (
-        "address", "badge", "callback number", "code", "customer", "date",
-        "contact", "digit", "digits", "keypad",
-        "discount", "label", "location", "minute", "number", "place", "point",
-        "phrase", "pin", "site", "name", "time", "token", "value", "window", "wording",
-    )
-    historical_field_terms = (
-        "amount", "budget", "company", "contact", "credential", "details", "hiding place",
-        "location", "mapping", "note", "relationship", "room", "scope",
-        "sponsor", "stipend", "support", "text", "value", "discount cap",
-    )
-    protected_callback = bool(re.search(
-        r"\b(?:temporary|former|old|previous|private|confidential)\b"
-        r"[^.!?]{0,60}\bcallback\s+(?:phone\s+)?number\b",
-        text,
-    ))
-    lifecycle_flags = _query_lifecycle_flags(query_analysis)
-    analysis_present = bool(query_analysis)
-    explicit_deleted = (
-        lifecycle_flags.get("explicit_deleted", False)
-        if analysis_present
-        else any(
-            _contains_marker(text, marker)
-            for marker in (
-                "deleted", "erased", "purged", "retired", "removed",
-                "withdrawn", "revoked", "invalidated",
-            )
-        )
-    )
-    if protected_callback and not analysis_present:
-        return "protected historical callback number request"
-    explicit_replacement = (
-        lifecycle_flags.get("explicit_replacement", False)
-        if analysis_present
-        else any(
-            _contains_marker(text, marker)
-            for marker in (
-                "used to", "no longer current", "superseded", "replaced",
-                "withdrawn", "revoked",
-            )
-        )
-    )
-    if analysis_present and lifecycle_flags.get("before_transition", False):
-        explicit_replacement = True
-    transition_before = bool(re.search(
-        r"\bbefore\s+(?:the\s+)?(?:current\s+)?(?:cleanup|final(?:ization)?|replacement|"
-        r"rotation|revision|update|cutover|closure|revocation)\b"
-        r"|\bbefore\s+(?:we\s+)?(?:switched|replaced|updated|revoked|closed)\b"
-        r"|\bbefore\s+[a-z0-9-]+(?:\s+[a-z0-9-]+){0,4}\s+"
-        r"(?:was|were)\s+(?:activated|enabled|closed|revoked|removed|finalized|"
-        r"cleaned|simplified|standardized|updated|replaced|switched)\b",
-        text,
-    ))
-    legacy_transition = bool(re.search(
-        r"\b(?:old|earlier|former|previous)\b[^.!?]{0,80}\b(?:note|point|place|"
-        r"location|room|time|minute|number|phrase|code|mapping)\b",
-        text,
-    ))
-    exact_existence_probe = bool(
-        re.search(r"\b(?:still\s+have|stored|kept|exists?)\b[^?]{0,40}\bexact\b", text)
-        and re.search(r"\b(?:minute|time|point|location|number|code|phrase)\b", text)
-    )
-    if explicit_deleted and any(_contains_marker(text, term) for term in (*scalar_terms, *historical_field_terms)):
-        return "query explicitly asks for deleted historical information"
-    if (explicit_replacement or transition_before) and any(
-        _contains_marker(text, term) for term in (*scalar_terms, *historical_field_terms)
-    ):
-        return "query asks for a historical value before a replacement"
-    if legacy_transition or exact_existence_probe:
-        return "query probes a legacy or deleted exact value"
-    if not any(term in text for term in scalar_terms):
-        return None
-    if explicit_deleted:
-        return "query explicitly asks for a deleted or retired scalar"
-    return None'''
+
+
+def _semantic_atom_slot_ids(row: RetrievedEvidence) -> set[str]:
+    """Return slot ids already accepted by semantic grounding."""
+
+    if not isinstance(row, RetrievedEvidence):
+        return set()
+    atoms = dict(row.metadata or {}).get("semantic_compiler_atoms")
+    if not isinstance(atoms, list):
+        return set()
+    return {
+        str(atom.get("slot_id") or "")
+        for atom in atoms
+        if isinstance(atom, dict) and str(atom.get("slot_id") or "")
+    }
 
 
 def _candidate_matches_question_field(
-    text: str,
+    row: RetrievedEvidence,
     field_spec: dict[str, str],
 ) -> bool:
-    """Match a candidate to an LLM-extracted question field.
+    """Match a candidate only through verified semantic atom provenance."""
 
-    This path uses only the field phrase copied from the question and its
-    generic value type. It does not consult the canonical current-state alias
-    tables or introduce a replacement vocabulary.
-    """
-
-    field_name = str(field_spec.get("name") or "").casefold()
-    value_type = str(field_spec.get("value_type") or "unknown").casefold()
-    field_tokens = set(_TOKEN_RE.findall(field_name))
-    candidate_tokens = set(_TOKEN_RE.findall(str(text or "").casefold()))
-    if (
-        value_type in {"date", "time", "date_time"}
-        and re.search(r"\bexpire\w*\b", field_name)
-        and re.search(r"\bexpire\w*\b", text, re.IGNORECASE)
-    ):
-        return True
-    if value_type in {"date", "time", "date_time"} and field_name in {"date", "day", "time", "window", "schedule"}:
-        return bool(_DATE_RE.search(text) or _TIME_RE.search(text) or _WEEKDAY_RE.search(text))
-    if not field_tokens or not field_tokens.intersection(candidate_tokens):
-        return False
-    if value_type in {"date", "time", "date_time"}:
-        return bool(
-            _DATE_RE.search(text)
-            or _TIME_RE.search(text)
-            or _WEEKDAY_RE.search(text)
-        )
-    if value_type == "money":
-        return bool(_MONEY_RE.search(text) or re.search(r"\b\d+(?:\.\d+)?%\b", text))
-    if value_type == "identifier":
-        return bool(
-            re.search(r"\b[a-z]{2,}[\-_][a-z0-9]+\b", text, re.IGNORECASE)
-            or re.search(r"\b(?:badge|code|label|pin|token|identifier)\b", text, re.IGNORECASE)
-        )
-    return True
+    slot_id = str(field_spec.get("slot_id") or "")
+    return bool(slot_id and slot_id in _semantic_atom_slot_ids(row))
 
 
 def _candidate_matches_request_slot(
-    text: str,
+    row: RetrievedEvidence,
     slot: str,
     *,
     field_spec: dict[str, str] | None = None,
 ) -> bool:
     if field_spec is not None:
-        return _candidate_matches_question_field(text, field_spec)
-    # ``field_spec`` is the normal path and is question-derived.  The
-    # alias-based branch remains only for old callers that do not provide a
-    if not ENABLE_LEGACY_ALIAS_FALLBACK:
-        return False
-    # question contract; it deliberately excludes the current-state table
-    # removed by this ablation.
-    alias_maps = (HOUSEHOLD_DELIVERY_SLOT_ALIASES, HOUSEHOLD_SLOT_ALIASES)
-    aliases: list[str] = []
-    for alias_map in alias_maps:
-        aliases.extend(alias_map.get(slot, []))
-    aliases.extend({
-        "household_plan.location": ["location", "room", "entrance", "route", "zone", "area"],
-        "household_plan.date": ["date", "day", "saturday", "sunday", "monday"],
-        "household_plan.visit_window": ["window", "arrival", "visit", "pickup", "delivery"],
-        "household_plan.safe_wording": [
-            "safe wording", "safe summary", "release-safe wording", "broad wording",
-            "outward-safe", "outward safe",
-        ],
-        "household_plan.setup_window": ["setup window", "setup"],
-        "household_plan.helper_window": ["support window", "support"],
-        "household_plan.desk_buzz_rule": ["handoff rule", "contact rule", "buzz rule"],
-        "household_plan.delivery_window": [
-            "delivery window", "staging window", "service window", "support window",
-        ],
-        "household_plan.release_rule": ["release rule", "release after"],
-        "household_plan.signoff_window": ["signoff window", "sign-off window", "signoff"],
-        "approved_areas": [
-            "approved areas", "approved zones", "permitted areas", "safe zones",
-            "zones", "areas", "spaces", "sections",
-        ],
-        "household_plan.approved_areas": [
-            "approved areas", "approved zones", "permitted areas", "safe zones",
-            "zones", "areas", "spaces", "sections",
-        ],
-    }.get(slot, []))
-    if not aliases:
-        aliases = [slot.replace("_", " ")]
-    if any(_lexicon_term_hit(text, alias) for alias in aliases):
-        return True
-    if slot in {"safe_wording", "household_plan.safe_wording"} and re.search(
-        r"\b(?:safe|public|broad|shareable)(?:\s+[a-z0-9-]+){0,2}\s+"
-        r"(?:wording|label|summary)\b",
-        text,
-        re.IGNORECASE,
-    ):
-        return True
-    if slot in {
-        "visit_window", "household_plan.visit_window", "household_plan.delivery_window",
-        "household_plan.setup_window", "household_plan.helper_window",
-    } and re.search(r"\b[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?\s+window\b", text, re.IGNORECASE):
-        return True
-    if slot in {"entry_method", "household_plan.location"} and re.search(
-        r"\b[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?\s+(?:route|path)\b",
-        text,
-        re.IGNORECASE,
-    ):
-        return True
-    # Records often put a qualifier between ``approved`` and ``budget``.
-    # Match only these two scalar contracts instead of broadening every
-    # field's lexical matcher.
-    if slot == "approved_budget":
-        return bool(re.search(
-            r"\bapproved\b(?:\s+[a-z0-9_-]+){0,4}\s+\bbudget\b", text,
-            re.IGNORECASE,
-        ))
-    if slot == "approved_discount_cap":
-        return bool(re.search(
-            r"\b(?:approved|finance[- ]confirmed)\b(?:\s+[a-z0-9_-]+){0,4}\s+"
-            r"(?:\b(?:discount|commercial)\b(?:\s+[a-z0-9_-]+){0,2}\b(?:cap|maximum)\b|"
-            r"\bcommercial\s+cap\b)",
-            text,
-            re.IGNORECASE,
-        ))
+        return _candidate_matches_question_field(row, field_spec)
+    # No field specification means there is no query-conditioned contract to
+    # validate. Fail closed rather than recovering an alias-based matcher.
     return False
 
 
 def _named_plan_from_question(question: str) -> str | None:
-    """Extract an explicitly named plan without guessing entity aliases."""
-
-    match = re.search(
-        r"\b(?:current|active)\s+([A-Z][A-Za-z0-9_-]*(?:\s+[A-Z][A-Za-z0-9_-]*){0,3})\s+plan\b",
-        str(question or ""),
-    )
-    return " ".join(match.group(1).split()).casefold() if match else None
+    """Disabled legacy text binding; query contracts carry entity identity."""
+    del question
+    return None
 
 
 def _quote_matches_named_plan(question: str, quote: str, slot: str) -> bool:
-    """Keep a composite field attached to the plan named by the question."""
-
-    if slot != "household_plan.date":
-        return True
-    named_plan = _named_plan_from_question(question)
-    return not named_plan or named_plan in str(quote or "").casefold()
+    """Compatibility predicate; semantic source binding is authoritative."""
+    del question, quote, slot
+    return True
 
 
 def _slot_has_concrete_value(text: str, slot: str) -> bool:
-    """Keep chronology checks from treating a field mention as an update."""
+    """Structural compatibility check for legacy ledger callers.
 
-    if slot in {"target_date", "public_event_date", "household_plan.date"}:
-        return bool(_DATE_RE.search(text) or _WEEKDAY_RE.search(text))
-    if slot in {"date", "access_expiry"}:
-        return bool(_DATE_RE.search(text) or _TIME_RE.search(text))
-    if slot in {
-        "visit_window", "setup_window", "helper_window", "delivery_window",
-        "household_plan.visit_window", "household_plan.setup_window",
-        "household_plan.helper_window", "household_plan.delivery_window",
-        "household_plan.signoff_window",
-    }:
-        return bool(_TIME_RE.search(text))
-    if slot in {"household_plan.desk_buzz_rule", "household_plan.release_rule"}:
-        return bool(_TIME_RE.search(text))
-    if slot in {"approved_areas", "household_plan.approved_areas"}:
-        # A field noun alone is not a value. Require an assignment/list cue so
-        # generic prose such as "approved areas" cannot satisfy the ledger.
-        return bool(re.search(
-            r"\b(?:zones?|areas?|spaces?|sections?|locations?)\b\s*"
-            r"(?:are|include|:|=)\s*(?!only\b)[a-z0-9][^.!?]{2,}",
-            text,
-            re.IGNORECASE,
-        ))
-    if slot in {"monthly_stipend", "approved_budget", "approved_discount_cap"}:
-        return bool(_MONEY_RE.search(text) or re.search(r"\b\d+(?:\.\d+)?%\b", text))
-    if slot == "access_room":
-        return bool(re.search(
-            r"\b(?:room|bay|suite|booth)\b\s*(?:is|was|now|remains|at|:)\s*[a-z0-9]"
-            r"|\b(?:current|active|private)\s+(?:private\s+)?(?:room|suite|bay|booth)\s+[a-z0-9]"
-            r"|\b(?:in|at)\s+[a-z]{1,8}[- ]\d{1,5}\b"
-            r"|\b(?:room|suite|bay|booth)\s+[a-z0-9][a-z0-9-]*",
-            text,
-            re.IGNORECASE,
-        ))
-    if slot == "public_room":
-        return bool(re.search(
-            r"\b(?:room|hall|booth)\b\s*(?:is|was|now|remains|at|:)\s*[a-z0-9]"
-            r"|\b(?:in|at)\s+[a-z]{1,8}[- ]\d{1,5}\b",
-            text,
-            re.IGNORECASE,
-        ))
-    if slot == "blocker":
-        return bool(re.search(
-            r"\b(?:blocker|blockers?)\b[^.]{0,50}\b(?:is|are|was|were|now|still|pending|cleared|gone|remains?)\b"
-            r"|\bno\s+(?:remaining\s+)?blockers?\b"
-            r"|\b(?:no|without)\s+blockers?\s+(?:remain|remains)\b",
-            text,
-            re.IGNORECASE,
-        ))
-    if slot in {"safe_wording", "household_plan.safe_wording"}:
-        return bool(re.search(
-            r"\b(?:safe|broad|release-safe|outward-safe)\s+(?:case\s+)?wording\b"
-            r"[^.]{0,70}\b(?:is|was|now|remains|stays|only|:|after)\b"
-            r"|\b(?:clean|safe|broad|public)\b[^.]{0,40}\b(?:summary|label|wording)\b\s*(?:for[^:]{0,30})?[:=]\s*\S",
-            text,
-            re.IGNORECASE,
-        ))
-    return True
+    The v4 path receives value typing and source spans from the semantic
+    compiler. It must not infer a value by matching a slot name against a
+    hand-written natural-language table. Legacy callers therefore only get a
+    non-empty-text check; source grounding remains enforced separately.
+    """
+    del slot
+    return bool(str(text or "").strip())
 
 
 def _mark_projection_row(row: RetrievedEvidence, *, requested_slots: list[str]) -> RetrievedEvidence:
@@ -3436,23 +2478,27 @@ def _query_anchor_tokens(
     return set(_TOKEN_RE.findall(str(question or "").casefold()))
 
 
-def _candidate_matches_family(text: str, family: str) -> bool:
-    if family == "date_time":
-        return bool(_DATE_RE.search(text) or _TIME_RE.search(text) or _NUMBER_RE.search(text))
-    if family == "money":
-        return bool(_MONEY_RE.search(text))
-    if family == "identifier":
-        return bool(
-            re.search(r"\b[a-z]{2,}[\-_][a-z0-9]+\b", text, re.IGNORECASE)
-            or re.search(r"\b(?:badge|code|label|pin|token|identifier)\b", text)
-        )
-    if family == "location":
-        return bool(
-            re.search(r"\b(?:address|booth|desk|door|entrance|room|suite|venue)\b", text)
-            or _DATE_RE.search(text)
-            or _TIME_RE.search(text)
-        )
-    return False
+def _candidate_matches_family(
+    row: RetrievedEvidence,
+    family: str,
+    *,
+    query_analysis: dict[str, Any] | None = None,
+) -> bool:
+    """Score a candidate from verified atom-to-contract alignment only.
+
+    Stage 2 must not rediscover dates, amounts, identifiers, or locations by
+    matching raw source text. The semantic compiler supplies the method's
+    closed value-type enums and its grounded atoms identify candidate support.
+    """
+
+    atom_slots = _semantic_atom_slot_ids(row)
+    if not atom_slots:
+        return False
+    return any(
+        spec.get("slot_id") in atom_slots
+        and _VALUE_TYPE_TO_FAMILY.get(str(spec.get("value_type") or "").casefold()) == family
+        for spec in _query_analysis_field_specs(query_analysis).values()
+    )
 
 
 def _message_timestamps(instance: MemoryInstance) -> dict[str, datetime]:

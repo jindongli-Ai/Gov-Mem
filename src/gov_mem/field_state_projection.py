@@ -31,36 +31,18 @@ _VALUE_TYPES = {
 _NON_VALUES = {
     "same", "unchanged", "no change", "no changes", "as above", "as before", "the same", "remains", "unknown", "n/a", "none", "only",
 }
-_SENSITIVE_FIELD_TERMS = {
-    "diagnosis", "condition", "disease", "medication", "laboratory", "imaging",
-    "health", "clinical", "credential", "password", "passcode", "pin", "token",
-    "private address", "customer identity", "account number", "exact location",
-}
-
-
 def _field_requires_narrow_disclosure(field: "QueryField") -> bool:
-    """Classify disclosure at field granularity, not record granularity."""
-    text = _text(" ".join((field.label, field.attribute or ""))).casefold()
-    if re.search(
-        r"\b(?:diagnosis|condition|disease|pregnan(?:cy|t)|viability|symptom|"
-        r"medication|clinical|health|laboratory|lab result|imaging|incident)\b",
-        text,
-    ):
+    """Respect sensitivity metadata supplied by the semantic contract.
+
+    The projection layer deliberately does not infer protected topics from
+    field labels.  Query-conditioned LLM metadata is the semantic source;
+    this function only interprets its closed-set disclosure/value types.
+    """
+    scope = _text(getattr(field, "disclosure_scope", "")).casefold()
+    if scope in {"private", "confidential", "restricted", "protected"}:
         return True
-    if re.search(r"\b(?:credential|password|passcode|pin|token|badge|access code|secret)\b", text):
-        return True
-    if re.search(r"\b(?:exact|private|confidential|internal)\b", text) and re.search(
-        r"\b(?:wording|phrase|amount|budget|room|bay|location|address|file|label|number)\b",
-        text,
-    ):
-        return True
-    if re.search(r"\b(?:amount|budget|price|cost|fee|discount|payment|finance)\b", text):
-        return True
-    if re.search(r"\b(?:private|exact)\s+(?:room|bay|location|address)\b", text):
-        return True
-    if re.search(r"\b(?:access|permission)\b", text) and re.search(r"\b(?:status|active|incident|current)\b", text):
-        return True
-    return False
+    value_type = _text(getattr(field, "value_type", "")).casefold()
+    return value_type in {"credential", "secret", "protected"}
 
 
 @dataclass(frozen=True)
@@ -573,20 +555,6 @@ def _infer_value_type(label: str, attribute: str | None = None) -> str:
     return "unknown"
 
 
-_ATTRIBUTE_TYPE_TERMS = {
-    "date": {"date", "day", "deadline", "expiry", "expiration"},
-    "time": {"time", "window", "schedule", "hour"},
-    "amount": {"amount", "funding", "support", "stipend", "budget", "cost", "price", "fee"},
-    "percentage": {"percentage", "percent", "rate", "cap", "share"},
-    "wording": {"wording", "phrase", "label", "description", "summary", "name", "title"},
-    "status": {"status", "state", "blocker", "hold", "condition", "phase", "outcome", "result", "progress"},
-    "structure": {"structure", "term", "terms", "agreement", "contract", "clause", "provision", "arrangement"},
-    "location": {"location", "place", "site", "room", "route", "address", "venue"},
-    "person": {"person", "name", "owner", "assignee", "contact", "role"},
-    "credential": {"credential", "password", "passcode", "pin", "token", "key"},
-}
-
-
 _DECLARED_TYPE_ALIASES = {
     "number": "amount",
     "numeric": "amount",
@@ -623,16 +591,13 @@ def _attribute_compatible(field: QueryField, attribute: str) -> bool:
     field_tokens = semantic_tokens(f"{field.label} {field.attribute or ''}")
     if raw_tokens.intersection(field_tokens):
         return True
-    raw_types = {kind for kind, terms in _ATTRIBUTE_TYPE_TERMS.items() if raw_tokens.intersection(terms)}
-    expected_terms = _ATTRIBUTE_TYPE_TERMS.get(expected, set())
-    if raw_types and expected in _ATTRIBUTE_TYPE_TERMS:
-        return expected in raw_types or bool(raw_tokens.intersection(expected_terms))
-    # An explicitly typed neighboring attribute is not admissible for an
-    # otherwise open field. This blocks bindings such as a backup phrase
-    # becoming a band color while keeping opaque names and locations
-    # permissive when neither side carries a reliable type marker.
-    if raw_types and expected not in _ATTRIBUTE_TYPE_TERMS:
-        return False
+    # ``attribute`` is an open-vocabulary label proposed by the semantic
+    # compiler.  It is not interpreted through a hand-written vocabulary.
+    # Type compatibility is enforced from the closed schema ``value_type``
+    # and from the grounded value itself in ``_value_compatible``.  When the
+    # model supplies a label that differs from the query wording, retain it
+    # rather than guessing whether the words belong to another domain field.
+    del raw_tokens, expected
     return True
 
 
@@ -987,14 +952,6 @@ def _vague_frontier_claim(claim: StateClaim) -> bool:
     ))
 
 
-_LOCATION_SPECIFIC_TERMS = {
-    "address", "alcove", "bench", "bay", "cabinet", "cart", "counter",
-    "cubby", "drawer", "desk", "door", "elevator", "entrance", "gate",
-    "hall", "keypad", "lobby", "locker", "room", "shelf", "side",
-    "station", "table", "tray", "window", "zone",
-}
-
-
 def _vague_location_claim(field: QueryField, claim: StateClaim) -> bool:
     """Identify a generic route/method label that must not erase a place.
 
@@ -1007,12 +964,21 @@ def _vague_location_claim(field: QueryField, claim: StateClaim) -> bool:
     expected = field.value_type if field.value_type not in {"unknown", "list"} else _infer_value_type(field.label, field.attribute)
     if expected != "location":
         return False
-    tokens = set(re.findall(r"[a-z0-9]+", _text(claim.value).casefold()))
-    if tokens.intersection({"at", "from", "in", "near", "with"}):
+    value = _text(claim.value)
+    tokens = re.findall(r"[a-z0-9]+", value.casefold())
+    if not tokens:
         return True
-    if not tokens or tokens.intersection(_LOCATION_SPECIFIC_TERMS):
+    # Structural, source-grounded heuristic only: a short abstract phrase
+    # without a numeric/proper-name anchor is less specific than a concrete
+    # location.  No location vocabulary is consulted here.
+    has_numeric_anchor = bool(re.search(r"\d", value))
+    has_proper_anchor = bool(re.search(r"\b[A-Z][a-z]{2,}\b", value))
+    if has_numeric_anchor or has_proper_anchor:
         return False
-    return bool(tokens.intersection({"entry", "method", "route", "path", "access", "way", "arrival"}))
+    source = _text(claim.source_span)
+    if source and _norm(source) == _norm(value):
+        return False
+    return len(tokens) <= 3 and len(value) <= 48
 
 
 def _lineage_value(
@@ -3543,12 +3509,7 @@ def restricted_field_ids(
     """Project a partial policy boundary onto fields, not whole answers."""
     if not partial_disclosure or sensitive_authorized:
         return ()
-    return tuple(
-        field.field_id
-        for field in contract.fields
-        if _field_requires_narrow_disclosure(field)
-        or any(term in _text(field.label).casefold() for term in _SENSITIVE_FIELD_TERMS)
-    )
+    return tuple(field.field_id for field in contract.fields if _field_requires_narrow_disclosure(field))
 
 
 def projection_evidence_payload(projection: StatefulProjection, evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:

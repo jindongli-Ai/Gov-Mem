@@ -14,19 +14,25 @@ from gov_mem.policy_schema import PolicyAction, PolicyDecision
 
 
 _DELIVERY_ACTIONS = {"answer", "answer_redacted", "refuse", "no_memory"}
-_SENSITIVE_FIELD_TERMS = {
-    "diagnosis", "psychiatric", "psychiatry", "mental-health", "mental",
-    "self-harm", "incident", "review flag", "identity",
-    "account number", "credential", "password",
-    "passcode", "access code", "pin", "token", "private address",
-}
-_SENSITIVE_VALUE_TERMS = {
-    "diagnos", "psychiatr", "mental-health", "self-harm", "pregnan",
-    "miscarriage", "losing the pregnancy", "no heartbeat", "heartbeat",
-    "medical condition", "clinical", "medication", "symptom", "disease",
-    "blood pressure", "hormone", "credential", "password", "passcode",
-    "access code", "private address", "account number",
-}
+
+def _field_declares_protected_scope(field: dict[str, Any]) -> bool:
+    """Use the question-conditioned contract, never a natural-language table.
+
+    Sensitivity is semantic metadata produced by the runtime LLM contract or
+    projection.  The verifier may consume that metadata, but it must not
+    rediscover protected topics by matching words in labels/values.
+    """
+    scope = str(field.get("disclosure_scope") or field.get("privacy_scope") or "").casefold()
+    if scope in {"private", "confidential", "restricted", "protected"}:
+        return True
+    if bool(field.get("sensitive")) or bool(field.get("sensitivity_possible")):
+        return True
+    semantics = field.get("sensitivity_semantics")
+    if isinstance(semantics, dict):
+        return str(semantics.get("type") or "").casefold() in {
+            "restricted", "private", "confidential", "protected",
+        }
+    return False
 @dataclass(frozen=True)
 class VerificationResult:
     passed: bool
@@ -284,52 +290,29 @@ def _symbolic_checks(
         else:
             checks.append("ambiguous_principal_refused")
 
-    # A partial disclosure is not allowed to reveal even the existence or
-    # category of a restricted field when that field has no policy-approved
-    # source.  This catches answers such as "the diagnosis is unchanged"
-    # when only an access-status projection was allowed.  The check is
-    # deliberately source-relative: a sensitive term is acceptable when it is
-    # explicitly present in the evidence that policy allowed to the answer.
+    # A partial disclosure must not expose a field that the runtime contract
+    # itself marked as protected.  No topic/value lexicon is consulted here;
+    # labels and values remain opaque strings to the verifier.
     if not bool(decision.state_snapshot.get("sensitive_authorized")):
-        allowed_text = " ".join(str(row.get("text") or "").casefold() for row in evidence_payload)
-        restricted_attributes = " ".join(
-            str(value).casefold()
-            for value in decision.state_snapshot.get("requested_attributes") or ()
-        )
-        leaked_field_terms = [
-            term for term in sorted(_SENSITIVE_FIELD_TERMS)
-            if term in restricted_attributes
-            and re.search(rf"\b{re.escape(term)}\b", str(answer_text or "").casefold())
-            and not re.search(rf"\b{re.escape(term)}\b", allowed_text)
+        restricted_fields = [
+            field for field in list(answer_contract.get("requested_fields") or [])
+            if isinstance(field, dict) and _field_declares_protected_scope(field)
         ]
-        if leaked_field_terms:
-            passed = False
-            reasons.append("unauthorized_sensitive_field_mentioned:" + ",".join(leaked_field_terms))
-        else:
-            checks.append("unauthorized_sensitive_fields_not_mentioned")
-
-        # Source provenance alone is not enough: a request/clarification can
-        # be quoted by the answer projection as if it were a medical fact.
-        # Fail closed when a supported projected value is itself sensitive.
-        # This is field-level and value-driven, so ordinary authorized
-        # logistics fields remain answerable for delegated requesters.
-        projected_sensitive_fields = []
-        for field in list(answer_contract.get("requested_fields") or []):
-            status = str(field.get("status") or "").casefold()
-            value = " ".join(str(field.get(key) or "") for key in ("answer_text", "selected_values"))
-            value_lower = value.casefold()
-            if status in {"covered", "supported"} and any(term in value_lower for term in _SENSITIVE_VALUE_TERMS):
-                projected_sensitive_fields.append(str(field.get("label") or "unknown field"))
         projection = answer_contract.get("field_state_projection") or {}
-        for field in list(projection.get("fields") or []):
-            status = str(field.get("status") or "").casefold()
-            values = " ".join(str(field.get(key) or "") for key in ("selected_values", "candidate_values"))
-            if status == "supported" and any(term in values.casefold() for term in _SENSITIVE_VALUE_TERMS):
-                projected_sensitive_fields.append(str(field.get("label") or "unknown field"))
-        if projected_sensitive_fields:
+        restricted_fields.extend(
+            field for field in list(projection.get("fields") or [])
+            if isinstance(field, dict) and _field_declares_protected_scope(field)
+        )
+        disclosed = [
+            str(field.get("label") or field.get("field_id") or "protected field")
+            for field in restricted_fields
+            if str(field.get("status") or "").casefold() in {"covered", "supported"}
+        ]
+        if disclosed:
             passed = False
-            labels = ",".join(dict.fromkeys(projected_sensitive_fields))
-            reasons.append("unauthorized_sensitive_projection:" + labels)
+            reasons.append("unauthorized_protected_projection:" + ",".join(dict.fromkeys(disclosed)))
+        else:
+            checks.append("unauthorized_protected_fields_not_projected")
 
     fields = list(answer_contract.get("requested_fields") or [])
     for field in fields:
@@ -387,9 +370,10 @@ def _symbolic_checks(
         # Only a partial policy projection or an actually sensitive omitted
         # field should force answer_redacted.
         sensitive_omitted = any(
-            term in field
-            for field in omitted_fields
-            for term in _SENSITIVE_FIELD_TERMS
+            _field_declares_protected_scope(field)
+            for field in list(answer_contract.get("requested_fields") or [])
+            if isinstance(field, dict)
+            and str(field.get("label") or "").strip().casefold() in set(omitted_fields)
         )
         if bool(decision.state_snapshot.get("partial_disclosure")) or (
             sensitive_omitted and not bool(decision.state_snapshot.get("sensitive_authorized"))

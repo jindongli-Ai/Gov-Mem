@@ -5,7 +5,6 @@ from hashlib import md5
 from typing import Any
 
 from gov_mem.data.schema import MemoryInstance, MemoryItem
-from gov_mem.governance_runtime.access import normalize_role
 from gov_mem.llm.client import LLMClient, LLMClientUnavailableError
 from gov_mem.llm.prompts import (
     MEMORY_INGESTION_SYSTEM_PROMPT,
@@ -47,30 +46,24 @@ class MemoryIngestionAgent:
         return self._heuristic_ingest(instance)
 
     def _heuristic_ingest(self, instance: MemoryInstance) -> list[MemoryItem]:
+        """Schema-only emergency fallback when the ingestion LLM is unavailable.
+
+        The fallback deliberately does not classify content with domain words
+        or trigger tables. A live paper-facing run uses the LLM extractor;
+        this path preserves only message identity, provenance, and neutral
+        container metadata so an API outage cannot silently reintroduce a
+        benchmark-specific lexicon.
+        """
         items: list[MemoryItem] = []
-        active_ids_by_content: dict[str, str] = {}
         for idx, message in enumerate(instance.messages):
             content = str(message.get("text") or "").strip()
             if not content:
                 continue
             user_id = message.get("speaker_id")
-            scope = _infer_scope(content, user_id)
-            memory_type = _infer_memory_type(content)
+            scope = "observable"
+            memory_type = "factual"
             entities = _extract_entities(content)
             memory_id = f"{instance.instance_id}_mem_{idx:04d}"
-            lowered = content.lower()
-            privacy_level = "restricted" if any(token in lowered for token in ["token", "password", "private", "confidential", "lab", "result", "stipend", "diagnosis"]) else "normal"
-            authorized_users = _infer_authorized_users(instance, message, content)
-            forbidden_users = _infer_forbidden_users(instance, content)
-            redaction_required = _infer_redaction_required(content)
-            memory_status = "active"
-            supersedes_memory_ids: list[str] = []
-
-            if _is_forgetting_instruction(content):
-                memory_type = "experience"
-                scope = "constraint"
-            elif _is_update_instruction(content):
-                memory_status = "active"
 
             items.append(
                 MemoryItem(
@@ -84,27 +77,22 @@ class MemoryIngestionAgent:
                     time=message.get("timestamp"),
                     source_message_ids=[str(message.get("message_id"))],
                     confidence=0.6,
-                    privacy_level=privacy_level,
+                    privacy_level="unknown",
                     tags=[message.get("speaker_role") or "unknown"],
-                    memory_status=memory_status,
+                    memory_status="active",
                     metadata={
-                        "privacy_level": privacy_level,
+                        "privacy_level": "unknown",
                         "access_scope": scope,
-                        "authorized_users": authorized_users,
-                        "forbidden_users": forbidden_users,
+                        "authorized_users": [],
+                        "forbidden_users": [],
                         "forget_after": None,
                         "is_deleted": False,
-                        "redaction_required": redaction_required,
-                        "sensitive_entities": entities if privacy_level == "restricted" else [],
-                        "supersedes_memory_ids": supersedes_memory_ids,
+                        "redaction_required": False,
+                        "sensitive_entities": [],
+                        "supersedes_memory_ids": [],
                     },
                 )
             )
-            active_ids_by_content[content] = memory_id
-
-        runtime_profile = dict(instance.metadata.get("runtime_profile") or {})
-        if bool(runtime_profile.get("apply_checkpoint_updates", False)):
-            self._apply_checkpoint_memory_updates(items)
         return items
 
     def _from_llm_item(self, instance: MemoryInstance, idx: int, item: dict[str, Any]) -> MemoryItem:
@@ -127,46 +115,20 @@ class MemoryIngestionAgent:
         )
 
     def _apply_checkpoint_memory_updates(self, items: list[MemoryItem]) -> None:
-        for idx, item in enumerate(items):
-            lowered = item.content.lower()
-            if _is_forgetting_instruction(item.content):
-                item.metadata["is_deleted"] = False
-                targets = _find_deletion_targets(items[:idx], item.content)
-                for target in targets:
-                    target.memory_status = "deleted"
-                    target.metadata["is_deleted"] = True
-            elif _is_update_instruction(item.content):
-                targets = _find_update_targets(items[:idx], item.content)
-                for target in targets:
-                    if target.memory_id != item.memory_id:
-                        target.memory_status = "superseded"
-                        target.metadata["is_deleted"] = False
-                        item.metadata.setdefault("supersedes_memory_ids", []).append(target.memory_id)
+        # Lifecycle transitions are supplied by the source-grounded semantic
+        # compiler and symbolic state layer. Never infer them from raw words.
+        del items
 
 
 def _infer_scope(content: str, user_id: str | None) -> str:
-    lowered = content.lower()
-    if " prefer " in f" {lowered} " or " like " in f" {lowered} ":
-        return "preference"
-    if " must " in f" {lowered} " or " should " in f" {lowered} " or "do not" in lowered:
-        return "constraint"
-    if user_id and ("i " in lowered or " my " in lowered):
-        return "user"
-    if any(token in lowered for token in ["meeting", "appointment", "deadline", "tomorrow", "today"]):
-        return "event"
-    return "group"
+    """Compatibility stub; semantic scope comes from the LLM extractor."""
+    del content, user_id
+    return "observable"
 
 
 def _infer_memory_type(content: str) -> str:
-    lowered = content.lower()
-    if any(token in lowered for token in ["prefer", "like", "favorite"]):
-        return "preference"
-    if any(token in lowered for token in ["plan", "intend", "will"]):
-        return "intention"
-    if any(token in lowered for token in ["must", "should", "cannot", "can't", "do not"]):
-        return "constraint"
-    if any(token in lowered for token in ["met", "meeting", "appointment", "scheduled", "date"]):
-        return "event"
+    """Compatibility stub; memory type comes from the LLM extractor."""
+    del content
     return "factual"
 
 
@@ -181,79 +143,38 @@ def _extract_entities(content: str) -> list[str]:
 
 
 def _infer_authorized_users(instance: MemoryInstance, message: dict, content: str) -> list[str]:
-    requester = ((instance.metadata.get("requester") or {}).get("principal_id"))
-    role = str(message.get("speaker_role") or "").lower()
-    lowered = content.lower()
-    if "family access revoked" in lowered or "removed from scheduling-contact" in lowered:
-        return [requester] if requester else []
-    if "logistics only" in lowered or "appointment time" in lowered:
-        authorized = []
-        if requester:
-            authorized.append(requester)
-        if "family" in lowered or "linda" in lowered:
-            authorized.append("family_linda_park")
-        return list(dict.fromkeys(authorized))
-    if any(token in lowered for token in ["result", "diagnosis", "lab", "medication", "clinical interpretation"]):
-        if "patient" in role or str(message.get("speaker_id") or "").startswith("patient_"):
-            return [str(message.get("speaker_id"))]
-    if any(token in lowered for token in ["follow-up", "follow up", "appointment", "schedule", "arrival", "suite", "parking"]):
-        speaker_id = str(message.get("speaker_id") or "").strip()
-        authorized = [speaker_id] if speaker_id else []
-        speaker_role = normalize_role(message.get("speaker_role"))
-        if speaker_role in {"scheduler", "clinician", "nurse", "social_worker", "front_desk"}:
-            authorized.append(speaker_role)
-        return list(dict.fromkeys([item for item in authorized if item]))
+    del instance, message, content
     return []
 
 
 def _infer_forbidden_users(instance: MemoryInstance, content: str) -> list[str]:
-    lowered = content.lower()
-    forbidden: list[str] = []
-    if "not my results" in lowered or "not lab values" in lowered or "not medication details" in lowered:
-        forbidden.append("family_linda_park")
-    if "family access revoked" in lowered:
-        forbidden.append("family_linda_park")
-    return forbidden
+    del instance, content
+    return []
 
 
 def _infer_redaction_required(content: str) -> bool:
-    lowered = content.lower()
-    if any(token in lowered for token in ["appointment", "arrival", "suite", "parking", "location", "schedule", "scheduled", "follow-up", "follow up"]):
-        return False
-    return any(
-        token in lowered
-        for token in ["logistics only", "generic callback", "do not mention", "broad wording", "safe wording"]
-    )
+    del content
+    return False
 
 
 def _is_forgetting_instruction(content: str) -> bool:
-    lowered = content.lower()
-    return any(token in lowered for token in ["delete", "forget", "remove", "no longer remember", "deleted", "clear the temporary", "clear temporary"])
+    del content
+    return False
 
 
 def _is_update_instruction(content: str) -> bool:
-    lowered = content.lower()
-    return any(token in lowered for token in ["updated", "overwritten", "replaced", "current", "canceled", "cancelled", "revoked", "superseded", "instead of", "changed effective"])
+    del content
+    return False
 
 
 def _find_deletion_targets(previous_items: list[MemoryItem], instruction: str) -> list[MemoryItem]:
-    lowered = instruction.lower()
-    targets = []
-    for item in previous_items:
-        content = item.content.lower()
-        if any(token in lowered and token in content for token in ["safe number", "callback", "voicemail", "temporary", "contact"]):
-            targets.append(item)
-    return targets
+    del previous_items, instruction
+    return []
 
 
 def _find_update_targets(previous_items: list[MemoryItem], instruction: str) -> list[MemoryItem]:
-    lowered = instruction.lower()
-    targets = []
-    for item in previous_items:
-        content = item.content.lower()
-        if any(token in lowered and token in content for token in ["schedule", "appointment", "slot", "access", "revoked", "canceled", "cancelled", "current", "callback", "follow-up", "follow up", "Tuesday", "Wednesday", "Monday"]):
-            targets.append(item)
-    return targets
+    del previous_items, instruction
+    return []
 
 
 def _normalize_time_value(value):

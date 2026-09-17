@@ -2,7 +2,7 @@
 
 This workspace uses GateMem as the default benchmark dataset for Gov-Mem.
 
-## Current Research Snapshot (2026-09-09)
+## Current Research Snapshot (2026-09-17)
 
 This section records the current development path and historical benchmark
 records. Treat the commit containing this snapshot as a recovery point: later
@@ -30,6 +30,68 @@ run_govmem.py
 
 `govmem_symbolic` and `rag_policy_amem` are historical/compatibility paths,
 not the canonical implementation of this snapshot.
+
+### Known limitations of the current version
+
+The current lexicon-free semantic-compiler version is an experimental snapshot,
+not a final paper-ready design. Three unresolved problems must be addressed
+before another full benchmark run.
+
+#### 1. Pipeline token cost is too high
+
+The Gov-Mem pipeline, excluding the required official judge, makes substantially
+more model calls than RAG-Naive. Each checkpoint can invoke query induction,
+atom extraction, extraction repair, a second question-analysis pass, mixed-query
+reranking, and final answer generation. The same Top-20 evidence can therefore
+be sent to the model several times.
+
+Existing full-run telemetry records 10,766 main-pipeline chat calls for the
+2,218-checkpoint GPT-4o-mini run, 15,537 for GPT-5-mini, and 18,445 for
+DeepSeek-V4-Flash. JSON parse failures are especially expensive because
+`LLMClient.chat_json` currently repeats the complete paid request up to three
+times. The semantic repair path is also no longer exceptional: it was triggered
+for 64.5% to 87.2% of checkpoints in the audited full runs. At this cost, routine
+full-benchmark iteration is not practical.
+
+#### 2. The measured gain over the reproduced baseline is too small
+
+With the same live Gemini-2.5-Flash-Lite alias and official evaluation protocol,
+the reproduced GateMem RAG-Naive baseline obtains 24.37% mean-domain MGS. The
+current Gov-Mem run obtains 25.63%, an absolute improvement of only 1.26
+percentage points. Gov-Mem reduces access-control and forgetting leakage, but
+its pooled Utility falls from 59.88% to 35.30%. The resulting cost/performance
+tradeoff does not support the current multi-call design as a final method.
+
+The paired reports are:
+
+- [`experiments/result/2026-09-17_GateMem_official_RAG-Naive_full_all_2218_openlux_gemini25flashlite.md`](experiments/result/2026-09-17_GateMem_official_RAG-Naive_full_all_2218_openlux_gemini25flashlite.md)
+- [`experiments/result/2026-09-11_Gov-Mem-v4-Symbolic-full_all_2218_openlux_gemini25flashlite_entity_list_off.md`](experiments/result/2026-09-11_Gov-Mem-v4-Symbolic-full_all_2218_openlux_gemini25flashlite_entity_list_off.md)
+
+#### 3. Lexicon removal went too far
+
+The previous implementation contained broad deterministic vocabularies. Some
+entries were legitimate general concepts, while others were close to GateMem
+entities, event descriptions, or answer-bearing phrases and could reasonably
+be criticized as benchmark-derived information leakage. Removing those
+benchmark-specific triggers was necessary. The current version, however, also
+removed the general-purpose vocabulary: `GENERAL_OBJECT_LEXICON`,
+`GENERAL_TOPIC_LEXICON`, and `GOVMEM_GOVERNANCE_ONTOLOGY` are empty in the
+paper-facing path.
+
+As a result, repeated LLM calls dynamically reconstruct basic concepts that can
+be declared independently of GateMem, such as principal, role, time, location,
+credential, allow, deny, revoke, update, delete, current, and historical. This
+raises cost and makes extraction less stable. The intended next design is a
+small, frozen, published, benchmark-independent ontology of structural types,
+governance operators, lifecycle operators, and relation types. Concrete names,
+roles, resources, and values must still be instantiated only from the observable
+conversation prefix; GateMem entity names, answer values, evaluator labels, and
+case-specific trigger phrases must not be included.
+
+The target pipeline should use one bounded semantic pass only when deterministic
+structure is insufficient, followed by deterministic governance/state reasoning
+and one final answer call. A normal checkpoint should require at most two main
+model calls, with repair reserved for a measured exceptional path.
 
 The current implementation line is **Gov-Mem-v4-Symbolic-dev7**,
 selected by `experiment.mode: govmem_v4_symbolic`. It retains v3 retrieval and
@@ -63,14 +125,19 @@ dated model identifiers.
 
 ### Lexical hardening status
 
-Commit `96d581d` (tag `v7-pre-lexicon-hardening-20260909`) is a recoverable
-snapshot made **before completion of the remaining lexical-rule audit and
-cleanup**. The Semantic Compiler itself has no fixed domain/benchmark ontology
-fallback, but older lexical helpers remain, including in paths reachable by
-the current v7 implementation, and require removal or disconnection before
-public release. This snapshot must therefore not be presented as a final
-lexicon-free release or as evidence that all benchmark-specific wording has
-been eliminated.
+Commit `96d581d` (tag `v7-pre-lexicon-hardening-20260909`) remains a recoverable
+pre-cleanup snapshot. Since then, the four residual semantic tables identified
+by the audit were removed: attribute-type terms, location-specific terms,
+policy scope terms, and generic-object terms. The paper-facing v4 path now
+uses the query-conditioned LLM contract plus source-grounded atoms; it does
+not use a GateMem-specific ontology, trigger table, or dataset-trained
+classifier.
+
+Historical compatibility modules still contain disabled helpers and closed
+schema enums. They are not imported by `experiment.mode: govmem_v4_symbolic`.
+The remaining regular expressions are structural validators (JSON, timestamps,
+source spans, IDs, and provider-safe answer checks), not lists of GateMem
+entities, values, or answer-bearing phrases.
 
 At runtime, semantic induction, extraction, repair, governance, and answering
 must use only the adapter's observable prefix and the closed Stage-1 Top-20
@@ -79,6 +146,16 @@ evidence set. They must not receive or read gold answers/evidence,
 evidence, rationale, scorer fields, or any future episode suffix. Episode-local
 principals, roles, and relations may be retained only when they were observed
 in that runtime-visible prefix; they are not a fixed predefined vocabulary.
+
+The post-cleanup validation ran one complete episode per domain (102
+checkpoints), with OpenLux `gpt-4o-mini` for the memory system and OpenLux
+`gpt-4o` for the official judge. Memory and judge pools each had 20 keys, judge
+concurrency was 20, and all 102 judge records parsed successfully. Domain MGS
+was Medical 20.00%, Office 39.49%, Education 13.89%, and Household 28.13%;
+the four-domain arithmetic mean was **25.38%**. This is a development smoke,
+not the 2,218-checkpoint paper table. It is 0.82 percentage points below the
+previous cleanup smoke (26.20%), so the removed tables were compensating for a
+semantic-recall gap; no table was restored.
 
 Dev7's claim-level provenance explanation module is now connected to the actual
 `govmem_v4_symbolic` RAG-Naive path. The answering model may return a
@@ -226,6 +303,40 @@ observable episode prefix
   -> answer realization
   -> claim-level provenance verification
 ```
+
+The optional Memory Governed Slot Graph is intentionally only an
+entity-relation index.  Each grounded entity owns an append-only relation list
+(`entity_lists[entity_id]`); facts, permission changes, and lifecycle events
+are appended with their source chunk/message/span.  `current_permission()` is
+just a latest-event projection, so an `allow -> revoke` sequence remains
+auditable in full.  The graph proposes source chunks for retrieval and never
+decides authorization.  In practice the entities can be slightly abstract
+matters such as a medical condition, a meeting's time/place, work-system
+access, or an appointment; these labels are induced from the observed source,
+not hard-coded into the implementation. Entity-history retrieval uses a small
+structured lexical index and does not issue a second embedding query; repeated
+identical assertions are collapsed while distinct changes remain in order. The
+list is retrieved as an auxiliary Stage-2 authorization signal: it may help
+decide whether the requested entity/relation is answerable, but it does not
+add, replace, reorder, or summarize the source chunks used for factual answer
+generation.
+
+The graph-node dense index is disabled by default because it is not used for
+factual answering or authorization replay; enabling it is only a compatibility
+ablation. Thus normal query-time graph work is a deterministic entity/resource
+token lookup over the compact lists.
+
+When checkpoints from one episode are processed in chronological order, the
+backbone keeps the episode-local graph in memory and sends only newly observed
+history chunks through the extraction LLM. A non-monotonic or resumed
+checkpoint prefix resets that cache, so a later turn can never become visible
+to an earlier checkpoint. This is the same write-time pattern as A-Mem/Mem0:
+the extraction cost is paid when new history arrives, while query-time list
+retrieval remains a compact deterministic lookup.
+
+Terminology is deliberately kept separate: this component is never abbreviated
+as `MGS`. In GateMem, `MGS` means the paper's performance metric, the Memory
+Governance Score `U * (1 - A) * (1 - F)`.
 
 Neural stages may propose semantic structure; the Symbolic Rule Layer controls
 grounding, identity consistency, temporal state, lifecycle, authorization,
@@ -573,12 +684,20 @@ The main config interface is:
 
 ```yaml
 llm:
-  base_model: gpt-5-mini
+  provider: openlux
+  api_key_env: OPENLUX_API_KEY
+  api_base: https://api.openlux.ai/v1
+  base_model: gemini-2.5-flash-lite
   role_models: {}
 ```
 
-- `base_model`: the default LLM used by the framework for query planning, action decision, and other base-model-controlled stages
+- `base_model`: the default LLM used by the framework for memory ingestion, query planning, action decision, reasoning, and answering stages
 - `role_models`: optional per-role overrides such as `memory_ingestion`, `query_planning`, `action_decision`, or `answering`
+
+The repository default (`configs/govmem_default.yaml`) uses OpenLux
+`gemini-2.5-flash-lite` for the memory system. Historical experiment configs
+that name another model, including GPT-4o-mini baselines, remain unchanged for
+reproducibility.
 
 Example: use one base LLM for the whole framework
 
@@ -599,7 +718,7 @@ llm:
 
 The preferred v7 development configuration is:
 
-- `configs/govmem_v4_symbolic_openlux_gpt5mini_embedding3small_semantic_compiler.yaml`
+- `configs/govmem_v4_symbolic_openlux_gemini25flashlite_embedding3small_semantic_compiler.yaml`
 
 Other configs under `configs/` may target historical baselines or compatibility
 paths and must not be silently substituted for the v7 experiment. In

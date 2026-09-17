@@ -128,10 +128,7 @@ def apply_privacy_filter(evidence, requester, query_plan, config):
             requester_role=requester_role,
             owner_user_id=row.user_id,
         ):
-            if logistics_delegation and row.metadata and row.metadata.get("redaction_required") and any(
-                token in row.content.lower()
-                for token in ["appointment", "arrival", "location", "suite", "parking", "schedule", "scheduled", "time"]
-            ):
+            if logistics_delegation and row.metadata and row.metadata.get("redaction_required") and _structured_operational_carrier(row):
                 row.metadata["requires_redaction"] = False
                 kept.append(row)
                 continue
@@ -146,6 +143,18 @@ def apply_privacy_filter(evidence, requester, query_plan, config):
             row.metadata["requires_redaction"] = True
         kept.append(row)
     return kept, filtered
+
+
+def _structured_operational_carrier(row: RetrievedEvidence) -> bool:
+    """Use only ingestion/semantic metadata for delegated safe carriers."""
+    metadata = dict(row.metadata or {})
+    if str(row.memory_type or "").casefold() == "task":
+        return True
+    scope = str(row.scope or metadata.get("access_scope") or "").casefold().strip()
+    if scope in {"schedule", "appointment", "logistics", "arrival", "parking", "contact"}:
+        return True
+    slots = dict(metadata.get("slots") or {})
+    return bool(slots)
 
 
 def _slot_coverage(frames) -> dict:

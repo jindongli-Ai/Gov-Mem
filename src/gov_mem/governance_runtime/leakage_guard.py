@@ -19,6 +19,11 @@ HIDDEN_EVAL_KEYS = {
     "judge_spec",
     "leak_targets",
     "scorer_output",
+    "scorer_labels",
+    "scorer_intermediate_labels",
+    "official_scorer_intermediate_labels",
+    "official_include_regex",
+    "include_regex",
     "query_type",
     "attack_type",
 }

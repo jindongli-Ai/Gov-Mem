@@ -3,17 +3,19 @@ project:
   seed: 42
 
 experiment:
-  mode: govmem_structured_old
+  # Paper-facing Gov-Mem pipeline: RAG + semantic compiler + symbolic
+  # temporal authorization + Stage-2 governed reranking.
+  mode: govmem_v4_symbolic
 
 llm:
-  provider: yunwu
-  api_key_env: YUNWU_API_KEY
-  api_base: https://yunwu.ai/v1
-  base_model: gpt-5.4-nano-2026-03-17
+  provider: openlux
+  api_key_env: OPENLUX_API_KEY
+  api_base: https://api.openlux.ai/v1
+  base_model: gemini-2.5-flash-lite
   role_models: {}
-  memory_ingestion_model: gpt-5.4-nano-2026-03-17
-  query_planner_model: gpt-5.4-nano-2026-03-17
-  answering_model: gpt-5.4-nano-2026-03-17
+  memory_ingestion_model: gemini-2.5-flash-lite
+  query_planner_model: gemini-2.5-flash-lite
+  answering_model: gemini-2.5-flash-lite
   temperature: 0.0
   max_retries: 6
   request_timeout: 180
@@ -77,6 +79,41 @@ governance_runtime:
   preserve_surface_spans: true
   allow_runtime_gold_fields: false
   use_llm_frame_normalizer: true
+
+symbolic:
+  temporal_authorization:
+    enabled: true
+    enforcement: true
+
+semantic_compiler:
+  enabled: true
+  query_induction:
+    enabled: true
+  atom_extraction:
+    enabled: true
+    high_recall: true
+  grounding_verification:
+    enabled: true
+  coverage:
+    enabled: true
+  repair:
+    enabled: true
+    max_rounds: 1
+
+# Auxiliary Entity Relation List / Memory Governed Slot Graph. Disabled in
+# the paper-facing main path; enable only for its explicit ablation.
+memory_governed_slot_graph:
+  enabled: false
+  batch_size: 8
+  dense_index: false
+
+stage2:
+  query_analysis:
+    enabled: true
+  llm_reasoning_rerank:
+    enabled: true
+    max_candidates: 20
+    max_candidate_chars: 2400
 
 pipeline:
   use_asking_user_id: true
