@@ -4,6 +4,271 @@ This file is the version identity record for the paper codebase. A new
 framework revision must add an entry here and must not overwrite the identity
 of an earlier benchmark snapshot.
 
+## 2026-09-25: corrected Governed Slot Graph confirmation ablation
+
+The paired confirmation runner was audited after discovering that an earlier
+directory labelled graph-off still contained `enabled: true`. That earlier
+score is invalid as an on/off comparison and remains preserved only for audit.
+
+The runner now supports an explicit `--disable-graph` flag and records the
+resulting configuration hash. A fresh graph-disabled arm was run from empty
+episode state on the same 12-episode, 306-checkpoint manifest as graph-on.
+Official GPT-4o judging completed 303 applicable cases per arm with zero judge
+parse failures and zero transport/API execution failures.
+
+| Arm | Four-domain average MGS |
+|---|---:|
+| Graph-on | 17.22% |
+| Graph-off | 15.57% |
+| Difference | +1.64 percentage points |
+
+This is confirmation/development evidence from historically exposed episodes,
+not a pristine holdout and not the final 2,218-query result. See
+`experiments/result/2026-09-25_Gov-Mem_confirmation_graph_prompt_ablation.md`.
+
+## 2026-09-19: update-retention confirmation and nested denial normalization
+
+Two frozen arms completed 12 V8-unseen episodes / 306 checkpoints each.
+Historical V7 evaluated all 91 episodes, so this is confirmation, not pristine
+holdout. Full MGS 31.1834%, retention 24.9023%; error-pessimistic 26.3797% vs
+19.1751%; errors 12 vs 18. Retention delta -6.2811 pp, exact episode-bootstrap
+95% [-13.3875, +0.3195] pp. Default folding has NOT been disabled.
+
+Live V8 now accepts explicit nested block objects only when denial fields are
+complete and noncontradictory; exact source validation remains required. Replay
+358 saved responses: 288 -> 289 passing, zero regressions. Relevant tests:108
+passed. Neither frozen confirmation arm includes this change; no end-to-end
+MGS is claimed for the updated live source.
+
+A100 training authorized if justified; no training started. Teacher inventory
+contains 274 correlated development windows and noisy/skewed proposals, not
+trusted training labels. Confirmation episode IDs reserved from training.
+All writes and subprocess temp paths remain on data_disk_2. New API usage:
+1113 Gemini/7,521,739 tokens; 796 embedding/116,850 tokens; 475 GPT-4o/387,178
+ tokens. See confirmation_and_training_readiness report dated 2026-09-19.
+
+## 2026-09-19: module attribution experiments (canonical V8 unchanged)
+
+Five frozen complete-episode reruns (12 episodes / 303 checkpoints each) isolate
+semantic instructions, ledger representation, persistent event state, extra
+visible answer sources, and advisory-update folding. Four additional late-critic
+controls exactly reconstruct all 286 successful original Stage-2 outputs and
+retain the 17 original errors; changed computations alone require new answers.
+
+MGS: old semantics 32.24%, flat ledger 38.62%, no persistent ledger 33.14%, no
+source expansion 35.90%, no advisory folding 46.98%; canonical Full stays 40.06%.
+No-late-critic is 39.41%, so the final veto is not the main explanation for the
+historical gain. Exact stratified episode-bootstrap intervals enumerate all
+531,441 ordered draws; uncertainty remains wide. A post-hoc repeated-judge
+check identifies one unstable original label, retained unchanged in the scores.
+
+New API totals: 2,648 Gemini Flash-Lite requests / 14,825,657 tokens and 932
+GPT-4o evaluation requests / 762,879 tokens. No new embedding requests, HTTP
+failures or missing usage. Experimental tests: 14 passed. Runtime and config
+hashes, complete coverage and official metric parity verified. Outputs reside
+on data_disk_2 with original output-path symlinks after inode pressure on the
+old project filesystem; no storage execution failures entered the experiments.
+
+See experiments/result/2026-09-19_Gov-Mem-v8_module_ablation_results.md and its
+machine-readable audit. No default pipeline optimization is claimed here.
+
+## 2026-09-19: complete source-projection paired evaluation
+
+The fixed 12 complete episodes / 303 checkpoints finish at runtime SHA256
+1346fd7a2492030d310809430553f9ce6ba9156ee87684d27539a82e71e1941c,
+matching current source. Official mean MGS is 40.06% versus RAG-Naive 19.75%;
+all four domain MGS values exceed baseline. Pessimistic MGS is 32.91%, retaining
+17 execution errors (previous shallow run: 47). There are eight independently
+matched symbolic release-to-block changes, six involving deletion.
+
+Inference used 522 Gemini Flash-Lite calls / 3,336,077 tokens; fewer calls than
+619 previously, but tokens increased 5.42% and remain 5.21 times baseline.
+New official judgments: 303 GPT-4o calls / 246,686 tokens. Baseline was reused
+with exact prediction/source/protocol checks. All dataset/config/source hashes
+and completion counts were checked; no errors were removed. This is a reused
+development sample, not a holdout or the full GateMem benchmark. See
+experiments/result/2026-09-19_Gov-Mem-v8_source_projection_random3_per_domain_paired.md.
+
+## 2026-09-19: deletion veto, unified source references and bounded graph view
+
+V8 now enforces active exact-bound deletions, retains future starts as pending,
+and commits valid ingestion before query contract normalization. Canonical
+single-turn candidate IDs use actual turn IDs; grounded denials may omit empty
+bindings. An 18-checkpoint Education pilot scored 55.56% official MGS versus
+5.56% for the same baseline episode, with two errors (44.44% pessimistic).
+This single reused development episode is not four-domain performance.
+
+Post-pilot fixes allow exact already-visible graph/ingestion source references
+without hidden history access and fold superseded unconditional advisory updates
+in the query graph, retaining every deletion and the raw append-only store.
+Pilot replay: 16/22 -> 20/22 pass, zero regressions. Offline total prompt
+characters decrease 17.02%; actual token savings remain unmeasured. Tests:
+463 passed, the same 13 existing failures. Current frozen full-suite runtime:
+1346fd7a2492030d310809430553f9ce6ba9156ee87684d27539a82e71e1941c.
+See experiments/result/2026-09-19_Gov-Mem-v8_lifecycle_protocol_followup.md.
+
+## 2026-09-19: live protocol correction and frozen complete-episode evaluation
+
+The first live shallow TAB integration failed systematically and was stopped;
+all paid captures/errors are retained as an incomplete diagnostic, not scored.
+Synthetic protocol tests had not established actual model compliance.
+
+Canonical shallow transport now uses compact JSON: candidate references with
+keep=true, explicit event binding arrays, and one flat events array. Original
+memory text and mandatory symbolic critic remain unchanged in role. A bounded
+consecutive-execution-error stop prevents uncontrolled systemic-error spend.
+The 12-episode / 303-checkpoint manifest is unchanged. Current frozen runtime:
+14ed6a1de3f3d306bd7e7f1b145081b847c91cc205266f74b5af89b56c8a3242.
+All 12 episodes / 303 checkpoints completed: official mean MGS 22.19% versus
+19.75% baseline, with 47 execution errors. Worst-case mean MGS is 8.28%; this
+is not a stable win. Only Medical exceeds baseline.
+
+Unchanged official baseline predictions and judge results are verified before
+reuse; only new Gov-Mem predictions need fresh judging. Exact-text embedding
+cache is warm and disclosed. Completed inference used 619 Gemini calls and
+3,164,624 provider-reported tokens; new judging used 303 GPT-4o calls and
+246,259 tokens. Aborted TAB usage remains separately reported.
+
+Post-evaluation, unmeasured contract fixes preserve literal control characters,
+quote-only excerpts and explicit blocked candidate references, separate source
+provenance from event bindings, and avoid invented multi-policy bindings.
+Offline replay: 257/413 -> 330/413 pass, 73 recovered and zero regressions.
+Regression validation: 438 passed, the same 13 existing legacy test failures.
+No fresh MGS or paid rerun is claimed for these edits. See
+experiments/result/2026-09-19_Gov-Mem-v8_shallow_random3_per_domain_paired.md.
+
+## 2026-09-19: V8 shallow neuro-symbolic memory becomes canonical
+
+Following the user's architectural direction, the canonical config now selects
+raw text memory plus a shallow permission/lifecycle event ledger. Scene/entity/
+ordinary-fact/general-relation extraction is absent from shallow ingestion.
+Only one-hop requester identity evidence and resource provenance accompany the
+ledger. Deterministic temporal projection and event-bound symbolic veto remain
+mandatory; a synthetic LLM-release/critic-denial test proves the critic changes
+runtime behavior.
+
+KEEP references wholly safe candidates without asking the model to regenerate
+their values, preserving original explanatory context and exact literals.
+Mixed evidence still uses grounded excerpt claims and protected-span redaction.
+Shallow and full caches carry incompatible memory_mode markers. Full mode
+remains historical/direct-caller compatibility; no new dev version or new paid
+evaluation was created.
+
+Relevant suite: 103 passed; full suite: 428 passed, 13 unchanged legacy failures.
+No improved MGS or provider cost is claimed. See docs/GOVMEM_V8_SHALLOW_MEMORY.md.
+
+## 2026-09-19: V8 shared prompt sources and source-aware claim deduplication
+
+Joint ingestion and claim validation now share exactly exposed candidate,
+graph-citation, and ingestion sources. No hidden/full-history lookup was added.
+Context-only old observations are omitted; new events still need exact new-turn
+support. Narrow lifecycle normalization stores full quoted change statements
+instead of redundant generated booleans/deleted values. Unsupported arbitrary
+updates remain errors. Claim deduplication now preserves source-specific
+denials and runs only after offset validation.
+
+Fixed historical-response replay against the frozen snapshot: critical
+extraction failures 46 -> 11 among 310 valid-shape batches, with 35 resolved
+and zero newly failing batches. These are request counts, not checkpoint scores.
+Relevant tests 91 passed; full suite 416 passed with 13 unchanged legacy failures.
+No paid requests, new MGS claim, or changes to frozen experiment outputs.
+See the dated source-validation replay report and before/after audit JSON.
+
+## 2026-09-19: V8 policy input, lifecycle visibility, and extraction reuse
+
+Canonical V8 config now explicitly supplies the official baseline's verbatim
+public domain access policies, with source and content hashes. Generic runtime
+accepts configured application policy without importing episodes or scorer code.
+This corrects missing public-policy input, but does not resolve temporal scaffold
+attribute asymmetry or establish equivalent model behavior.
+
+Visible lifecycle EVENT records now reach Stage 2 in addition to FACT tombstones;
+events without a grantee were previously omitted. Narrow permission conflict
+checks now include scene identity. Validated query-independent graph deltas are
+persisted before claim validation so a failed claim does not trigger repeated
+history extraction during repair or a subsequent checkpoint.
+
+Optional exact text interning round-trips all 275 saved normal Stage-2 prompts.
+It saves only 3.1% of user-input characters against identical uncompressed inputs
+with public policy; it is disabled by default. No token/cost/MGS improvement is
+claimed from this replay. Relevant tests: 84 passed, including mixed release,
+policy provenance/citation, future exclusion, and durable extraction reuse.
+No paid calls; historical predictions/snapshots unchanged. See dated follow-up.
+
+## 2026-09-18: completed paired sample; plain-text V8 revision
+
+Completed fixed 12-episode / 303-checkpoint sample per system. Frozen attempt8
+V8 four-domain mean official MGS 0.0437457 vs official RAG-Naive 0.1974906;
+28 vs 0 execution errors; V8 memory chat tokens 5.47 times baseline. One
+applicable privacy judge label is null; report the official excluded-label
+policy and conservative supplementary score. Domain policy/scaffold inputs
+are asymmetric. See the complete dated paired evaluation report. No favorable
+performance claim is supported.
+
+Following the user's instruction to use one information item per line, current
+V8 history extraction and Stage 2 now default to plain text output: typed TAB-separated records, separate
+source citations, explicit completion markers and claim-to-event bindings.
+Stage 3 retains its original JSON API wrapper containing the text answer and
+claim citations. LLMClient.chat_text for history/Stage 2 omits JSON response mode and
+retains HTTP retry/token telemetry. Programs still store typed graphs internally;
+raw successful responses also have .txt sidecars. Unknown bindings, truncated
+text and malformed denials remain explicit errors. No unbounded repair or gold
+feedback is introduced. The exact event binding drives the existing symbolic
+critic, covered by an end-to-end synthetic denial test.
+
+These changes are made in V8, not a new dev2. The completed experiment's frozen
+snapshot and predictions are untouched. **No paid evaluation of the text-output
+revision has been run.** It does not yet resolve policy-input asymmetry or prove
+semantic permission quality.
+
+## 2026-09-18: V8 complete-episode evaluation integration
+
+Fixed selection: seed 20260918, three full episodes per domain, 303 checkpoints.
+The official plain RAG-Naive baseline is used, with the same Gemini memory model,
+temperature 0, embedding model and Top-20 setting. No performance conclusion yet.
+
+Live protocol failures motivated generic in-place fixes: advisory extraction
+rejections are audited and omitted; mistaken claim IDs can be recovered only
+from unique exact supplied evidence; denied paraphrases retain exact protected
+quotes; compressed fact values retain their entire exact cited source including
+qualifiers; unsupported release claims are omitted but invalid denials remain
+errors. Compact claims can omit quote when it equals value. Stage 2 has at most
+one validator-feedback regeneration, counted in telemetry. No gold was used.
+
+The final evaluation snapshot is frozen under
+`outputs/v8_paired_random3_seed20260918_attempt8/runtime_snapshot`, SHA256
+`f4e68a14a19a75e8a4b94b090398e1aee9c2e7df510ce5da801fd280545d439d`.
+Terminal execution failures are explicitly exported as `action=error`, never as
+successful refusals. Every selected checkpoint is attempted. Report execution
+availability alongside official scores and supplementary worst-case MGS.
+Earlier integration attempts are retained and their HTTP costs reported separately.
+
+## 2026-09-18: V8 in-place language governance and joint Stage-2 extraction
+
+Explicit user direction supersedes the earlier dev1 freeze/dev2 requirement:
+modify V8 in place, retain historical results, and add no new version files.
+The dev1 module is an alias, not an independently frozen implementation.
+
+- Combined incremental graph extraction and query governance into one model
+  request; answering is the second request. Large cold-prefix prefill is
+  bounded, audited separately, and never omitted from total cost.
+- Published a domain-independent structural ontology. Removed domain-specific
+  scene guidance, lexical permission vetoes, missing-edge vetoes, requester-
+  authored auto-authorization, and same-subject sibling propagation.
+- Kept symbolic reasoning for prefix-safe event projection, scoped state,
+  relation/scene merging, source validation, exact bound-denial enforcement,
+  and overlapping protected source-span masking. LLM reasons over scope/duty.
+- Preserved complete retrieved turns and explicitly approved longer excerpts
+  and context claims. Raw mixed records are never automatically released.
+- Fixed action rendering from actual requested-claim release/block outcomes.
+- Disabled paid JSON reparsing retries in V8 configs, added token accounting,
+  preserved failed/resumed run telemetry, and corrected request-count audits.
+- Event cache schema changed; a fresh output directory is required. No raw
+  dataset or historical result was changed. Legacy v4 policy was not modified.
+
+Validation: see `experiments/result/2026-09-18_Gov-Mem-v8_inplace_implementation_validation.md`.
+These are offline engineering checks, not official GateMem measurements.
+
 ## Version Lineage
 
 | Version | Canonical implementation | Meaning | Paper status |
@@ -18,6 +283,58 @@ of an earlier benchmark snapshot.
 | `Gov-Mem-v4-Symbolic-dev6-authorization-contract` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Ingestion-time, provider-neutral authorization assertions with source spans; retrieval consumes the typed contract before temporal graph resolution | Exploratory validation; not paper-frozen |
 | `Gov-Mem-v4-Symbolic-dev7` | `rag_naive_v3_typed_rerank` plus `govmem_v4_symbolic` | Authorization-aware evidence boundary plus non-intervention claim-level provenance explanation at final delivery | Paper-facing frozen snapshot; full benchmark completed 2026-08-20 |
 | `Gov-Mem-v4-Symbolic` | The frozen v4 line after dev0 regression and benchmark checks | RAG-Naive foundation plus deterministic/neuro-symbolic role, permission, temporal, and consistency reasoning | Paper method name |
+| `Gov-Mem-v8-Late-Governance` | `govmem_v8_late_governance` | RAG-first Top-20 retrieval, scene-conditioned incremental event extraction, cached checkpoint projection, language claim reasoning, and late explicit symbolic veto | Active experimental successor; not paper-frozen |
+| `Gov-Mem-v8-Late-Governance-dev1` | `govmem_v8_dev1_late_governance` | Historical diagnostic identity; now a compatibility alias for active V8 by user direction | Old outputs remain historical; current code is not frozen |
+
+## 2026-09-18: Gov-Mem-v8-Late-Governance-dev1 freeze
+
+The reviewed v8 path was frozen under a distinct module, experiment mode, and
+configuration before cross-domain Medical comparison. The freeze keeps
+`gemini-2.5-flash-lite` for ingestion, claim reasoning, and answering, uses
+dense Top-20 retrieval plus bounded adjacent context, and disables runtime
+self-evolution. Subsequent prompt or governance changes require a new version
+name rather than silently changing dev1.
+
+## 2026-09-17: Gov-Mem-v8-Late-Governance initial implementation
+
+Gov-Mem v8 is a new versioned implementation rather than an in-place rewrite
+of the frozen v4/semantic-compiler-v7 path. It keeps one-turn-per-chunk dense
+RAG as the authoritative high-recall retrieval channel. A query-independent
+ingestion path incrementally extracts episode-local entities, facts,
+relations, permissions, and lifecycle events from newly visible turns using a
+closed principal roster and exact source spans. Accepted records are appended
+to a per-episode event store and projected at each checkpoint; cached future
+events are excluded from earlier projections.
+
+At query time, Gemini-2.5-Flash-Lite receives the raw RAG Top-20 plus advisory
+graph state and emits an atomic claim ledger. Symbolic reasoning is moved to a
+late critic and may hard-veto only source-grounded deletion or a matching
+explicit deny/revoke state. Missing graph edges and unknown authorization are
+not denials. The final answering model receives only released claims.
+
+Initial live Medical smoke runs validated incremental cache reuse, cross-turn
+permission extraction, claim-level refusal, partial-disclosure handling, and
+deletion tombstones. These smoke runs are engineering diagnostics, not
+official benchmark results. The implementation and protocol are documented in
+`docs/GOVMEM_V8_LATE_GOVERNANCE.md`.
+
+## 2026-09-18: Gov-Mem-v8 complete-episode protocol and provenance hardening
+
+The v8 experimental protocol now rejects incomplete `complete_episode`
+manifests and processes each episode by increasing visible prefix, preventing
+query-type grouping from contaminating incremental caches. Scene records are
+now first-class validated and cached structures rather than prompt-only hints.
+Dense Top-20 ranking remains unchanged; bounded adjacent turns are appended
+only to complete multi-turn Stage-2 reasoning.
+
+Late governance now validates claimed explicit permission, scene-bound
+operational duty, requester-authored provenance, scoped-summary release,
+same-record sensitive siblings, and narrowly grounded deletion targets. These
+checks remain claim-level and do not turn generic graph absence into denial.
+Two complete 18-checkpoint Education episodes were used for diagnostics with
+`gemini-2.5-flash-lite`; observed chat traffic was 2.44--2.61 provider requests
+per checkpoint. Results are not promoted as official benchmark or MGS values.
+See `docs/GOVMEM_V8_LATE_GOVERNANCE.md` for limitations and run protocol.
 
 ## 2026-08-20: Gov-Mem-v4-Symbolic-dev7 claim-level provenance explanation
 

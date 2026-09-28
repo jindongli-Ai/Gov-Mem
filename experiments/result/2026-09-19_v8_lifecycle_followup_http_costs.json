@@ -1,0 +1,75 @@
+{
+  "note": "Provider-reported tokens only; missing usage and failed calls may still incur provider charges. HTTP success does not imply valid JSON or a successful checkpoint. No dollar estimate.",
+  "inference_attempts": {
+    "outputs/v8_shallow_lifecycle_pilot_20260919": {
+      "govmem": {
+        "complete_episodes": 0,
+        "http": {
+          "completions:gemini-2.5-flash-lite": {
+            "requests": 20,
+            "http_successes": 20,
+            "http_errors": 0,
+            "responses_with_usage": 20,
+            "prompt_tokens": 105130,
+            "completion_tokens": 4378,
+            "total_tokens": 109508,
+            "sum_request_latency_s": 54.217,
+            "response_models": {
+              "gemini-2.5-flash-lite": 20
+            },
+            "status_codes": {
+              "200": 20
+            },
+            "error_types": {},
+            "repeated_payload_requests": 0
+          }
+        }
+      }
+    },
+    "outputs/v8_shallow_source_ids_pilot_20260919": {
+      "govmem": {
+        "complete_episodes": 1,
+        "http": {
+          "completions:gemini-2.5-flash-lite": {
+            "requests": 29,
+            "http_successes": 29,
+            "http_errors": 0,
+            "responses_with_usage": 29,
+            "prompt_tokens": 209962,
+            "completion_tokens": 9447,
+            "total_tokens": 219409,
+            "sum_request_latency_s": 76.901,
+            "response_models": {
+              "gemini-2.5-flash-lite": 29
+            },
+            "status_codes": {
+              "200": 29
+            },
+            "error_types": {},
+            "repeated_payload_requests": 0
+          }
+        }
+      }
+    }
+  },
+  "official_judge": {
+    "completions:gpt-4o": {
+      "requests": 18,
+      "http_successes": 18,
+      "http_errors": 0,
+      "responses_with_usage": 18,
+      "prompt_tokens": 13846,
+      "completion_tokens": 944,
+      "total_tokens": 14790,
+      "sum_request_latency_s": 37.273,
+      "response_models": {
+        "gpt-4o": 18
+      },
+      "status_codes": {
+        "200": 18
+      },
+      "error_types": {},
+      "repeated_payload_requests": 0
+    }
+  }
+}

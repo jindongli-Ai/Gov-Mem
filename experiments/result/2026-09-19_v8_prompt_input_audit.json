@@ -1,0 +1,57 @@
+{
+  "kind": "offline_exact_input_roundtrip",
+  "paid_api_calls": 0,
+  "runtime_prompts_sha256": "f0b36735d5c692cdb9d854faf7faa9c2fe38c4ee3a17fa2d6c0394a3f5afef5a",
+  "domains": {
+    "education": {
+      "prediction_files": 47,
+      "runtime_prompts": 47,
+      "historical_chars": 997173,
+      "original_compact_chars": 951970,
+      "with_policy_unpacked_chars": 1028533,
+      "with_policy_packed_chars": 985332,
+      "roundtrip_passed": 47
+    },
+    "household": {
+      "prediction_files": 66,
+      "runtime_prompts": 66,
+      "historical_chars": 1325394,
+      "original_compact_chars": 1268819,
+      "with_policy_unpacked_chars": 1370987,
+      "with_policy_packed_chars": 1330107,
+      "roundtrip_passed": 66
+    },
+    "medical": {
+      "prediction_files": 78,
+      "runtime_prompts": 78,
+      "historical_chars": 1293105,
+      "original_compact_chars": 1229883,
+      "with_policy_unpacked_chars": 1302579,
+      "with_policy_packed_chars": 1302339,
+      "roundtrip_passed": 78
+    },
+    "office": {
+      "prediction_files": 84,
+      "runtime_prompts": 84,
+      "historical_chars": 1800809,
+      "original_compact_chars": 1726756,
+      "with_policy_unpacked_chars": 1847800,
+      "with_policy_packed_chars": 1757409,
+      "roundtrip_passed": 84
+    }
+  },
+  "total": {
+    "original_compact_chars": 5177428,
+    "prediction_files": 275,
+    "with_policy_packed_chars": 5375187,
+    "runtime_prompts": 275,
+    "historical_chars": 5416481,
+    "roundtrip_passed": 275,
+    "with_policy_unpacked_chars": 5549899
+  },
+  "limitations": [
+    "Only available saved runtime prompts are replayed; missing/error prompts are counted.",
+    "Character counts exclude system prompts, outputs and repair calls; they are not token or cost estimates.",
+    "Lossless decoding proves evidence preservation, not LLM comprehension or improved MGS."
+  ]
+}

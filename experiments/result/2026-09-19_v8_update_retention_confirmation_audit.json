@@ -1,0 +1,62 @@
+{
+  "coverage": {
+    "full": {
+      "predictions": 306,
+      "judgments": 306,
+      "execution_errors": 12,
+      "error_messages": {
+        "Shallow claim requires explicit bind array": 2,
+        "V8 cannot release a claim classified as deleted": 1,
+        "V8 joint extraction validation failed: {'resource_not_grounded': 1}": 2,
+        "Expecting ',' delimiter: line 7 column 2 (char 76)": 1,
+        "Expecting ',' delimiter: line 40 column 7 (char 1370)": 1,
+        "Expecting ',' delimiter: line 7 column 2 (char 86)": 1,
+        "Extra data: line 2 column 1 (char 128)": 1,
+        "V8 withheld/answered without a grounded claim": 1,
+        "V8 joint extraction validation failed: {'missing_source_span': 1}": 1,
+        "V8 block requires a grounded, scope-specific restriction": 1
+      }
+    },
+    "retain_updates": {
+      "predictions": 306,
+      "judgments": 306,
+      "execution_errors": 18,
+      "error_messages": {
+        "V8 cannot release a claim classified as deleted": 4,
+        "V8 withheld/answered without a grounded claim": 1,
+        "V8 joint extraction validation failed: {'missing_grantee': 8}": 1,
+        "Invalid V8 answer action": 1,
+        "Expecting ',' delimiter: line 7 column 2 (char 80)": 1,
+        "Shallow claim requires explicit bind array": 3,
+        "Unexpected events without ingestion": 1,
+        "CLAIM bind references unknown event": 1,
+        "Expecting ',' delimiter: line 7 column 2 (char 97)": 1,
+        "V8 joint extraction validation failed: {'resource_not_grounded': 1}": 1,
+        "V8 prefill extraction failed validation; watermark unchanged": 2,
+        "Extra data: line 2 column 1 (char 175)": 1
+      }
+    }
+  },
+  "costs_all_new_calls": {
+    "gemini-2.5-flash-lite": {
+      "requests": 1113,
+      "tokens": 7521739,
+      "http_failures": 0,
+      "missing_usage": 0
+    },
+    "text-embedding-3-small": {
+      "requests": 796,
+      "tokens": 116850,
+      "http_failures": 0,
+      "missing_usage": 0
+    },
+    "gpt-4o": {
+      "requests": 475,
+      "tokens": 387178,
+      "http_failures": 0,
+      "missing_usage": 0
+    }
+  },
+  "canonical_folding_change": "not applied; retention did not confirm development gain",
+  "training_performed": false
+}

@@ -1,0 +1,65 @@
+{
+  "scope": "Prospective event-extraction LoRA, inventory only; no GPU/API calls; proposals are not gold labels",
+  "source": "/mnt/data_disk_2/fuyali/codes/2027_TOIS_Gov-Mem/outputs/v8_shallow_source_projection_random3_20260919",
+  "source_runtime_sha256": "1346fd7a2492030d310809430553f9ce6ba9156ee87684d27539a82e71e1941c",
+  "reserved_manifest_sha256": "31bdb36124ec800f6b864d5f060755d4d1ac48e43e51c0bf05e6708510cc724b",
+  "selected_development_episodes": [
+    "education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track",
+    "education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track",
+    "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+    "household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note",
+    "household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note",
+    "household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note",
+    "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+    "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+    "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+    "office_episode_custom_en_006_harbor_harbormark_dual_project",
+    "office_episode_custom_en_009_keystone_keystream_dual_project",
+    "office_episode_custom_en_010_monsoon_moonstone_dual_project"
+  ],
+  "reserved_episodes": [
+    "education_episode_custom_en_007_sable_appeal_sable_scholars_dual_track",
+    "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track",
+    "education_episode_custom_en_018_raven_portfolio_raven_makers_dual_track",
+    "household_episode_custom_en_002_cedar_care_cedar_carpool_dual_support",
+    "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+    "household_episode_custom_en_006_willow_sleep_willow_screen_child_overnight",
+    "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact",
+    "med_episode_rewrite_en_014_lupus_nephritis_deleted_river_house_line",
+    "med_episode_rewrite_en_015_ms_relapse_deleted_cedar_bridge_line",
+    "office_episode_custom_en_008_horizon_horizonline_dual_project",
+    "office_episode_custom_en_011_riverbend_riverbridge_dual_project",
+    "office_episode_custom_en_012_timber_timberlane_dual_project"
+  ],
+  "episode_overlap": [],
+  "counts": {
+    "joint_ingestion_requests": 289,
+    "event_envelope_responses": 285,
+    "empty_event_responses": 102,
+    "event_proposals": 504,
+    "unparseable_joint_responses": 4,
+    "query_only_requests": 65
+  },
+  "proposal_effect_counts": {
+    "update": 415,
+    "delete": 42,
+    "deny": 22,
+    "require_permission": 1,
+    "allow": 16,
+    "revoke": 5,
+    "supersede": 3
+  },
+  "unique_episode_new_turn_windows": 274,
+  "windows_with_multiple_requests": 0,
+  "windows_with_disagreeing_event_outputs": 12,
+  "critical_limits": [
+    "12 correlated development episodes are not a validated training corpus.",
+    "Joint extraction saw current query and may be query-dependent; cannot assume query-independent teacher gold.",
+    "Protocol/source validity does not prove permission scope, deletion semantics or event completeness.",
+    "Never split checkpoints from one episode across train and validation.",
+    "Reserved confirmation episodes must never be distilled or trained on.",
+    "Training requires independent documents/synthetic scenario families with reviewed labels and held-out families."
+  ],
+  "recommended_training_target": "Optional local LoRA for typed permission/lifecycle extraction with exact source spans; retain language review and deterministic late veto.",
+  "mlp_decision": "Do not replace natural-language permission/scope judgment with an MLP now; no calibrated features or trusted labels."
+}

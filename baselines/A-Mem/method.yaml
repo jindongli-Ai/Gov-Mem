@@ -1,0 +1,9 @@
+agent: a_mem
+a_mem_metadata_mode: llm
+a_mem_link_top_m: 3
+a_mem_link_score_threshold: 0.15
+a_mem_graph_expand_hops: 1
+a_mem_graph_expand_per_hit: 2
+a_mem_rerank_role_bonus: 0.08
+a_mem_rerank_entity_bonus: 0.06
+answer_protocol: standard

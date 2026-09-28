@@ -1,0 +1,84 @@
+{
+  "counts": {
+    "stage2_requests": 14,
+    "passed": 11,
+    "failed": 3
+  },
+  "failures": {
+    "Excerpt claim requires value and delivery": 2,
+    "KEEP references unknown candidate": 1
+  },
+  "captures": [
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752299774413953_1.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752304908681417_3.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752307767734048_4.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752310566473993_5.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752314153140801_7.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752317681035737_9.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752322518649070_11.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752327249895393_13.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752331525642735_15.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752334991033791_16.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752341943113836_17.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752344599032380_18.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752346711106123_19.json",
+      "passed": false,
+      "error": "KEEP references unknown candidate"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752351163347271_20.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    }
+  ],
+  "note": "Offline contract replay, including repair attempts. No new answering/judging, cache evolution, or MGS inference."
+}

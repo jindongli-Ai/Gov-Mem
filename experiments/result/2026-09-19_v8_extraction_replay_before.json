@@ -1,0 +1,4198 @@
+{
+  "kind": "saved_stage2_extraction_replay",
+  "paid_api_calls": 0,
+  "capture_sha256": "e32e6a02eb3b3f9bd812bec61f3bcdf9b397618351426979a6e0638643ffb34c",
+  "validator_sha256": "19faefac6bb726ba332242e396166245c1c1577c1b9fbbc4cebd1e7d8f836178",
+  "source_scope": "ingestion",
+  "counts": {
+    "stage2_requests": 355,
+    "validated_batches": 310,
+    "accepted_batches": 264,
+    "critical_failure_batches": 46,
+    "unparseable_responses": 13,
+    "requests_without_ingestion": 30,
+    "invalid_events_shape": 2
+  },
+  "critical_reasons": {
+    "value_not_source_grounded": 59,
+    "unknown_subject_id": 10,
+    "missing_grantee": 1,
+    "resource_not_grounded": 4,
+    "missing_source_span": 5
+  },
+  "batches": [
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789743886320180876_6.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789743899951510087_10.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 1,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789743908888800086_11.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 1,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789743920847406247_15.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 1,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789743924545259970_16.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 1,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789743939103588730_19.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789743941746923741_20.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789743958713505866_23.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789743976663968491_27.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789743988760692664_31.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789743997061296897_35.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789744005958898406_39.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 3,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789744018905169334_43.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 4,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789744024511832751_44.json",
+      "critical": [],
+      "source_repairs": [
+        {
+          "kind": "fact",
+          "reason": "compressed_value_replaced_with_exact_source",
+          "original_value": "no remaining blocker",
+          "source_value": "no remaining Orchid Committee blocker"
+        }
+      ],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 5,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789744033289509994_48.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789744040227328295_52.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789744046230229812_56.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789744048146962236_57.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789744054982408557_60.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789744058584286308_61.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789744067928681527_65.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789744073085878515_69.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789744085464638537_73.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789743879018804501_4.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789743892391745725_8.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789743910047828240_12.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "unknown_subject_id",
+          "subject_id": "lattice_petition",
+          "lifecycle": "update"
+        },
+        {
+          "kind": "fact",
+          "reason": "unknown_subject_id",
+          "subject_id": "lattice_petition",
+          "lifecycle": "update"
+        },
+        {
+          "kind": "fact",
+          "reason": "unknown_subject_id",
+          "subject_id": "lattice_petition",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789743912668933506_13.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 2,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789743920348009986_17.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789743929392961420_21.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789743940932600201_24.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789743948275757656_27.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789743958775688967_31.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789743976699275075_35.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789743986430056375_38.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789743991506204697_41.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789744006446422181_45.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 5,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789744021786986235_49.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789744030147815952_53.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789744036176180325_56.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789744038165952306_57.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789744042869427445_60.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789744048527149572_63.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789744054563701520_66.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789743877153153045_6.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789743895275490363_12.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789743921060326150_18.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "supersede"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "supersede"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "supersede"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "supersede"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "supersede"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 10,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789743926930046989_19.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789743935940225519_23.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789743939586937543_24.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789743952569973235_28.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789743967975554801_32.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789743979224447242_36.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789743995031269375_40.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789743999110656181_41.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 8,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789744014301513889_45.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789744026364191892_49.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789744032344847977_50.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 2,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789744057010052301_53.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789744065987250701_57.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789744098943800722_63.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789744123536566809_67.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789744150532392162_71.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789744169163383746_75.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789744248485787955_79.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789744269961205047_82.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789744273415807606_83.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744361681429714_4.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744376081931000_9.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744389025848580_14.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744439010066781_18.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744442272830394_19.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 6
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744539950523246_22.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "unknown_subject_id",
+          "subject_id": "resource_rowan_wardrobe_keypad",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "unknown_subject_id",
+          "subject_id": "resource_rowan_wardrobe_keypad",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "unknown_subject_id",
+          "subject_id": "resource_rowan_wardrobe_keypad",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "unknown_subject_id",
+          "subject_id": "resource_rowan_wardrobe_keypad",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "unknown_subject_id",
+          "subject_id": "resource_rowan_wardrobe",
+          "lifecycle": "update"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        },
+        {
+          "kind": "fact",
+          "reason": "unknown_subject_id",
+          "subject_id": "resource_rowan_wardrobe",
+          "lifecycle": "update"
+        },
+        {
+          "kind": "fact",
+          "reason": "unknown_subject_id",
+          "subject_id": "resource_rowan_wardrobe",
+          "lifecycle": "update"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744554668481061_26.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744564165244582_30.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744630410663364_34.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "supersede"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "supersede"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "supersede"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 3,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744635992425330_35.json",
+      "critical": [
+        {
+          "kind": "governance_event",
+          "reason": "missing_grantee"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 1,
+        "entities": 2,
+        "facts": 1,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744646389788464_38.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 1,
+        "entities": 1,
+        "facts": 5,
+        "relations": 0,
+        "governance_events": 1
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744692566087591_43.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744698719375055_46.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744710359736501_51.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744720324502192_55.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744729637837246_59.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 1,
+        "relations": 0,
+        "governance_events": 1
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744743815339505_62.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744752648328239_66.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744760635359359_70.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 1,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744764512864097_71.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 1,
+        "entities": 0,
+        "facts": 1,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744773130575623_75.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744779728814971_78.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744786272056297_82.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744795010398077_86.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744803167815462_90.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744831596774416_94.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789744839781193283_97.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744357169172808_4.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744375872223349_9.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744437539945713_14.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744522617973389_18.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744537977082693_22.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744559663166478_23.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744566746059048_26.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744603494008934_31.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744616521786716_35.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744633386214883_40.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 1,
+        "facts": 1,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744650562117255_48.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 1,
+        "facts": 1,
+        "relations": 0,
+        "governance_events": 1
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744691910637240_52.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744699555393941_56.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744705877829067_60.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744712417570238_64.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744719458064444_68.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744727408763800_72.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744744389296060_76.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744751448916278_80.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744758899243797_84.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744767298916052_88.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 1,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744770128554249_89.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 1,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744777502273287_92.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744787491757076_96.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789744799035116095_99.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744360670120342_4.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744380154186181_8.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744392644873424_12.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744454534527010_16.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744473076653306_20.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744478319195943_23.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744487651807167_27.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744500330208654_31.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744519645797473_36.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744526132930427_38.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744528890100740_39.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744534134152688_42.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744538997648778_44.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744543519087430_45.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744560630188728_47.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744594703148173_49.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744679112674724_52.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744684034587726_55.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744687578024351_56.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744692207994929_59.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744697497986112_62.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744702267970454_65.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744708425314104_68.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744713271356717_71.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744718517296981_74.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744724581520409_77.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789744730624094831_81.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743297344658803_1.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743301012957861_3.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743305745315489_5.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743309622605304_7.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743313890103542_9.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743317896350938_11.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743321678039903_13.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743326357725471_15.json",
+      "critical": [
+        {
+          "kind": "governance_event",
+          "reason": "resource_not_grounded",
+          "resource_surface": "Ride-and-scheduling access"
+        },
+        {
+          "kind": "governance_event",
+          "reason": "resource_not_grounded",
+          "resource_surface": "clinical details"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 1
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743330893997068_16.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 1
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743336057113993_18.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743342853269278_20.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743347528508876_22.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743351354419470_24.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743354608070387_26.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743359441225998_28.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743362597558949_30.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743367133354590_32.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743371273726743_34.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743375465114711_36.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743378885467233_38.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743382836674016_40.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743386863263188_42.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743400542052246_45.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743405213249849_47.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743409396867516_49.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743412669247606_51.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743416498650513_53.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743419564062049_55.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789743423785858932_57.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743297340642019_1.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743302009741385_3.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743305237832896_5.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743308520964442_7.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 1,
+        "facts": 2,
+        "relations": 1,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743314711915856_9.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743318162009555_11.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "supersede"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 1,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743321626628467_12.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "supersede"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 1,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743325334457360_13.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743345910286811_16.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743350670799909_18.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743353479219995_20.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743356293424920_22.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743360320986575_24.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743364261590932_26.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743368110443645_28.json",
+      "critical": [
+        {
+          "kind": "governance_event",
+          "reason": "resource_not_grounded",
+          "resource_surface": "scheduling details"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743371722172988_29.json",
+      "critical": [
+        {
+          "kind": "governance_event",
+          "reason": "resource_not_grounded",
+          "resource_surface": "scheduling details"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743387640528578_32.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743397041067495_36.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743407450430924_40.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 3,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743430684251127_45.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743444545462611_49.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743456629000881_53.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743464419077511_57.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743474714956206_61.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743483759902637_65.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743493836097462_69.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743510225996247_73.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789743521776446319_77.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743297340912714_1.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743304155813446_5.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743308446938241_7.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743313270686666_9.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743320062641494_13.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 2,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743325384735278_15.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743334722491483_20.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743339436739846_22.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743346173244277_26.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743356783095985_30.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743374759825341_37.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743388878525409_44.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743409792174228_51.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743434587957743_57.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743442974515906_61.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743456050373218_65.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743463595596052_69.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743477867280860_73.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743487588204775_77.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743504293143581_81.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789743511364193801_85.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743551773046321_6.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 8,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743566074675032_10.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743577638294144_14.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743584894966004_18.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743594394903263_22.json",
+      "critical": [
+        {
+          "kind": "governance_event",
+          "reason": "missing_source_span"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743597047911938_23.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743605027605861_27.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743622098942827_34.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743634220782612_41.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743660820570311_51.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 1,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743664698568892_52.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743687392848826_62.json",
+      "critical": [
+        {
+          "kind": "governance_event",
+          "reason": "missing_source_span"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743692262683525_63.json",
+      "critical": [
+        {
+          "kind": "governance_event",
+          "reason": "missing_source_span"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743697456408175_65.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743711562711388_69.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743734713727870_76.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743754190626937_86.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789743791812344444_102.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 4,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743558922776205_6.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743570583112188_10.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743587589590638_14.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743595589239839_18.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743603459884591_22.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743612133524756_26.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743637954141806_34.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743642726538963_37.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743650725024677_41.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743655002466466_44.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743661493803634_48.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743671701067508_52.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743678952813244_55.json",
+      "critical": [
+        {
+          "kind": "governance_event",
+          "reason": "missing_source_span"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743681569055135_56.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743690030374906_59.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743697807618505_63.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743708853310995_67.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743715703130355_71.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743721380087076_74.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743729802125715_78.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743736373209288_81.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743743690436494_85.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743746899530665_86.json",
+      "critical": [
+        {
+          "kind": "governance_event",
+          "reason": "missing_source_span"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743751637573825_88.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743760434473772_92.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743771579835279_95.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743778083414119_99.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743785805329144_103.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743795725802856_106.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743817841407507_109.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743827771481340_113.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789743836107003504_116.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743554783681705_6.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743569385748859_10.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743580625636250_14.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743587120114202_18.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743602706059692_22.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743629323886165_26.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743637446076729_30.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743640836897821_31.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "update"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743650303653743_34.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743675386139035_41.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743677733094885_42.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743686913644275_46.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743693521948509_50.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743703001636272_54.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743707259735630_57.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743718304440849_62.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743726720410888_65.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743733182603239_69.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743735860574963_70.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743743158092551_73.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743749469217822_76.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743751929559142_77.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743758258995772_80.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743763105468853_83.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "supersede"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743766775150041_84.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743773371659876_87.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        },
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743776331997672_88.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743780918033511_90.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743790219578234_94.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743792764962224_95.json",
+      "critical": [
+        {
+          "kind": "fact",
+          "reason": "value_not_source_grounded",
+          "lifecycle": "delete"
+        }
+      ],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743796845655650_97.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743802976652621_101.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743816740528627_105.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743823288407221_108.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743827716438392_111.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743833784941851_115.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    },
+    {
+      "capture": "office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789743840588855728_118.json",
+      "critical": [],
+      "source_repairs": [],
+      "accepted_counts": {
+        "scenes": 0,
+        "entities": 0,
+        "facts": 0,
+        "relations": 0,
+        "governance_events": 0
+      }
+    }
+  ],
+  "limitations": "Fixed historical responses, including repairs. Counts are requests, not checkpoints. No MGS or semantic correctness claim."
+}

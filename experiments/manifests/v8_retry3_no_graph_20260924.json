@@ -1,0 +1,695 @@
+{
+  "schema_version": "govmem-paired-complete-episodes-1",
+  "selection_unit": "complete_episode_retry_after_retry_error",
+  "seed": 20260918,
+  "selection_uses": "all episodes with retry errors; selected before outcome",
+  "domains": {
+    "medical": {
+      "eligible_episode_count": 20,
+      "selected_episodes": {
+        "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact": 28,
+        "med_episode_rewrite_en_009_pe_deleted_willow_house_line": 26,
+        "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line": 27
+      },
+      "checkpoint_count": 81,
+      "checkpoints_sha256": "2447f5905081e6002f16ad14f7f7dc19e14b7181e5ac8ebd08144d68da6437a0",
+      "episodes_sha256": "d4b01f62cbd3457715b5958cf2d07d496c6e59280d28041927e2b3ab8a444b9f"
+    },
+    "office": {
+      "eligible_episode_count": 17,
+      "selected_episodes": {
+        "office_episode_custom_en_006_harbor_harbormark_dual_project": 32
+      },
+      "checkpoint_count": 64,
+      "checkpoints_sha256": "7186bc1dd66b493f994b802bad8817d7aa5e7a91f498d67f87410a98f8116d0c",
+      "episodes_sha256": "e15797cc0ab778067e0235377a09811c73182b5e1aa28e2221adc5ef9638a409"
+    },
+    "education": {
+      "eligible_episode_count": 28,
+      "selected_episodes": {
+        "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track": 18
+      },
+      "checkpoint_count": 18,
+      "checkpoints_sha256": "2a372a5017a99108c83324d2fed25dbfb7797a2fb25a20fc066ed5b2d05739b5",
+      "episodes_sha256": "5971478a96553c2eb18a9f1e079987275da0cddf6175e40abda8a58525e65862"
+    }
+  },
+  "entries": [
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_01"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_02"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_03"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_04"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_05"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_06"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_07"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_08"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_09"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_10"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_11"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_12"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_13"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_14"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_15"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_16"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_17"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_18"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_19"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_20"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_21"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_22"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_23"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_24"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_25"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_26"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_27"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact",
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_28"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_01"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_02"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_03"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_04"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_05"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_06"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_07"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_08"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_09"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_10"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_11"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_12"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_13"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_14"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_15"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_16"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_17"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_18"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_19"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_20"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_21"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_22"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_23"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_24"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_25"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line",
+      "checkpoint_id": "med_episode_rewrite_en_009_pe_deleted_willow_house_line_ckpt_26"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_01"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_02"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_03"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_04"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_05"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_06"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_07"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_08"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_09"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_10"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_11"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_12"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_13"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_14"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_15"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_16"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_17"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_18"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_19"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_20"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_21"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_22"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_23"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_24"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_25"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_26"
+    },
+    {
+      "domain": "medical",
+      "episode_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line",
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_27"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_01"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_02"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_03"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_04"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_05"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_06"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_07"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_08"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_09"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_10"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_11"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_12"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_13"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_14"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_15"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_16"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_17"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_18"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_19"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_20"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_21"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_22"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_23"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_24"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_25"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_26"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_27"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_28"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_29"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_30"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_31"
+    },
+    {
+      "domain": "office",
+      "episode_id": "office_episode_custom_en_006_harbor_harbormark_dual_project",
+      "checkpoint_id": "office_episode_custom_en_006_harbor_harbormark_dual_project_ckpt_32"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_01"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_02"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_03"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_04"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_05"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_06"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_07"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_08"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_09"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_10"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_11"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_12"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_13"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_14"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_15"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_16"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_17"
+    },
+    {
+      "domain": "education",
+      "episode_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track",
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_18"
+    }
+  ],
+  "checkpoint_count": 163
+}

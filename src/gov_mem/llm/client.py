@@ -24,6 +24,7 @@ class LLMConfig:
     temperature: float = 0.0
     max_output_tokens: int = 4096
     max_retries: int = 3
+    json_max_attempts: int | None = None
     api_base: str | None = None
     api_key_env: str | None = None
     allow_fallback: bool = True
@@ -179,7 +180,11 @@ class LLMClient:
                     timeout=self.config.request_timeout,
                 )
                 response.raise_for_status()
+                data = response.json()
                 elapsed_s = time.monotonic() - started
+                if not isinstance(data, dict):
+                    self._record_telemetry(operation=endpoint, elapsed_s=elapsed_s, retries=retries, failed=True)
+                    raise ValueError("Provider response must be a JSON object")
                 self._record_telemetry(operation=endpoint, elapsed_s=elapsed_s, retries=retries)
                 LOGGER.info(
                     "[Gov-Mem] API success endpoint=%s model=%s elapsed_s=%.2f retries=%d",
@@ -188,7 +193,14 @@ class LLMClient:
                     elapsed_s,
                     retries,
                 )
-                return response.json()
+                usage = data.get("usage") or {}
+                usage = usage if isinstance(usage, dict) else {}
+                row = self._telemetry[endpoint]
+                for name in ("prompt_tokens", "completion_tokens", "total_tokens"):
+                    if isinstance(usage.get(name), (int, float)):
+                        row[name] = row.get(name, 0) + int(usage[name])
+                row["responses_with_usage"] = row.get("responses_with_usage", 0) + int(bool(usage))
+                return data
             except requests.HTTPError as exc:
                 last_error = exc
                 if attempt >= self.config.max_retries or not self._should_retry_http_error(exc):
@@ -285,6 +297,27 @@ class LLMClient:
             encoding="utf-8",
         )
 
+    def chat_text(self, *, model: str, system_prompt: str, user_prompt: str) -> str:
+        """One plain-text completion; HTTP retries and token metering are shared."""
+        if not self.is_available():
+            self.require_or_raise()
+            raise LLMClientUnavailableError("LLM API key is not available.")
+        if self.provider_name() not in {"openai", *OPENAI_COMPATIBLE_PROVIDER_NAMES}:
+            raise LLMClientUnavailableError("Provider does not support chat completions.")
+        raw = self._post_json(endpoint="chat/completions", payload={
+            "model": model, "temperature": self.config.temperature,
+            "max_tokens": int(self.config.max_output_tokens),
+            "messages": [{"role": "system", "content": system_prompt},
+                         {"role": "user", "content": user_prompt}],
+        })
+        choice = raw["choices"][0]
+        if choice.get("finish_reason") == "length":
+            raise ValueError("Text response truncated at output token limit")
+        content = choice["message"]["content"]
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("Empty text response")
+        return content
+
     def chat_json(self, *, model: str, system_prompt: str, user_prompt: str) -> dict[str, Any] | list[Any]:
         if not self.is_available():
             self.require_or_raise()
@@ -307,13 +340,16 @@ class LLMClient:
             ],
         }
 
-        for attempt in range(1, self.config.max_retries + 1):
+        attempts = self.config.json_max_attempts
+        attempts = self.config.max_retries if attempts is None else max(1, int(attempts))
+        for attempt in range(1, attempts + 1):
             raw = self._post_json(endpoint="chat/completions", payload=payload)
             content = raw["choices"][0]["message"]["content"]
             try:
                 return parse_json_response(content)
             except Exception:
-                if attempt >= self.config.max_retries:
+                self._record_telemetry(operation="chat_json_parse_failure", elapsed_s=0.0, failed=True)
+                if attempt >= attempts:
                     raise
         raise RuntimeError("Unreachable retry loop exit in chat_json.")
 

@@ -48,6 +48,27 @@ from gov_mem.utils.logging import setup_logger
 
 FINAL_STAGES = {"all", "evaluate"}
 
+_V8_AUDIT_GAP_MARKERS = (
+    "grounding failed", "not_grounded", "requires explicit bind",
+    "requires value and delivery", "unknown candidate", "unknown event",
+    "without ingestion", "invalid v8 answer action", "invalid v8 stage-2",
+    "jsondecodeerror", "extra data", "expecting ',' delimiter",
+    "without a grounded claim", "incompatible resources/actions/scenes",
+    "shallow ingestion requires an events array", "missing bind",
+    "block requires a grounded, scope-specific restriction",
+    "invalid v8 answering response",
+)
+
+
+def _is_v8_audit_gap(exc: BaseException) -> bool:
+    """Model contract incompleteness is recoverable and fail-closed."""
+    if not str(exc):
+        return False
+    if isinstance(exc, (TimeoutError, ConnectionError)):
+        return False
+    text = f"{type(exc).__name__}: {exc}".casefold()
+    return any(marker in text for marker in _V8_AUDIT_GAP_MARKERS)
+
 
 class GovMemRunner:
     def __init__(
@@ -95,6 +116,7 @@ class GovMemRunner:
             provider=str(self.config["llm"]["provider"]),
             temperature=float(self.config["llm"]["temperature"]),
             max_output_tokens=int(self.config["llm"].get("max_output_tokens", 4096)),
+            json_max_attempts=self.config["llm"].get("json_max_attempts"),
             max_retries=int(self.config["llm"]["max_retries"]),
             api_base=self.config["llm"].get("api_base"),
             api_key_env=self.config["llm"].get("api_key_env"),
@@ -180,12 +202,15 @@ class GovMemRunner:
         evaluation = dict(self.config.get("evaluation") or {})
         allow_ablation = bool(evaluation.get("allow_full_transcript_ablation", False))
         if (
-            self.experiment_mode in {"rag_naive_v3_typed_rerank", "govmem_v4_symbolic"}
+            self.experiment_mode in {
+                "rag_naive_v3_typed_rerank", "govmem_v4_symbolic",
+                "govmem_v8_late_governance", "govmem_v8_dev1_late_governance",
+            }
             and bool(ledger.get("enabled", False))
             and not allow_ablation
         ):
             raise ValueError(
-                "Formal rag_naive_v3_typed_rerank requires retrieved-evidence-only Stage 2. "
+                "Formal RAG/Gov-Mem modes require retrieved-evidence-only Stage 2. "
                 "Disable stage2.long_context_field_ledger or explicitly mark a separate "
                 "full-transcript ablation with evaluation.allow_full_transcript_ablation=true."
             )
@@ -214,13 +239,21 @@ class GovMemRunner:
                 else "README_API_OpenLux" if provider in OPENLUX_PROVIDER_NAMES
                 else "README_API_Yunwu.md"
             )
-            readme = (
-                Path("README_API_OpenLux")
-                if provider in OPENLUX_PROVIDER_NAMES
-                else self.output_dir.parents[0] / readme_name
-            )
-            if provider in OPENLUX_PROVIDER_NAMES and not readme.exists():
-                readme = Path("/data_nvme/user/jli/codes/2027_ICLR_MARC/README_API_OpenLux.md")
+            if provider in OPENLUX_PROVIDER_NAMES:
+                readme = next(
+                    (
+                        candidate for candidate in (
+                            Path("API-Key_OpenLux.md"),
+                            Path("README_API_OpenLux"),
+                            Path("README_API_OpenLux.md"),
+                            Path("/data_nvme/user/jli/codes/2027_ICLR_MARC/README_API_OpenLux.md"),
+                        )
+                        if candidate.exists()
+                    ),
+                    Path("API-Key_OpenLux.md"),
+                )
+            else:
+                readme = self.output_dir.parents[0] / readme_name
             if not readme.exists():
                 readme = Path(readme_name)
             if not readme.exists():
@@ -272,6 +305,13 @@ class GovMemRunner:
             )
 
     def _save_run_metadata(self) -> None:
+        def cumulative(client, name):
+            snapshot = copy.deepcopy(getattr(self, "_resume_metadata", {}).get(name) or {})
+            for operation, values in client.telemetry_snapshot().items():
+                row = snapshot.setdefault(operation, {})
+                for key, value in values.items():
+                    row[key] = row.get(key, 0) + value
+            return snapshot
         write_json(
             self.output_dir / "run_metadata.json",
             {
@@ -294,8 +334,8 @@ class GovMemRunner:
                     "semantic_contract_required": True,
                 },
                 "resolved_llm_settings": self.resolved_llm_settings,
-                "llm_telemetry": self.llm_client.telemetry_snapshot(),
-                "embedding_telemetry": self.embedding_client.telemetry_snapshot(),
+                "llm_telemetry": cumulative(self.llm_client, "llm_telemetry"),
+                "embedding_telemetry": cumulative(self.embedding_client, "embedding_telemetry"),
                 "evaluation_isolation": {
                     "clean_benchmark": self.clean_benchmark,
                     "allow_gold_feedback": self.allow_gold_feedback,
@@ -332,6 +372,19 @@ class GovMemRunner:
     def run(self) -> dict[str, Any]:
         bundle = self.load_dataset()
         self._benchmark_instances = list(bundle.instances)
+        processing_instances = list(bundle.instances)
+        if self.experiment_mode in {"govmem_v8_late_governance", "govmem_v8_dev1_late_governance"}:
+            processing_instances.sort(key=lambda instance: (
+                str(instance.conversation_id or instance.instance_id),
+                len(instance.messages),
+                str(instance.instance_id),
+            ))
+            if [item.instance_id for item in processing_instances] != [
+                item.instance_id for item in bundle.instances
+            ]:
+                self.logger.info(
+                    "Gov-Mem v8 reordered checkpoints by visible episode prefix for incremental cache safety"
+                )
         official_predictions_path = self.output_dir / "predictions" / bundle.dataset_name / "predictions.jsonl"
         completed_ids = self._load_completed_prediction_ids(official_predictions_path) if self.resume else set()
         expected_ids = {str(instance.instance_id) for instance in bundle.instances}
@@ -351,7 +404,8 @@ class GovMemRunner:
             ) if self.resume else None,
         )
 
-        for instance in bundle.instances:
+        consecutive_execution_errors = 0
+        for instance in processing_instances:
             if str(instance.instance_id) in completed_ids:
                 self.logger.info("Skipping completed checkpoint=%s under strict resume", instance.instance_id)
                 continue
@@ -360,9 +414,62 @@ class GovMemRunner:
                     self._process_instance(instance, bundle.dataset_name, official_predictions_path, evaluator)
                 else:
                     self._process_instance_backbone(instance, bundle.dataset_name, official_predictions_path, evaluator)
+                consecutive_execution_errors = 0
             except Exception as exc:
                 self.logger.exception("Instance %s failed: %s", instance.instance_id, exc)
+                if self.experiment_mode == "govmem_v8_late_governance" and _is_v8_audit_gap(exc):
+                    # The provider returned a response, but it did not carry
+                    # enough source/binding information to audit. Fail closed
+                    # for this checkpoint while keeping RAG execution alive.
+                    append_jsonl(official_predictions_path, {
+                        "checkpoint_id": instance.instance_id, "action": "no_memory",
+                        "answer": "I do not have enough grounded memory to answer that.",
+                        "answer_structured": {}, "used_record_ids": [],
+                        "execution_status": "audit_incomplete",
+                        "audit_status": "insufficient_evidence",
+                        "error_type": type(exc).__name__, "error": str(exc),
+                    })
+                    append_jsonl(self.output_dir / "audit_incomplete.jsonl", {
+                        "checkpoint_id": instance.instance_id,
+                        "status": "insufficient_evidence",
+                        "error_type": type(exc).__name__, "reason": str(exc),
+                    })
+                    self._save_run_metadata()
+                    consecutive_execution_errors = 0
+                    continue
+                if bool((self.config.get("pipeline") or {}).get("record_execution_errors", False)):
+                    # Evaluation availability policy: retain every attempted
+                    # checkpoint. An execution error is NOT a governed refusal.
+                    # Do not overwrite a prediction if a later debug write failed.
+                    if instance.instance_id in self._load_completed_prediction_ids(official_predictions_path):
+                        raise
+                    append_jsonl(official_predictions_path, {
+                        "checkpoint_id": instance.instance_id, "action": "error", "answer": "",
+                        "answer_structured": {}, "used_record_ids": [],
+                        "execution_status": "error", "error_type": type(exc).__name__,
+                    })
+                    append_jsonl(self.output_dir / "execution_errors.jsonl", {
+                        "checkpoint_id": instance.instance_id, "error_type": type(exc).__name__,
+                        "error": str(exc),
+                    })
+                    self._save_run_metadata()
+                    consecutive_execution_errors += 1
+                    limit = int((self.config.get("pipeline") or {}).get("max_consecutive_execution_errors", 0))
+                    if limit > 0 and consecutive_execution_errors >= limit:
+                        raise RuntimeError(
+                            f"Aborted incomplete run after {limit} consecutive execution errors; "
+                            "preserved paid attempts, do not score as a complete episode."
+                        ) from exc
+                    continue
+                if bool((self.config.get("pipeline") or {}).get("fail_fast", False)):
+                    self._save_run_metadata()
+                    raise RuntimeError(
+                        f"Stopped after checkpoint {instance.instance_id} failed; paid telemetry saved. "
+                        "Inspect the error before an explicit resume."
+                    ) from exc
 
+        # Preserve paid attempts even when the complete-episode check fails.
+        self._save_run_metadata()
         expected_checkpoint_ids = {str(instance.instance_id) for instance in bundle.instances}
         completed_checkpoint_ids = self._load_completed_prediction_ids(official_predictions_path)
         missing_checkpoint_ids = sorted(expected_checkpoint_ids - completed_checkpoint_ids)
@@ -435,6 +542,7 @@ class GovMemRunner:
         previous_ids = [str(value) for value in list(previous.get("checkpoint_ids") or [])]
         if previous_ids != [str(value) for value in self.checkpoint_ids]:
             raise ValueError("--resume refused: checkpoint manifest differs from existing run")
+        self._resume_metadata = previous
 
     @staticmethod
     def _runtime_source_fingerprint() -> str:
@@ -517,6 +625,18 @@ class GovMemRunner:
             from gov_mem.backbones.rag_naive import RAGNaiveBackbone
 
             self._backbone = RAGNaiveBackbone(**kwargs)
+        elif self.experiment_mode == "govmem_v8_late_governance":
+            from gov_mem.backbones.govmem_v8_late_governance import (
+                GovMemV8LateGovernanceBackbone,
+            )
+
+            self._backbone = GovMemV8LateGovernanceBackbone(**kwargs)
+        elif self.experiment_mode == "govmem_v8_dev1_late_governance":
+            from gov_mem.backbones.govmem_v8_dev1_late_governance import (
+                GovMemV8Dev1LateGovernanceBackbone,
+            )
+
+            self._backbone = GovMemV8Dev1LateGovernanceBackbone(**kwargs)
         elif self.experiment_mode == "rag_policy":
             from gov_mem.backbones.rag_policy import RAGPolicyBackbone
 

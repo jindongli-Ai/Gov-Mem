@@ -1,0 +1,21 @@
+{
+  "schema_version": "govmem-training-exclusion-1",
+  "purpose": "Exclude confirmation episodes from future train/teacher distillation",
+  "manifest_sha256": "31bdb36124ec800f6b864d5f060755d4d1ac48e43e51c0bf05e6708510cc724b",
+  "episode_ids": [
+    "education_episode_custom_en_007_sable_appeal_sable_scholars_dual_track",
+    "education_episode_custom_en_015_aster_waiver_aster_fellows_dual_track",
+    "education_episode_custom_en_018_raven_portfolio_raven_makers_dual_track",
+    "household_episode_custom_en_002_cedar_care_cedar_carpool_dual_support",
+    "household_episode_custom_en_005_harbor_garage_harbor_charger_vehicle_return",
+    "household_episode_custom_en_006_willow_sleep_willow_screen_child_overnight",
+    "med_episode_rewrite_en_005_behavioral_bridge_deleted_blue_cedar_contact",
+    "med_episode_rewrite_en_014_lupus_nephritis_deleted_river_house_line",
+    "med_episode_rewrite_en_015_ms_relapse_deleted_cedar_bridge_line",
+    "office_episode_custom_en_008_horizon_horizonline_dual_project",
+    "office_episode_custom_en_011_riverbend_riverbridge_dual_project",
+    "office_episode_custom_en_012_timber_timberlane_dual_project"
+  ],
+  "checkpoint_count": 306,
+  "scope": "V8-unseen confirmation only; all episodes previously evaluated by historical V7; NOT pristine holdout"
+}

@@ -1,0 +1,11 @@
+{
+  "requests": 22,
+  "folded_event_occurrences": 263,
+  "old_graph_chars": 162872,
+  "new_graph_chars": 43362,
+  "old_total_chars": 702308,
+  "new_total_chars": 582798,
+  "graph_saved_fraction": 0.7337663932413183,
+  "total_saved_fraction": 0.17016750485541954,
+  "note": "Offline graph-view projection only; same captured system prompt for comparison. Every deletion retained; raw store unchanged. Older unconditional advisory update quotations may be omitted. Not a live token/cost/performance estimate."
+}

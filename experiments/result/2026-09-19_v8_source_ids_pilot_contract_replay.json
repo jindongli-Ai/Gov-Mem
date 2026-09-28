@@ -1,0 +1,124 @@
+{
+  "counts": {
+    "stage2_requests": 22,
+    "passed": 20,
+    "failed": 2
+  },
+  "failures": {
+    "Expecting ',' delimiter: line 6 column 467 (char 2025)": 1,
+    "V8 cannot release a claim classified as deleted": 1
+  },
+  "captures": [
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752543871123055_1.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752548675893229_3.json",
+      "passed": false,
+      "error": "Expecting ',' delimiter: line 6 column 467 (char 2025)"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752551796228469_4.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752556393896620_6.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752560329027181_8.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752563548280414_10.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752567085473204_12.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752569775477758_13.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752573390685895_15.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752576585669687_16.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752579602053603_17.json",
+      "passed": true,
+      "claims": 6
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752584796022282_18.json",
+      "passed": true,
+      "claims": 6
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752587155536052_19.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752590097670396_20.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752593433088387_21.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752596803074889_22.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752600476888516_23.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752605356404463_24.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752609908638621_25.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752614302983044_26.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752617937088672_28.json",
+      "passed": false,
+      "error": "V8 cannot release a claim classified as deleted"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789752620297293308_29.json",
+      "passed": true,
+      "claims": 1
+    }
+  ],
+  "note": "Offline contract replay, including repair attempts. No new answering/judging, cache evolution, or MGS inference."
+}

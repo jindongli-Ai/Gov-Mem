@@ -1,0 +1,117 @@
+{
+  "scope": "V8-unseen confirmation only; all episodes previously evaluated by historical V7; NOT pristine holdout",
+  "checkpoints_per_arm": 306,
+  "per_domain": {
+    "full": {
+      "medical": {
+        "U": 0.9032258064516129,
+        "A": 0.35714285714285715,
+        "F": 0.12,
+        "MGS": 0.5109677419354838,
+        "pessimistic_MGS": 0.4387096774193549,
+        "execution_errors": 4
+      },
+      "office": {
+        "U": 0.7777777777777778,
+        "A": 0.7,
+        "F": 0.46153846153846156,
+        "MGS": 0.12564102564102564,
+        "pessimistic_MGS": 0.10636277302943971,
+        "execution_errors": 2
+      },
+      "education": {
+        "U": 0.7222222222222222,
+        "A": 0.5,
+        "F": 0.2222222222222222,
+        "MGS": 0.2808641975308642,
+        "pessimistic_MGS": 0.21844993141289434,
+        "execution_errors": 3
+      },
+      "household": {
+        "U": 0.6666666666666666,
+        "A": 0.375,
+        "F": 0.20833333333333334,
+        "MGS": 0.32986111111111105,
+        "pessimistic_MGS": 0.29166666666666663,
+        "execution_errors": 3
+      }
+    },
+    "retain_updates": {
+      "medical": {
+        "U": 0.9032258064516129,
+        "A": 0.4642857142857143,
+        "F": 0.28,
+        "MGS": 0.3483870967741935,
+        "pessimistic_MGS": 0.30709677419354836,
+        "execution_errors": 2
+      },
+      "office": {
+        "U": 0.8518518518518519,
+        "A": 0.6666666666666666,
+        "F": 0.4358974358974359,
+        "MGS": 0.1601772712883824,
+        "pessimistic_MGS": 0.10702754036087365,
+        "execution_errors": 6
+      },
+      "education": {
+        "U": 0.7777777777777778,
+        "A": 0.6111111111111112,
+        "F": 0.3333333333333333,
+        "MGS": 0.20164609053497942,
+        "pessimistic_MGS": 0.15843621399176958,
+        "execution_errors": 3
+      },
+      "household": {
+        "U": 0.6666666666666666,
+        "A": 0.4583333333333333,
+        "F": 0.20833333333333334,
+        "MGS": 0.28587962962962965,
+        "pessimistic_MGS": 0.19444444444444442,
+        "execution_errors": 7
+      }
+    }
+  },
+  "mean_MGS": {
+    "full": 0.3118335190546212,
+    "retain_updates": 0.24902252205679626
+  },
+  "mean_pessimistic_MGS": {
+    "full": 0.26379726213208887,
+    "retain_updates": 0.191751243247659
+  },
+  "retain_minus_full_95pct": {
+    "interval": [
+      -0.1338750698848145,
+      0.0031949010961565827
+    ],
+    "ordered_resamples": 531441
+  },
+  "training_performed": false,
+  "retain_minus_full_MGS": -0.06281099699782494,
+  "inference_costs": {
+    "full": {
+      "text-embedding-3-small": {
+        "requests": 412,
+        "tokens": 58032,
+        "http_failures": 0
+      },
+      "gemini-2.5-flash-lite": {
+        "requests": 548,
+        "tokens": 3681465,
+        "http_failures": 0
+      }
+    },
+    "retain_updates": {
+      "text-embedding-3-small": {
+        "requests": 384,
+        "tokens": 58818,
+        "http_failures": 0
+      },
+      "gemini-2.5-flash-lite": {
+        "requests": 565,
+        "tokens": 3840274,
+        "http_failures": 0
+      }
+    }
+  }
+}

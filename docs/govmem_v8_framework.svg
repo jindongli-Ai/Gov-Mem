@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1120" viewBox="0 0 1800 1120">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#f8fbff"/><stop offset="1" stop-color="#eef4fb"/></linearGradient>
+    <linearGradient id="blue" x1="0" x2="1"><stop offset="0" stop-color="#dbeafe"/><stop offset="1" stop-color="#bfdbfe"/></linearGradient>
+    <linearGradient id="purple" x1="0" x2="1"><stop offset="0" stop-color="#ede9fe"/><stop offset="1" stop-color="#ddd6fe"/></linearGradient>
+    <linearGradient id="green" x1="0" x2="1"><stop offset="0" stop-color="#dcfce7"/><stop offset="1" stop-color="#bbf7d0"/></linearGradient>
+    <linearGradient id="orange" x1="0" x2="1"><stop offset="0" stop-color="#ffedd5"/><stop offset="1" stop-color="#fed7aa"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#64748b" flood-opacity=".18"/></filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="#334155"/></marker>
+    <marker id="dasharrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="#7c3aed"/></marker>
+    <style>
+      .title{font-family:Arial,sans-serif;font-size:36px;font-weight:700;fill:#0f172a}
+      .subtitle{font-family:Arial,sans-serif;font-size:17px;fill:#475569}
+      .h{font-family:Arial,sans-serif;font-size:22px;font-weight:700;fill:#0f172a}
+      .t{font-family:Arial,sans-serif;font-size:17px;fill:#1e293b}
+      .small{font-family:Arial,sans-serif;font-size:15px;fill:#475569}
+      .tiny{font-family:Arial,sans-serif;font-size:14px;fill:#64748b}
+      .box{stroke:#334155;stroke-width:2;rx:18;filter:url(#shadow)}
+      .arrow{stroke:#334155;stroke-width:3;fill:none;marker-end:url(#arrow)}
+      .dash{stroke:#7c3aed;stroke-width:3;stroke-dasharray:10 8;fill:none;marker-end:url(#dasharrow)}
+    </style>
+  </defs>
+  <rect width="1800" height="1120" fill="url(#bg)"/>
+  <text x="900" y="58" text-anchor="middle" class="title">Gov-Mem V8: Permission-Aware Memory Governance</text>
+  <text x="900" y="88" text-anchor="middle" class="subtitle">Naive RAG remains the primary recall path; graph and symbolic reasoning provide auditable assistance</text>
+
+  <!-- Inputs -->
+  <rect x="50" y="470" width="240" height="170" class="box" fill="url(#blue)"/>
+  <text x="170" y="510" text-anchor="middle" class="h">Observable prefix</text>
+  <text x="75" y="548" class="t">• visible memory turns</text>
+  <text x="75" y="576" class="t">• current question</text>
+  <text x="75" y="604" class="t">• requester identity</text>
+  <text x="75" y="628" class="small">future turns and gold fields excluded</text>
+
+  <rect x="50" y="700" width="240" height="150" class="box" fill="#f1f5f9"/>
+  <text x="170" y="738" text-anchor="middle" class="h">Application policy</text>
+  <text x="75" y="776" class="t">public benchmark rules</text>
+  <text x="75" y="804" class="t">domain-independent schema</text>
+  <text x="75" y="832" class="small">same policy input for baseline/Gov-Mem</text>
+
+  <!-- Main retrieval -->
+  <rect x="350" y="470" width="250" height="170" class="box" fill="url(#blue)"/>
+  <text x="475" y="510" text-anchor="middle" class="h">Naive RAG</text>
+  <text x="375" y="550" class="t">Dense retrieval: Top-20</text>
+  <text x="375" y="580" class="t">primary evidence recall</text>
+  <text x="375" y="610" class="small">graph never replaces this path</text>
+  <path d="M290 555 L350 555" class="arrow"/>
+
+  <rect x="660" y="470" width="260" height="170" class="box" fill="#e0f2fe"/>
+  <text x="790" y="510" text-anchor="middle" class="h">Evidence context</text>
+  <text x="685" y="550" class="t">dense candidates</text>
+  <text x="685" y="580" class="t">bounded adjacent turns</text>
+  <text x="685" y="610" class="small">original source text retained</text>
+  <path d="M600 555 L660 555" class="arrow"/>
+
+  <!-- Graph observer -->
+  <rect x="335" y="150" width="590" height="220" class="box" fill="url(#purple)"/>
+  <text x="630" y="190" text-anchor="middle" class="h">Governed Slot Graph observer</text>
+  <text x="365" y="230" class="t">LLM extracts open-vocabulary slots, entities, relations,</text>
+  <text x="365" y="258" class="t">permission candidates, lifecycle signals and source spans</text>
+  <text x="365" y="298" class="t">episode-local graph • observable-prefix only • incremental cache</text>
+  <text x="365" y="330" class="small">audit findings / candidate evidence are advisory; unknown = audit gap</text>
+  <path d="M170 470 C170 350 260 280 335 280" class="dash"/>
+  <path d="M790 370 C790 420 790 420 790 470" class="dash"/>
+  <text x="815" y="418" class="tiny" fill="#7c3aed">audit context</text>
+
+  <!-- Stage 2 -->
+  <rect x="980" y="470" width="300" height="170" class="box" fill="url(#purple)"/>
+  <text x="1130" y="510" text-anchor="middle" class="h">Stage-2 LLM reasoning</text>
+  <text x="1005" y="550" class="t">permission + lifecycle semantics</text>
+  <text x="1005" y="580" class="t">field-level claims and bindings</text>
+  <text x="1005" y="610" class="small">graph findings injected only when grounded</text>
+  <path d="M920 555 L980 555" class="arrow"/>
+
+  <!-- Policy input arrow -->
+  <path d="M290 775 C700 775 760 690 1030 640" class="arrow"/>
+  <text x="600" y="760" class="tiny">policy metadata</text>
+
+  <!-- Symbolic -->
+  <rect x="1340" y="470" width="360" height="170" class="box" fill="url(#green)"/>
+  <text x="1520" y="510" text-anchor="middle" class="h">Symbolic / neuro-symbolic layer</text>
+  <text x="1365" y="550" class="t">source grounding and exact spans</text>
+  <text x="1365" y="578" class="t">event binding + temporal projection</text>
+  <text x="1365" y="606" class="t">explicit deny/delete critic</text>
+  <text x="1365" y="628" class="small">does not treat missing edges as denial</text>
+  <path d="M1280 555 L1340 555" class="arrow"/>
+
+  <!-- Bottom safe evidence / answer -->
+  <rect x="640" y="760" width="300" height="170" class="box" fill="url(#orange)"/>
+  <text x="790" y="800" text-anchor="middle" class="h">Safe evidence boundary</text>
+  <text x="665" y="840" class="t">allowed verbatim claims</text>
+  <text x="665" y="868" class="t">blocked spans removed</text>
+  <text x="665" y="896" class="small">no denied values or mixed raw records</text>
+
+  <rect x="1040" y="760" width="300" height="170" class="box" fill="#dcfce7"/>
+  <text x="1190" y="800" text-anchor="middle" class="h">Answer agent</text>
+  <text x="1065" y="840" class="t">answer / answer_redacted</text>
+  <text x="1065" y="868" class="t">refuse / no_memory</text>
+  <text x="1065" y="896" class="small">sees only safe claims</text>
+  <path d="M1520 640 C1520 710 900 700 900 760" class="arrow"/>
+  <path d="M940 845 L1040 845" class="arrow"/>
+
+  <!-- Audit note -->
+  <rect x="1380" y="760" width="340" height="170" rx="18" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2"/>
+  <text x="1550" y="800" text-anchor="middle" class="h" fill="#5b21b6">Audit trail</text>
+  <text x="1405" y="840" class="t">graph audit + extraction status</text>
+  <text x="1405" y="868" class="t">source citations + critic trace</text>
+  <text x="1405" y="896" class="small">transport errors kept separate from</text>
+  <text x="1405" y="918" class="small">insufficient evidence / protocol gaps</text>
+
+  <!-- legend -->
+  <line x1="80" y1="1010" x2="150" y2="1010" class="arrow"/><text x="165" y="1016" class="small">main data path</text>
+  <line x1="330" y1="1010" x2="400" y2="1010" class="dash"/><text x="415" y="1016" class="small">advisory graph/audit path</text>
+  <text x="900" y="1065" text-anchor="middle" class="subtitle">Design principle: retrieve broadly with Naive RAG, govern late with grounded language reasoning and conservative symbolic checks.</text>
+</svg>

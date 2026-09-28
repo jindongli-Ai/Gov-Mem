@@ -1,0 +1,8 @@
+agent: remem
+remem_variant: iterative
+remem_max_steps: 5
+remem_retrieval_top_k: 10
+remem_linking_top_k: 5
+remem_qa_top_k: null
+remem_synonymy_threshold: 0.8
+answer_protocol: standard

@@ -1,0 +1,80 @@
+{
+  "coverage_valid": true,
+  "queries": 2218,
+  "episodes": 91,
+  "per_domain": {
+    "medical": {
+      "queries": 579,
+      "errors": 70,
+      "transport_errors": 40,
+      "error_types": {
+        "ValueError": 27,
+        "ReadTimeout": 40,
+        "JSONDecodeError": 3
+      }
+    },
+    "office": {
+      "queries": 547,
+      "errors": 58,
+      "transport_errors": 22,
+      "error_types": {
+        "ValueError": 34,
+        "ReadTimeout": 22,
+        "JSONDecodeError": 2
+      }
+    },
+    "education": {
+      "queries": 540,
+      "errors": 75,
+      "transport_errors": 27,
+      "error_types": {
+        "ValueError": 44,
+        "ReadTimeout": 27,
+        "JSONDecodeError": 4
+      }
+    },
+    "household": {
+      "queries": 552,
+      "errors": 72,
+      "transport_errors": 24,
+      "error_types": {
+        "ReadTimeout": 23,
+        "ValueError": 46,
+        "JSONDecodeError": 2,
+        "ConnectionError": 1
+      }
+    }
+  },
+  "error_types": {
+    "ValueError": 151,
+    "ReadTimeout": 112,
+    "JSONDecodeError": 11,
+    "ConnectionError": 1
+  },
+  "error_reasons": {
+    "CLAIM binds incompatible resources/actions/scenes; split the claim": 6,
+    "HTTPSConnectionPool(host='api.openlux.ai', port=443)": 113,
+    "Expecting ',' delimiter": 8,
+    "V8 joint extraction validation failed": 24,
+    "Shallow claim requires explicit bind array": 22,
+    "V8 cannot release a claim classified as deleted": 22,
+    "Unexpected events without ingestion": 5,
+    "Excerpt claim requires value and delivery": 12,
+    "Extra data": 2,
+    "V8 block requires a grounded, scope-specific restriction": 2,
+    "V8 claim grounding failed": 4,
+    "Shallow claim requires slot and candidate_id": 2,
+    "V8 prefill extraction failed validation; watermark unchanged": 47,
+    "Invalid V8 answer action": 1,
+    "KEEP references unknown candidate": 1,
+    "CLAIM bind references unknown event": 1,
+    "V8 withheld/answered without a grounded claim": 2,
+    "Illegal trailing comma before end of object": 1
+  },
+  "execution_errors": 275,
+  "transport_errors": 113,
+  "protocol_or_validation_errors": 162,
+  "error_rate": 0.12398557258791704,
+  "created_unix": 1789820830.027495,
+  "classification_note": "Transport vs parser/validation is based on terminal exception; earlier transport failures may also affect later unprocessed-history backlog. Not a clean algorithm-only counterfactual."
+}

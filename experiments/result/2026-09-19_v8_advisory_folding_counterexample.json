@@ -1,0 +1,69 @@
+{
+  "synthetic_benchmark_independent_counterexample": true,
+  "input": {
+    "lifecycle_events": [
+      {
+        "issuer_principal_id": "owner",
+        "grantee_principal_id": null,
+        "resource_id": "visit",
+        "action": "access",
+        "scene_id": null,
+        "effect": "update",
+        "event_id": "e_address",
+        "resource_surface": "visit address",
+        "source_spans": [
+          {
+            "turn_id": "t1",
+            "span": "The visit address is Cedar Hall."
+          }
+        ]
+      },
+      {
+        "issuer_principal_id": "owner",
+        "grantee_principal_id": null,
+        "resource_id": "visit",
+        "action": "access",
+        "scene_id": null,
+        "effect": "update",
+        "event_id": "e_time",
+        "resource_surface": "visit time",
+        "source_spans": [
+          {
+            "turn_id": "t2",
+            "span": "The visit time is now 14:00."
+          }
+        ]
+      }
+    ],
+    "lifecycle_state": [
+      {
+        "event_id": "e_address",
+        "activation": "active"
+      },
+      {
+        "event_id": "e_time",
+        "activation": "active"
+      }
+    ]
+  },
+  "output": [
+    {
+      "issuer_principal_id": "owner",
+      "grantee_principal_id": null,
+      "resource_id": "visit",
+      "action": "access",
+      "scene_id": null,
+      "effect": "update",
+      "event_id": "e_time",
+      "resource_surface": "visit time",
+      "source_spans": [
+        {
+          "turn_id": "t2",
+          "span": "The visit time is now 14:00."
+        }
+      ]
+    }
+  ],
+  "folded": 1,
+  "interpretation": "Same resource binding is insufficient to prove that an update of time supersedes an earlier update of address. This demonstrates an unsafe folding assumption, not the causal explanation of every benchmark change."
+}

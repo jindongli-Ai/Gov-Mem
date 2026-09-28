@@ -1,0 +1,24 @@
+{
+  "v8_shallow_random3_seed20260918_20260919_json": {
+    "responses": 413,
+    "system_chars": 2323500,
+    "question_chars": 44562,
+    "requester_chars": 23383,
+    "rag_candidates_chars": 3906826,
+    "graph_context_chars": 819790,
+    "ingestion_chars": 2294793,
+    "access_policy_chars": 555204
+  },
+  "v8_shallow_source_projection_random3_20260919": {
+    "responses": 354,
+    "system_chars": 2262347,
+    "question_chars": 37947,
+    "requester_chars": 19930,
+    "rag_candidates_chars": 3266410,
+    "graph_context_chars": 2447963,
+    "candidate_id_style_chars": 2832,
+    "access_policy_chars": 473973,
+    "ingestion_chars": 1911676
+  },
+  "note": "Character breakdown of actual captured Stage-2 inputs, including repairs; not token billing allocation."
+}

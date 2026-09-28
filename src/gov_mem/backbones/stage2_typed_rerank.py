@@ -63,6 +63,22 @@ _NON_SUBSTANTIVE_ANSWER_PATTERNS = (
 )
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+(?:[-'][a-z0-9]+)*", re.IGNORECASE)
+# Compatibility exports used only by the frozen RAG-Naive v3 renderer and
+# verifier. The lexicon-free Gov-Mem paths do not consult these regexes for
+# query planning, extraction, authorization, or retrieval.
+_DATE_RE = re.compile(
+    r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
+    r"jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|"
+    r"dec(?:ember)?)\s+\d{1,2}(?:,\s*\d{4})?\b|\b\d{4}-\d{1,2}-\d{1,2}\b",
+    re.IGNORECASE,
+)
+_WEEKDAY_RE = re.compile(
+    r"\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
+    re.IGNORECASE,
+)
+_TIME_RE = re.compile(r"\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b", re.IGNORECASE)
+
+
 @dataclass(frozen=True)
 class Stage2Decision:
     """Auditable result of the first Stage 2 pilot."""

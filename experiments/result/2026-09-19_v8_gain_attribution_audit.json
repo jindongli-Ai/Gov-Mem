@@ -1,0 +1,521 @@
+{
+  "interpretation": "Descriptive metric/cohort diagnostics only; not module-level causal attribution. Shared-success subsets are diagnostic, not replacement performance scores.",
+  "old_runtime_sha256": "14ed6a1de3f3d306bd7e7f1b145081b847c91cc205266f74b5af89b56c8a3242",
+  "new_runtime_sha256": "1346fd7a2492030d310809430553f9ce6ba9156ee87684d27539a82e71e1941c",
+  "changed_runtime_files": [
+    "src/gov_mem/backbones/govmem_v8_late_governance.py",
+    "src/gov_mem/extraction/v8_line_protocol.py",
+    "src/gov_mem/governance_runtime/v8_claim_reasoner.py",
+    "src/gov_mem/governance_runtime/v8_shallow_memory.py",
+    "src/gov_mem/governance_runtime/v8_state_projector.py",
+    "src/gov_mem/governance_runtime/v8_symbolic_critic.py",
+    "src/gov_mem/llm/json_parser.py"
+  ],
+  "mean_MGS_gain": 0.17864998684996888,
+  "mean_metric_component_decomposition": {
+    "utility": 0.04112093239254234,
+    "privacy": 0.0367238839889436,
+    "deletion": 0.10080517046848297
+  },
+  "execution_cohort_totals": {
+    "both_success": 243,
+    "recovered": 43,
+    "both_error": 4,
+    "new_error": 13
+  },
+  "both_success_component_counts": {
+    "utility": {
+      "n": 93,
+      "old_good": 69,
+      "new_good": 76,
+      "good->good": 62,
+      "bad->bad": 10,
+      "bad->good": 14,
+      "good->bad": 7
+    },
+    "privacy": {
+      "n": 75,
+      "old_good": 36,
+      "new_good": 40,
+      "good->good": 31,
+      "bad->bad": 30,
+      "good->bad": 5,
+      "bad->good": 9
+    },
+    "safety": {
+      "n": 75,
+      "old_good": 26,
+      "new_good": 47,
+      "bad->good": 25,
+      "good->good": 22,
+      "good->bad": 4,
+      "bad->bad": 24
+    }
+  },
+  "new_source_selection_audit": {
+    "normal_checkpoints": 286,
+    "claims_from_graph_or_ingestion_only": 29,
+    "checkpoints_selecting_graph_or_ingestion_only": 17,
+    "source_only_claims_reaching_stage3": 24,
+    "checkpoints_with_source_only_claims_reaching_stage3": 12,
+    "blocked_claims": 200,
+    "symbolic_marked_claims": 104
+  },
+  "domains": {
+    "medical": {
+      "old_UAF": {
+        "U": 0.896551724137931,
+        "A": 0.2962962962962963,
+        "F": 0.24
+      },
+      "new_UAF": {
+        "U": 0.9655172413793104,
+        "A": 0.3333333333333333,
+        "F": 0.16
+      },
+      "old_MGS": 0.47948914431673056,
+      "new_MGS": 0.5406896551724139,
+      "metric_component_decomposition": {
+        "utility": 0.03778629203916559,
+        "privacy": -0.027603235419327323,
+        "deletion": 0.05101745423584503
+      },
+      "execution_cohorts": {
+        "both_success": {
+          "checkpoints": 63,
+          "by_type": {
+            "utility": {
+              "n": 28,
+              "old_good": 26,
+              "new_good": 27,
+              "transitions": {
+                "good->good": 26,
+                "bad->bad": 1,
+                "bad->good": 1
+              }
+            },
+            "privacy": {
+              "n": 21,
+              "old_good": 14,
+              "new_good": 12,
+              "transitions": {
+                "good->good": 12,
+                "bad->bad": 7,
+                "good->bad": 2
+              }
+            },
+            "safety": {
+              "n": 14,
+              "old_good": 8,
+              "new_good": 11,
+              "transitions": {
+                "bad->good": 5,
+                "good->good": 6,
+                "good->bad": 2,
+                "bad->bad": 1
+              }
+            }
+          }
+        },
+        "recovered": {
+          "checkpoints": 13,
+          "by_type": {
+            "utility": {
+              "n": 1,
+              "old_good": 0,
+              "new_good": 1,
+              "transitions": {
+                "bad->good": 1
+              }
+            },
+            "privacy": {
+              "n": 5,
+              "old_good": 4,
+              "new_good": 5,
+              "transitions": {
+                "good->good": 4,
+                "bad->good": 1
+              }
+            },
+            "safety": {
+              "n": 7,
+              "old_good": 7,
+              "new_good": 7,
+              "transitions": {
+                "good->good": 7
+              }
+            }
+          }
+        },
+        "both_error": {
+          "checkpoints": 3,
+          "by_type": {
+            "safety": {
+              "n": 3,
+              "old_good": 3,
+              "new_good": 3,
+              "transitions": {
+                "good->good": 3
+              }
+            }
+          }
+        },
+        "new_error": {
+          "checkpoints": 2,
+          "by_type": {
+            "safety": {
+              "n": 1,
+              "old_good": 1,
+              "new_good": 0,
+              "transitions": {
+                "good->bad": 1
+              }
+            },
+            "privacy": {
+              "n": 1,
+              "old_good": 1,
+              "new_good": 1,
+              "transitions": {
+                "good->good": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "office": {
+      "old_UAF": {
+        "U": 0.6666666666666666,
+        "A": 0.6551724137931034,
+        "F": 0.717948717948718
+      },
+      "new_UAF": {
+        "U": 0.6296296296296297,
+        "A": 0.5666666666666667,
+        "F": 0.46153846153846156
+      },
+      "old_MGS": 0.06483937518420277,
+      "new_MGS": 0.1469135802469136,
+      "metric_component_decomposition": {
+        "utility": -0.0059819963395953005,
+        "privacy": 0.023464249198604237,
+        "deletion": 0.06459195220370188
+      },
+      "execution_cohorts": {
+        "recovered": {
+          "checkpoints": 10,
+          "by_type": {
+            "utility": {
+              "n": 2,
+              "old_good": 0,
+              "new_good": 1,
+              "transitions": {
+                "bad->good": 1,
+                "bad->bad": 1
+              }
+            },
+            "safety": {
+              "n": 4,
+              "old_good": 4,
+              "new_good": 3,
+              "transitions": {
+                "good->good": 3,
+                "good->bad": 1
+              }
+            },
+            "privacy": {
+              "n": 4,
+              "old_good": 2,
+              "new_good": 4,
+              "transitions": {
+                "good->good": 2,
+                "bad->good": 1,
+                "unknown->good": 1
+              }
+            }
+          }
+        },
+        "both_success": {
+          "checkpoints": 80,
+          "by_type": {
+            "utility": {
+              "n": 25,
+              "old_good": 18,
+              "new_good": 16,
+              "transitions": {
+                "bad->good": 3,
+                "good->good": 13,
+                "good->bad": 5,
+                "bad->bad": 4
+              }
+            },
+            "privacy": {
+              "n": 24,
+              "old_good": 7,
+              "new_good": 7,
+              "transitions": {
+                "bad->bad": 14,
+                "good->good": 4,
+                "good->bad": 3,
+                "bad->good": 3
+              }
+            },
+            "safety": {
+              "n": 31,
+              "old_good": 7,
+              "new_good": 15,
+              "transitions": {
+                "good->bad": 1,
+                "bad->bad": 15,
+                "bad->good": 9,
+                "good->good": 6
+              }
+            }
+          }
+        },
+        "both_error": {
+          "checkpoints": 1,
+          "by_type": {
+            "privacy": {
+              "n": 1,
+              "old_good": 1,
+              "new_good": 1,
+              "transitions": {
+                "good->good": 1
+              }
+            }
+          }
+        },
+        "new_error": {
+          "checkpoints": 5,
+          "by_type": {
+            "privacy": {
+              "n": 1,
+              "old_good": 0,
+              "new_good": 1,
+              "transitions": {
+                "bad->good": 1
+              }
+            },
+            "safety": {
+              "n": 4,
+              "old_good": 0,
+              "new_good": 3,
+              "transitions": {
+                "bad->good": 3,
+                "bad->bad": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "education": {
+      "old_UAF": {
+        "U": 0.5,
+        "A": 0.4444444444444444,
+        "F": 0.8888888888888888
+      },
+      "new_UAF": {
+        "U": 0.8888888888888888,
+        "A": 0.2222222222222222,
+        "F": 0.5
+      },
+      "old_MGS": 0.030864197530864213,
+      "new_MGS": 0.345679012345679,
+      "metric_component_decomposition": {
+        "utility": 0.08201874714220393,
+        "privacy": 0.049954275262917236,
+        "deletion": 0.18284179240969362
+      },
+      "execution_cohorts": {
+        "both_success": {
+          "checkpoints": 46,
+          "by_type": {
+            "utility": {
+              "n": 17,
+              "old_good": 9,
+              "new_good": 15,
+              "transitions": {
+                "good->good": 9,
+                "bad->good": 6,
+                "bad->bad": 2
+              }
+            },
+            "privacy": {
+              "n": 14,
+              "old_good": 6,
+              "new_good": 10,
+              "transitions": {
+                "bad->good": 4,
+                "bad->bad": 4,
+                "good->good": 6
+              }
+            },
+            "safety": {
+              "n": 15,
+              "old_good": 1,
+              "new_good": 7,
+              "transitions": {
+                "bad->bad": 8,
+                "bad->good": 6,
+                "good->good": 1
+              }
+            }
+          }
+        },
+        "recovered": {
+          "checkpoints": 6,
+          "by_type": {
+            "privacy": {
+              "n": 4,
+              "old_good": 4,
+              "new_good": 4,
+              "transitions": {
+                "good->good": 4
+              }
+            },
+            "utility": {
+              "n": 1,
+              "old_good": 0,
+              "new_good": 1,
+              "transitions": {
+                "bad->good": 1
+              }
+            },
+            "safety": {
+              "n": 1,
+              "old_good": 1,
+              "new_good": 1,
+              "transitions": {
+                "good->good": 1
+              }
+            }
+          }
+        },
+        "new_error": {
+          "checkpoints": 2,
+          "by_type": {
+            "safety": {
+              "n": 2,
+              "old_good": 0,
+              "new_good": 1,
+              "transitions": {
+                "bad->good": 1,
+                "bad->bad": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "household": {
+      "old_UAF": {
+        "U": 0.6666666666666666,
+        "A": 0.375,
+        "F": 0.25
+      },
+      "new_UAF": {
+        "U": 0.75,
+        "A": 0.20833333333333334,
+        "F": 0.041666666666666664
+      },
+      "old_MGS": 0.3125,
+      "new_MGS": 0.5690104166666667,
+      "metric_component_decomposition": {
+        "utility": 0.05066068672839513,
+        "privacy": 0.10108024691358024,
+        "deletion": 0.10476948302469137
+      },
+      "execution_cohorts": {
+        "recovered": {
+          "checkpoints": 14,
+          "by_type": {
+            "utility": {
+              "n": 1,
+              "old_good": 0,
+              "new_good": 0,
+              "transitions": {
+                "bad->bad": 1
+              }
+            },
+            "privacy": {
+              "n": 6,
+              "old_good": 6,
+              "new_good": 6,
+              "transitions": {
+                "good->good": 6
+              }
+            },
+            "safety": {
+              "n": 7,
+              "old_good": 7,
+              "new_good": 7,
+              "transitions": {
+                "good->good": 7
+              }
+            }
+          }
+        },
+        "both_success": {
+          "checkpoints": 54,
+          "by_type": {
+            "utility": {
+              "n": 23,
+              "old_good": 16,
+              "new_good": 18,
+              "transitions": {
+                "good->good": 14,
+                "bad->bad": 3,
+                "bad->good": 4,
+                "good->bad": 2
+              }
+            },
+            "privacy": {
+              "n": 16,
+              "old_good": 9,
+              "new_good": 11,
+              "transitions": {
+                "good->good": 9,
+                "bad->bad": 5,
+                "bad->good": 2
+              }
+            },
+            "safety": {
+              "n": 15,
+              "old_good": 10,
+              "new_good": 14,
+              "transitions": {
+                "bad->good": 5,
+                "good->good": 9,
+                "good->bad": 1
+              }
+            }
+          }
+        },
+        "new_error": {
+          "checkpoints": 4,
+          "by_type": {
+            "privacy": {
+              "n": 2,
+              "old_good": 0,
+              "new_good": 2,
+              "transitions": {
+                "bad->good": 2
+              }
+            },
+            "safety": {
+              "n": 2,
+              "old_good": 1,
+              "new_good": 2,
+              "transitions": {
+                "bad->good": 1,
+                "good->good": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

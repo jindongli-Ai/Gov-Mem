@@ -1,0 +1,11 @@
+{
+  "frozen_confirmation_changed_files": [
+    "src/gov_mem/governance_runtime/v8_shallow_memory.py"
+  ],
+  "responses_replayed": 358,
+  "recovered": [
+    "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789787971296021550_19.json"
+  ],
+  "regressions": [],
+  "limitation": "Contract replay includes repairs and is not end-to-end performance. Live nested-denial fix is excluded from both frozen confirmation arms."
+}

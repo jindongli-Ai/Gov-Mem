@@ -18,5 +18,13 @@ def extract_json_block(text: str) -> str:
 
 def parse_json_response(text: str):
     block = extract_json_block(text)
-    return json.loads(block)
+    try:
+        return json.loads(block)
+    except json.JSONDecodeError as exc:
+        # Providers sometimes emit literal tabs/newlines inside a quoted value.
+        # strict=False preserves those exact characters; it does not fix quotes,
+        # commas, missing structure, escapes, or truncated output.
+        if not exc.msg.startswith("Invalid control character"):
+            raise
+        return json.loads(block, strict=False)
 

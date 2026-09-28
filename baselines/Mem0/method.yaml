@@ -1,0 +1,5 @@
+agent: mem0
+mem0_backend: upstream
+mem0_message_window: 10
+mem0_top_s: 5
+mem0_max_facts: 20

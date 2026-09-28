@@ -29,16 +29,46 @@ def _parse_key_value_pairs(items: list[str] | None) -> dict[str, str]:
     return out
 
 
-def _load_checkpoint_manifest(path: str | None) -> list[str] | None:
+def _checkpoint_file(data_path: str) -> Path:
+    source = Path(data_path)
+    return source / "checkpoints.jsonl" if source.is_dir() else source
+
+
+def _load_checkpoint_manifest(path: str | None, *, data_path: str) -> list[str] | None:
     if not path:
         return None
     manifest_path = Path(path)
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     if isinstance(payload, dict):
         if "entries" in payload:
-            return [str(item["checkpoint_id"]) for item in payload.get("entries", [])]
-        if "checkpoint_ids" in payload:
-            return [str(item) for item in payload.get("checkpoint_ids", [])]
+            checkpoint_ids = [str(item["checkpoint_id"]) for item in payload.get("entries", [])]
+        elif "checkpoint_ids" in payload:
+            checkpoint_ids = [str(item) for item in payload.get("checkpoint_ids", [])]
+        else:
+            checkpoint_ids = None
+        if checkpoint_ids is not None:
+            if payload.get("selection_unit") == "complete_episode":
+                episode_id = str(payload.get("episode_id") or "").strip()
+                if not episode_id:
+                    raise ValueError("complete_episode manifest requires episode_id")
+                checkpoint_path = _checkpoint_file(data_path)
+                expected = []
+                with checkpoint_path.open("r", encoding="utf-8") as handle:
+                    for line in handle:
+                        row = json.loads(line)
+                        if str(row.get("episode_id") or "") == episode_id:
+                            expected.append(str(row["checkpoint_id"]))
+                if not expected:
+                    raise ValueError(f"Episode not found in checkpoint source: {episode_id}")
+                if checkpoint_ids != expected:
+                    missing = [value for value in expected if value not in checkpoint_ids]
+                    extra = [value for value in checkpoint_ids if value not in expected]
+                    raise ValueError(
+                        "Incomplete or reordered complete_episode manifest: "
+                        f"episode={episode_id} expected={len(expected)} actual={len(checkpoint_ids)} "
+                        f"missing={missing} extra={extra}"
+                    )
+            return checkpoint_ids
     if isinstance(payload, list):
         return [str(item) for item in payload]
     raise ValueError(f"Unsupported checkpoint manifest format: {manifest_path}")
@@ -71,6 +101,8 @@ def main() -> None:
             "rag_naive",
             "rag_naive_v3_typed_rerank",
             "govmem_v4_symbolic",
+            "govmem_v8_late_governance",
+            "govmem_v8_dev1_late_governance",
             "rag_policy",
             "govmem_symbolic",
             # Legacy name retained so historical configs and outputs remain reproducible.
@@ -153,7 +185,7 @@ def main() -> None:
         stage=args.stage,
         max_instances=args.max_instances,
         start_index=args.start_index,
-        checkpoint_ids=_load_checkpoint_manifest(args.checkpoint_manifest),
+        checkpoint_ids=_load_checkpoint_manifest(args.checkpoint_manifest, data_path=args.data_path),
         resume=args.resume,
         run_official_benchmark_eval=not args.skip_official_eval,
         experiment_mode=str((config.get("experiment") or {}).get("mode") or "govmem_structured_old"),

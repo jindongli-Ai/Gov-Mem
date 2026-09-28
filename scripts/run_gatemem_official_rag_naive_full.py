@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+import yaml
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +47,7 @@ def _split_keys(keys: list[str]) -> dict[str, list[str]]:
 
 
 def _build_score(run_root: Path, config_path: Path) -> Path:
+    config = yaml.safe_load(config_path.read_text())
     per_domain: dict[str, dict[str, float | int]] = {}
     for domain in DOMAINS:
         summary = _read_json(run_root / domain / "summary.json")
@@ -71,14 +73,15 @@ def _build_score(run_root: Path, config_path: Path) -> Path:
     }
     payload = {
         "run_name": run_root.name,
-        "protocol": "GateMem official RAG-Naive paper protocol",
+        "protocol": "GateMem official RAG-Naive protocol, unified OpenLux reproduction",
         "scope": {
             "agent": "rag_naive",
-            "base_model": "gemini-2.5-flash-lite",
+            "base_model": config['llm_model'],
             "embedding_model": "text-embedding-3-small",
             "judge_model": "gpt-4o",
             "gate_by_action": False,
             "checkpoints": sum(EXPECTED_CHECKPOINTS.values()),
+            "temperature": config['temperature'],
             "config": str(config_path),
         },
         "per_domain": per_domain,

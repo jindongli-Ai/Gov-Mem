@@ -1,0 +1,78 @@
+{
+  "counts": {
+    "normal_checkpoints_replayed": 256,
+    "additional_release_to_block": 8
+  },
+  "changes": [
+    {
+      "checkpoint_id": "education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track_ckpt_06",
+      "claim_id": "claim_4",
+      "domain": "education",
+      "reasons": [
+        "bound_lifecycle_deletion_veto"
+      ]
+    },
+    {
+      "checkpoint_id": "education_episode_custom_en_030_helix_petition_helix_coaches_dual_track_ckpt_13",
+      "claim_id": "claim_0",
+      "domain": "education",
+      "reasons": [
+        "bound_lifecycle_deletion_veto"
+      ]
+    },
+    {
+      "checkpoint_id": "household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note_ckpt_17",
+      "claim_id": "claim_0",
+      "domain": "household",
+      "reasons": [
+        "bound_lifecycle_deletion_veto"
+      ]
+    },
+    {
+      "checkpoint_id": "household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note_ckpt_10",
+      "claim_id": "claim_0",
+      "domain": "household",
+      "reasons": [
+        "bound_lifecycle_deletion_veto"
+      ]
+    },
+    {
+      "checkpoint_id": "household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note_ckpt_16",
+      "claim_id": "claim_0",
+      "domain": "household",
+      "reasons": [
+        "bound_lifecycle_deletion_veto"
+      ]
+    },
+    {
+      "checkpoint_id": "med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact_ckpt_28",
+      "claim_id": "claim_0",
+      "domain": "medical",
+      "reasons": [
+        "bound_lifecycle_deletion_veto"
+      ]
+    },
+    {
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_21",
+      "claim_id": "claim_0",
+      "domain": "medical",
+      "reasons": [
+        "bound_lifecycle_deletion_veto"
+      ]
+    },
+    {
+      "checkpoint_id": "med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line_ckpt_24",
+      "claim_id": "claim_0",
+      "domain": "medical",
+      "reasons": [
+        "bound_lifecycle_deletion_veto"
+      ]
+    }
+  ],
+  "source_runtime_sha256": "14ed6a1de3f3d306bd7e7f1b145081b847c91cc205266f74b5af89b56c8a3242",
+  "replayed_code_sha256": {
+    "project_v8_state": "47253985dad0d7d289025c1b900b1cf21e9dfce0f136b1df3ed33f62d04516f5",
+    "criticize_v8_claims": "88bba371e25a349e7d5e1e4954e57eb4a7f0b90f247462cc1b19ca902a42ba30"
+  },
+  "note": "Offline deterministic replay on finalized saved ledgers. No new LLM output, answer generation, judge labels or MGS inference."
+}

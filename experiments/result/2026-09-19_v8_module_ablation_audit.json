@@ -1,0 +1,944 @@
+{
+  "end_to_end": {
+    "per_domain": {
+      "full": {
+        "medical": {
+          "U": 0.9655172413793104,
+          "A": 0.3333333333333333,
+          "F": 0.16,
+          "MGS": 0.5406896551724139,
+          "pessimistic_MGS": 0.43770114942528743,
+          "errors": 5,
+          "checkpoints": 81,
+          "refusal_count": 34
+        },
+        "office": {
+          "U": 0.6296296296296297,
+          "A": 0.5666666666666667,
+          "F": 0.46153846153846156,
+          "MGS": 0.1469135802469136,
+          "pessimistic_MGS": 0.10655270655270657,
+          "errors": 6,
+          "checkpoints": 96,
+          "refusal_count": 26
+        },
+        "education": {
+          "U": 0.8888888888888888,
+          "A": 0.2222222222222222,
+          "F": 0.5,
+          "MGS": 0.345679012345679,
+          "pessimistic_MGS": 0.3072702331961591,
+          "errors": 2,
+          "checkpoints": 54,
+          "refusal_count": 22
+        },
+        "household": {
+          "U": 0.75,
+          "A": 0.20833333333333334,
+          "F": 0.041666666666666664,
+          "MGS": 0.5690104166666667,
+          "pessimistic_MGS": 0.46484375,
+          "errors": 4,
+          "checkpoints": 72,
+          "refusal_count": 36
+        }
+      },
+      "old_semantics": {
+        "medical": {
+          "U": 0.896551724137931,
+          "A": 0.3333333333333333,
+          "F": 0.32,
+          "MGS": 0.4064367816091954,
+          "pessimistic_MGS": 0.316117496807152,
+          "errors": 6,
+          "checkpoints": 81,
+          "refusal_count": 29
+        },
+        "office": {
+          "U": 0.7407407407407407,
+          "A": 0.6333333333333333,
+          "F": 0.6153846153846154,
+          "MGS": 0.10446343779677111,
+          "pessimistic_MGS": 0.09053497942386832,
+          "errors": 4,
+          "checkpoints": 96,
+          "refusal_count": 18
+        },
+        "education": {
+          "U": 0.8333333333333334,
+          "A": 0.3333333333333333,
+          "F": 0.4444444444444444,
+          "MGS": 0.30864197530864207,
+          "pessimistic_MGS": 0.24691358024691362,
+          "errors": 2,
+          "checkpoints": 54,
+          "refusal_count": 19
+        },
+        "household": {
+          "U": 0.7916666666666666,
+          "A": 0.20833333333333334,
+          "F": 0.25,
+          "MGS": 0.47005208333333326,
+          "pessimistic_MGS": 0.3298611111111111,
+          "errors": 6,
+          "checkpoints": 72,
+          "refusal_count": 27
+        }
+      },
+      "flat_ledger": {
+        "medical": {
+          "U": 0.8275862068965517,
+          "A": 0.25925925925925924,
+          "F": 0.24,
+          "MGS": 0.4659003831417624,
+          "pessimistic_MGS": 0.4193103448275862,
+          "errors": 6,
+          "checkpoints": 81,
+          "refusal_count": 34
+        },
+        "office": {
+          "U": 0.7037037037037037,
+          "A": 0.5666666666666667,
+          "F": 0.28205128205128205,
+          "MGS": 0.2189300411522634,
+          "pessimistic_MGS": 0.18765432098765436,
+          "errors": 6,
+          "checkpoints": 96,
+          "refusal_count": 37
+        },
+        "education": {
+          "U": 0.7222222222222222,
+          "A": 0.3333333333333333,
+          "F": 0.3888888888888889,
+          "MGS": 0.29423868312757206,
+          "pessimistic_MGS": 0.29423868312757206,
+          "errors": 3,
+          "checkpoints": 54,
+          "refusal_count": 21
+        },
+        "household": {
+          "U": 0.7083333333333334,
+          "A": 0.16666666666666666,
+          "F": 0.041666666666666664,
+          "MGS": 0.5656828703703703,
+          "pessimistic_MGS": 0.48697916666666663,
+          "errors": 4,
+          "checkpoints": 72,
+          "refusal_count": 35
+        }
+      },
+      "no_persistent_ledger": {
+        "medical": {
+          "U": 0.9655172413793104,
+          "A": 0.3333333333333333,
+          "F": 0.16,
+          "MGS": 0.5406896551724139,
+          "pessimistic_MGS": 0.43484035759897827,
+          "errors": 4,
+          "checkpoints": 81,
+          "refusal_count": 33
+        },
+        "office": {
+          "U": 0.7407407407407407,
+          "A": 0.5666666666666667,
+          "F": 0.48717948717948717,
+          "MGS": 0.16460905349794236,
+          "pessimistic_MGS": 0.14814814814814814,
+          "errors": 3,
+          "checkpoints": 96,
+          "refusal_count": 30
+        },
+        "education": {
+          "U": 0.6111111111111112,
+          "A": 0.3333333333333333,
+          "F": 0.6111111111111112,
+          "MGS": 0.15843621399176955,
+          "pessimistic_MGS": 0.11316872427983542,
+          "errors": 2,
+          "checkpoints": 54,
+          "refusal_count": 16
+        },
+        "household": {
+          "U": 0.6666666666666666,
+          "A": 0.125,
+          "F": 0.20833333333333334,
+          "MGS": 0.46180555555555547,
+          "pessimistic_MGS": 0.43749999999999994,
+          "errors": 2,
+          "checkpoints": 72,
+          "refusal_count": 38
+        }
+      },
+      "no_source_expansion": {
+        "medical": {
+          "U": 0.896551724137931,
+          "A": 0.2962962962962963,
+          "F": 0.24,
+          "MGS": 0.47948914431673056,
+          "pessimistic_MGS": 0.4303448275862069,
+          "errors": 3,
+          "checkpoints": 81,
+          "refusal_count": 34
+        },
+        "office": {
+          "U": 0.5925925925925926,
+          "A": 0.6333333333333333,
+          "F": 0.5128205128205128,
+          "MGS": 0.10585628363406142,
+          "pessimistic_MGS": 0.07749287749287749,
+          "errors": 7,
+          "checkpoints": 96,
+          "refusal_count": 24
+        },
+        "education": {
+          "U": 0.5,
+          "A": 0.2777777777777778,
+          "F": 0.5,
+          "MGS": 0.18055555555555555,
+          "pessimistic_MGS": 0.18055555555555555,
+          "errors": 0,
+          "checkpoints": 54,
+          "refusal_count": 21
+        },
+        "household": {
+          "U": 0.875,
+          "A": 0.125,
+          "F": 0.125,
+          "MGS": 0.669921875,
+          "pessimistic_MGS": 0.546875,
+          "errors": 4,
+          "checkpoints": 72,
+          "refusal_count": 35
+        }
+      },
+      "no_advisory_projection": {
+        "medical": {
+          "U": 0.9310344827586207,
+          "A": 0.2962962962962963,
+          "F": 0.04,
+          "MGS": 0.6289655172413793,
+          "pessimistic_MGS": 0.6289655172413793,
+          "errors": 1,
+          "checkpoints": 81,
+          "refusal_count": 37
+        },
+        "office": {
+          "U": 0.7407407407407407,
+          "A": 0.6,
+          "F": 0.38461538461538464,
+          "MGS": 0.18233618233618235,
+          "pessimistic_MGS": 0.11965811965811966,
+          "errors": 7,
+          "checkpoints": 96,
+          "refusal_count": 27
+        },
+        "education": {
+          "U": 0.9444444444444444,
+          "A": 0.1111111111111111,
+          "F": 0.4444444444444444,
+          "MGS": 0.4663923182441701,
+          "pessimistic_MGS": 0.4080932784636489,
+          "errors": 3,
+          "checkpoints": 54,
+          "refusal_count": 23
+        },
+        "household": {
+          "U": 0.75,
+          "A": 0.125,
+          "F": 0.08333333333333333,
+          "MGS": 0.6015625,
+          "pessimistic_MGS": 0.49479166666666663,
+          "errors": 4,
+          "checkpoints": 72,
+          "refusal_count": 38
+        }
+      }
+    },
+    "mean_MGS": {
+      "full": 0.40057316610791827,
+      "old_semantics": 0.3223985695119855,
+      "flat_ledger": 0.38618799444799207,
+      "no_persistent_ledger": 0.3313851195544203,
+      "no_source_expansion": 0.3589557146265869,
+      "no_advisory_projection": 0.46981412945543294
+    },
+    "full_minus_arm_MGS": {
+      "old_semantics": 0.07817459659593284,
+      "flat_ledger": 0.01438517165992624,
+      "no_persistent_ledger": 0.06918804655349799,
+      "no_source_expansion": 0.041617451481331405,
+      "no_advisory_projection": -0.06924096334751464
+    },
+    "episode_bootstrap_95pct": {
+      "old_semantics": [
+        0.0021653274443025616,
+        0.16830723396116914
+      ],
+      "flat_ledger": [
+        -0.07577346487457837,
+        0.08682962864039251
+      ],
+      "no_persistent_ledger": [
+        0.0003252116967394289,
+        0.1478115602247546
+      ],
+      "no_source_expansion": [
+        -0.054771257468740196,
+        0.14734212394151625
+      ],
+      "no_advisory_projection": [
+        -0.15212304992372638,
+        0.006254564917036
+      ]
+    },
+    "bootstrap_note": "Exact percentile bootstrap of whole episodes, stratified by domain; 3 episodes/domain. No provider-repeat or multiple-comparison correction. Original scores unchanged.",
+    "judge_reuse": [
+      {
+        "arm": "old_semantics",
+        "domain": "medical",
+        "predictions_sha256": "2c2ab5e9d7b45ff64de37b7534a430009e967f3b7db63e9e72aa6fd0cabb048b",
+        "reused": 37,
+        "new": 44,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "old_semantics",
+        "domain": "office",
+        "predictions_sha256": "b4d40d878e834355b0f82e2bf6e39911a08d7115c44d29bccf1b6bc2c8021e31",
+        "reused": 15,
+        "new": 81,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "old_semantics",
+        "domain": "education",
+        "predictions_sha256": "d9e4d73f99eb495928e9b9b7b2ad7ffc74913f95108c994fb75e2c3a5497fdbc",
+        "reused": 18,
+        "new": 36,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "old_semantics",
+        "domain": "household",
+        "predictions_sha256": "856b31f5a8c6615ee8287176dbde872372b99c305a7a1325330cffe73d92bbc7",
+        "reused": 17,
+        "new": 55,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "flat_ledger",
+        "domain": "medical",
+        "predictions_sha256": "865e6d68634d7961187c857e86d921113fac65a14e2b616aec981e05efecf7fa",
+        "reused": 57,
+        "new": 24,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "flat_ledger",
+        "domain": "office",
+        "predictions_sha256": "f65b40f69f9f2dd811dbbad91af35054795310463662f710094695a3766faeb3",
+        "reused": 41,
+        "new": 55,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "flat_ledger",
+        "domain": "education",
+        "predictions_sha256": "64a6014307b4da14c1da23954fe2d8aaab96b47435807ae0d262a2d611882f1b",
+        "reused": 25,
+        "new": 29,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "flat_ledger",
+        "domain": "household",
+        "predictions_sha256": "f2a4eca4ea36c5b5a4313a757166cee5ab28498c8905176ac243b69e71466668",
+        "reused": 41,
+        "new": 31,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_persistent_ledger",
+        "domain": "medical",
+        "predictions_sha256": "fea4db8116eac0891c490ffa1a11f76d5dd210619b3d091aad5c1510be1792df",
+        "reused": 38,
+        "new": 43,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_persistent_ledger",
+        "domain": "office",
+        "predictions_sha256": "351e9b609c6ab2f010533987aa9a1e5b007c8afbe108ad88facaa0f547b07d1a",
+        "reused": 20,
+        "new": 76,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_persistent_ledger",
+        "domain": "education",
+        "predictions_sha256": "488a5e3c753c208035203a795c4908b199c54fdf756c172620dc077fc04f5cd5",
+        "reused": 21,
+        "new": 33,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_persistent_ledger",
+        "domain": "household",
+        "predictions_sha256": "a2ba9373bd4680f011eaf6f062ac0a00a5c1802552a19d362b8309cdfd3d03ea",
+        "reused": 38,
+        "new": 34,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_source_expansion",
+        "domain": "medical",
+        "predictions_sha256": "bd90f694f2b2dc89475b81501c6b0afb02f7b9e1e79dfef0fc54466b82b2539b",
+        "reused": 39,
+        "new": 42,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_source_expansion",
+        "domain": "office",
+        "predictions_sha256": "8130f9a4b672393279cfbaecfd68f6dd8654229a1d54902d402e21d90565f0a9",
+        "reused": 18,
+        "new": 78,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_source_expansion",
+        "domain": "education",
+        "predictions_sha256": "390a04a080bec3a644b78e85353317e35e3f4e65a4989c15354e1e4c039084a0",
+        "reused": 21,
+        "new": 33,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_source_expansion",
+        "domain": "household",
+        "predictions_sha256": "f0de2cdaa41c73c7330e6290c931c826d388d3053317a9941cdb4e6f96479d4f",
+        "reused": 35,
+        "new": 37,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_advisory_projection",
+        "domain": "medical",
+        "predictions_sha256": "e8d2f8b6c5c26e0748f3063ce30d7f17bcb9a4029443d789651145423ecbe7ba",
+        "reused": 66,
+        "new": 15,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_advisory_projection",
+        "domain": "office",
+        "predictions_sha256": "c7db765248deeba984c61e6a67b4bf22ba72c975a70656e8452027ace985ad88",
+        "reused": 51,
+        "new": 45,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_advisory_projection",
+        "domain": "education",
+        "predictions_sha256": "f5d59c2e1c8024b15b0baa0ff5a386bbfce11fa07e14d158192796d4254c23aa",
+        "reused": 31,
+        "new": 23,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_advisory_projection",
+        "domain": "household",
+        "predictions_sha256": "ccabb9093b4c2c21c93e778f8fc339856413cd1caf81a831357bdfca6386e380",
+        "reused": 55,
+        "new": 17,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      }
+    ],
+    "ordered_bootstrap_resamples": {
+      "old_semantics": 531441,
+      "flat_ledger": 531441,
+      "no_persistent_ledger": 531441,
+      "no_source_expansion": 531441,
+      "no_advisory_projection": 531441
+    }
+  },
+  "late_direct": {
+    "per_domain": {
+      "full": {
+        "medical": {
+          "U": 0.9655172413793104,
+          "A": 0.3333333333333333,
+          "F": 0.16,
+          "MGS": 0.5406896551724139,
+          "pessimistic_MGS": 0.43770114942528743,
+          "errors": 5,
+          "checkpoints": 81,
+          "refusal_count": 34
+        },
+        "office": {
+          "U": 0.6296296296296297,
+          "A": 0.5666666666666667,
+          "F": 0.46153846153846156,
+          "MGS": 0.1469135802469136,
+          "pessimistic_MGS": 0.10655270655270657,
+          "errors": 6,
+          "checkpoints": 96,
+          "refusal_count": 26
+        },
+        "education": {
+          "U": 0.8888888888888888,
+          "A": 0.2222222222222222,
+          "F": 0.5,
+          "MGS": 0.345679012345679,
+          "pessimistic_MGS": 0.3072702331961591,
+          "errors": 2,
+          "checkpoints": 54,
+          "refusal_count": 22
+        },
+        "household": {
+          "U": 0.75,
+          "A": 0.20833333333333334,
+          "F": 0.041666666666666664,
+          "MGS": 0.5690104166666667,
+          "pessimistic_MGS": 0.46484375,
+          "errors": 4,
+          "checkpoints": 72,
+          "refusal_count": 36
+        }
+      },
+      "no_late_veto": {
+        "medical": {
+          "U": 0.9655172413793104,
+          "A": 0.3333333333333333,
+          "F": 0.2,
+          "MGS": 0.5149425287356323,
+          "pessimistic_MGS": 0.41338441890166033,
+          "errors": 5,
+          "checkpoints": 81,
+          "refusal_count": 32
+        },
+        "office": {
+          "U": 0.6296296296296297,
+          "A": 0.5666666666666667,
+          "F": 0.46153846153846156,
+          "MGS": 0.1469135802469136,
+          "pessimistic_MGS": 0.10655270655270657,
+          "errors": 6,
+          "checkpoints": 96,
+          "refusal_count": 24
+        },
+        "education": {
+          "U": 0.8888888888888888,
+          "A": 0.2222222222222222,
+          "F": 0.5,
+          "MGS": 0.345679012345679,
+          "pessimistic_MGS": 0.3072702331961591,
+          "errors": 2,
+          "checkpoints": 54,
+          "refusal_count": 22
+        },
+        "household": {
+          "U": 0.7916666666666666,
+          "A": 0.25,
+          "F": 0.041666666666666664,
+          "MGS": 0.5690104166666667,
+          "pessimistic_MGS": 0.4618055555555556,
+          "errors": 4,
+          "checkpoints": 72,
+          "refusal_count": 34
+        }
+      },
+      "no_bound_deletion": {
+        "medical": {
+          "U": 0.9655172413793104,
+          "A": 0.3333333333333333,
+          "F": 0.2,
+          "MGS": 0.5149425287356323,
+          "pessimistic_MGS": 0.41338441890166033,
+          "errors": 5,
+          "checkpoints": 81,
+          "refusal_count": 33
+        },
+        "office": {
+          "U": 0.6296296296296297,
+          "A": 0.5666666666666667,
+          "F": 0.5128205128205128,
+          "MGS": 0.1329218106995885,
+          "pessimistic_MGS": 0.09471351693573916,
+          "errors": 6,
+          "checkpoints": 96,
+          "refusal_count": 24
+        },
+        "education": {
+          "U": 0.8888888888888888,
+          "A": 0.2222222222222222,
+          "F": 0.5,
+          "MGS": 0.345679012345679,
+          "pessimistic_MGS": 0.3072702331961591,
+          "errors": 2,
+          "checkpoints": 54,
+          "refusal_count": 22
+        },
+        "household": {
+          "U": 0.7916666666666666,
+          "A": 0.25,
+          "F": 0.041666666666666664,
+          "MGS": 0.5690104166666667,
+          "pessimistic_MGS": 0.4618055555555556,
+          "errors": 4,
+          "checkpoints": 72,
+          "refusal_count": 35
+        }
+      },
+      "no_bound_permission": {
+        "medical": {
+          "U": 0.9655172413793104,
+          "A": 0.3333333333333333,
+          "F": 0.16,
+          "MGS": 0.5406896551724139,
+          "pessimistic_MGS": 0.43770114942528743,
+          "errors": 5,
+          "checkpoints": 81,
+          "refusal_count": 33
+        },
+        "office": {
+          "U": 0.6296296296296297,
+          "A": 0.5666666666666667,
+          "F": 0.46153846153846156,
+          "MGS": 0.1469135802469136,
+          "pessimistic_MGS": 0.10655270655270657,
+          "errors": 6,
+          "checkpoints": 96,
+          "refusal_count": 26
+        },
+        "education": {
+          "U": 0.8888888888888888,
+          "A": 0.2222222222222222,
+          "F": 0.5,
+          "MGS": 0.345679012345679,
+          "pessimistic_MGS": 0.3072702331961591,
+          "errors": 2,
+          "checkpoints": 54,
+          "refusal_count": 22
+        },
+        "household": {
+          "U": 0.75,
+          "A": 0.20833333333333334,
+          "F": 0.041666666666666664,
+          "MGS": 0.5690104166666667,
+          "pessimistic_MGS": 0.46484375,
+          "errors": 4,
+          "checkpoints": 72,
+          "refusal_count": 36
+        }
+      },
+      "no_deleted_classification": {
+        "medical": {
+          "U": 0.9655172413793104,
+          "A": 0.3333333333333333,
+          "F": 0.16,
+          "MGS": 0.5406896551724139,
+          "pessimistic_MGS": 0.43770114942528743,
+          "errors": 5,
+          "checkpoints": 81,
+          "refusal_count": 34
+        },
+        "office": {
+          "U": 0.6296296296296297,
+          "A": 0.5666666666666667,
+          "F": 0.41025641025641024,
+          "MGS": 0.1609053497942387,
+          "pessimistic_MGS": 0.11839189616967395,
+          "errors": 6,
+          "checkpoints": 96,
+          "refusal_count": 26
+        },
+        "education": {
+          "U": 0.8888888888888888,
+          "A": 0.2222222222222222,
+          "F": 0.5,
+          "MGS": 0.345679012345679,
+          "pessimistic_MGS": 0.3072702331961591,
+          "errors": 2,
+          "checkpoints": 54,
+          "refusal_count": 22
+        },
+        "household": {
+          "U": 0.75,
+          "A": 0.20833333333333334,
+          "F": 0.041666666666666664,
+          "MGS": 0.5690104166666667,
+          "pessimistic_MGS": 0.46484375,
+          "errors": 4,
+          "checkpoints": 72,
+          "refusal_count": 35
+        }
+      }
+    },
+    "mean_MGS": {
+      "full": 0.40057316610791827,
+      "no_late_veto": 0.3941363844987229,
+      "no_bound_deletion": 0.39063844211189164,
+      "no_bound_permission": 0.40057316610791827,
+      "no_deleted_classification": 0.4040711084947496
+    },
+    "full_minus_arm_MGS": {
+      "no_late_veto": 0.006436781609195391,
+      "no_bound_deletion": 0.009934723996026663,
+      "no_bound_permission": 0.0,
+      "no_deleted_classification": -0.0034979423868312792
+    },
+    "episode_bootstrap_95pct": {
+      "no_late_veto": [
+        -0.001736111111111105,
+        0.016666666666666677
+      ],
+      "no_bound_deletion": [
+        0.0,
+        0.021483991244228326
+      ],
+      "no_bound_permission": [
+        0.0,
+        0.0
+      ],
+      "no_deleted_classification": [
+        -0.012820512820512824,
+        0.0
+      ]
+    },
+    "bootstrap_note": "Exact percentile bootstrap of whole episodes, stratified by domain; 3 episodes/domain. No provider-repeat or multiple-comparison correction. Original scores unchanged.",
+    "judge_reuse": [
+      {
+        "arm": "no_late_veto",
+        "domain": "medical",
+        "predictions_sha256": "083b68b515e0ec7582e1296b14792d05d12c7eeec2d9b75879ba1166d6eaec98",
+        "reused": 67,
+        "new": 14,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_late_veto",
+        "domain": "office",
+        "predictions_sha256": "c5dd28e2df66896f68400aa0e196259304de3190771b1c3fe46aeb49875565b7",
+        "reused": 76,
+        "new": 20,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_late_veto",
+        "domain": "education",
+        "predictions_sha256": "3a9c37080f5a9450a0367bb425abda75c12f0c6f061ee315147cb9c0cc720413",
+        "reused": 46,
+        "new": 8,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_late_veto",
+        "domain": "household",
+        "predictions_sha256": "41f16ff5a328f7f015836f30157dca8ac065cff3734a4831f5512b9dc774d3b8",
+        "reused": 43,
+        "new": 29,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_bound_deletion",
+        "domain": "medical",
+        "predictions_sha256": "84b53d9adc954ba4ad5716521878ad829a549d9bdc4854d8e57733bcc649c1f9",
+        "reused": 81,
+        "new": 0,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_bound_deletion",
+        "domain": "office",
+        "predictions_sha256": "19322814cbed6b08727eb1c978ad4cba4dee44267e8a9d1483c25cd6ad7d32c0",
+        "reused": 95,
+        "new": 1,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_bound_deletion",
+        "domain": "education",
+        "predictions_sha256": "aa570453a9d8cb16c4becf8dd8a246a3653a24aba7a5c13e2cabc797b933386a",
+        "reused": 54,
+        "new": 0,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_bound_deletion",
+        "domain": "household",
+        "predictions_sha256": "69ae81bcb0ca82ca72bd489fa095635554a409e4fa9ab0c5e4a80b89548abe7e",
+        "reused": 72,
+        "new": 0,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_bound_permission",
+        "domain": "medical",
+        "predictions_sha256": "575080dabb53d2c7a7c84f0b0a2be531f1dadca8a154c16cfaa2a837fd278d19",
+        "reused": 81,
+        "new": 0,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_bound_permission",
+        "domain": "office",
+        "predictions_sha256": "5e067c0b38a758e1b593911f0896c9322322721d38e8a9690a50e9625c8fae06",
+        "reused": 96,
+        "new": 0,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_bound_permission",
+        "domain": "education",
+        "predictions_sha256": "aa570453a9d8cb16c4becf8dd8a246a3653a24aba7a5c13e2cabc797b933386a",
+        "reused": 54,
+        "new": 0,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_bound_permission",
+        "domain": "household",
+        "predictions_sha256": "69c76c22daa8bdc513407a3594ce95a3c66b084235c968a63a896f8597f5ae8b",
+        "reused": 72,
+        "new": 0,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_deleted_classification",
+        "domain": "medical",
+        "predictions_sha256": "fc3b1e280b4ab983f84b3d9811334c361a49b1ecd645f3e367d114d0be437f75",
+        "reused": 81,
+        "new": 0,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_deleted_classification",
+        "domain": "office",
+        "predictions_sha256": "ab00b080b853b482bd96042142d154478c6822e2428baca46bc858fa7f4b237c",
+        "reused": 95,
+        "new": 1,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_deleted_classification",
+        "domain": "education",
+        "predictions_sha256": "13f440361492eb8459eba1fa8b7d3fdc7e9344c9c3143a18b223b3defe7d46f4",
+        "reused": 54,
+        "new": 0,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      },
+      {
+        "arm": "no_deleted_classification",
+        "domain": "household",
+        "predictions_sha256": "c509dff7e437607d2d9ff302f6cf2e153d95fc2c237c6b6ee6514d6dc657f863",
+        "reused": 72,
+        "new": 0,
+        "cache_key": "domain + checkpoint + action + answer + structured answer; fixed dataset/code/prompt"
+      }
+    ],
+    "ordered_bootstrap_resamples": {
+      "no_late_veto": 531441,
+      "no_bound_deletion": 531441,
+      "no_bound_permission": 531441,
+      "no_deleted_classification": 531441
+    }
+  },
+  "inference_cost_by_arm": {
+    "old_semantics": {
+      "inference": {
+        "gemini-2.5-flash-lite": {
+          "requests": 545,
+          "tokens": 2845883,
+          "http_failures": 0,
+          "missing_usage": 0
+        }
+      },
+      "execution_errors": 18,
+      "error_types": {
+        "JSONDecodeError": 2,
+        "ValueError": 16
+      },
+      "storage_errors": []
+    },
+    "flat_ledger": {
+      "inference": {
+        "gemini-2.5-flash-lite": {
+          "requests": 510,
+          "tokens": 3451036,
+          "http_failures": 0,
+          "missing_usage": 0
+        }
+      },
+      "execution_errors": 19,
+      "error_types": {
+        "ValueError": 17,
+        "JSONDecodeError": 2
+      },
+      "storage_errors": []
+    },
+    "no_persistent_ledger": {
+      "inference": {
+        "gemini-2.5-flash-lite": {
+          "requests": 531,
+          "tokens": 1979918,
+          "http_failures": 0,
+          "missing_usage": 0
+        }
+      },
+      "execution_errors": 11,
+      "error_types": {
+        "ValueError": 10,
+        "JSONDecodeError": 1
+      },
+      "storage_errors": []
+    },
+    "no_source_expansion": {
+      "inference": {
+        "gemini-2.5-flash-lite": {
+          "requests": 524,
+          "tokens": 2970690,
+          "http_failures": 0,
+          "missing_usage": 0
+        }
+      },
+      "execution_errors": 14,
+      "error_types": {
+        "ValueError": 13,
+        "JSONDecodeError": 1
+      },
+      "storage_errors": []
+    },
+    "no_advisory_projection": {
+      "inference": {
+        "gemini-2.5-flash-lite": {
+          "requests": 521,
+          "tokens": 3568120,
+          "http_failures": 0,
+          "missing_usage": 0
+        }
+      },
+      "execution_errors": 15,
+      "error_types": {
+        "ValueError": 14,
+        "JSONDecodeError": 1
+      },
+      "storage_errors": []
+    }
+  },
+  "new_request_costs": {
+    "gemini-2.5-flash-lite": {
+      "requests": 2648,
+      "tokens": 14825657,
+      "http_failures": 0,
+      "missing_usage": 0
+    },
+    "gpt-4o": {
+      "requests": 932,
+      "tokens": 762879,
+      "http_failures": 0,
+      "missing_usage": 0
+    }
+  },
+  "scope": "Development diagnostics; all 5 end-to-end arms complete 12 episodes / 303 checkpoints each. No canonical pipeline change."
+}

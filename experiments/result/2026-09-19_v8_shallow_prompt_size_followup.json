@@ -1,0 +1,11 @@
+{
+  "new_system_chars": 2280987,
+  "new_user_chars": 7456940,
+  "requests": 413,
+  "old_system_chars": 2323500,
+  "old_user_chars": 7681205,
+  "saved_chars": 266778,
+  "saved_fraction": 0.026665253997993944,
+  "source_sets_unchanged": true,
+  "note": "Character audit of original supplied inputs. No API calls, token or performance claim; old repair feedback not reproduced."
+}

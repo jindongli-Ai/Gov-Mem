@@ -1,6 +1,412 @@
 # Gov-Mem
 
+> Historical sections below are retained for provenance. For the active
+> pipeline and current decisions, use the Current Status section above and
+> `handoff.md`; do not treat older V3/V4/V7 numbers as current V8 results.
+
+## Current Status (2026-09-25)
+
+The active research system is **Gov-Mem V8 Late Governance**. It uses Naive
+RAG as the primary retrieval path and adds two auxiliary permission-aware
+components: a Governed Slot Graph observer and symbolic/neuro-symbolic
+source, binding, lifecycle, and claim checks. The graph does not replace dense
+Top-20 retrieval, directly grant permission, or directly deny an answer. It
+adds an audit finding to the governance prompt when grounded evidence exists;
+missing graph evidence is recorded as an audit gap.
+
+The valid paired Governed Slot Graph ablation on 12 complete confirmation
+episodes (306 checkpoints per arm; historically exposed data, not a pristine
+holdout) is:
+
+| Arm | Four-domain average MGS |
+|---|---:|
+| Graph-on | 17.22% |
+| Graph-off | 15.57% |
+| Difference | +1.64 percentage points |
+
+The earlier graph-off attempt was invalid because its frozen configuration
+still had `memory_governed_slot_graph.enabled: true`; it is retained only as
+an audit artifact and must not be cited. The valid report is
+`experiments/result/2026-09-25_Gov-Mem_confirmation_graph_prompt_ablation.md`.
+
+No final full-2218-query Gov-Mem result for the current graph-enabled source
+has been declared. Do not mix historical V4/V7/V8 scores with the current
+pipeline. The next formal experiment must freeze one runtime/config pair,
+run complete episodes, and report the four-domain arithmetic mean MGS as the
+primary metric.
+
+For recovery and current decisions, read `handoff.md` first, then
+`RESUME_GOVMEM.md`. `VERSION_LOG.md` is historical provenance; dated reports
+under `experiments/result/` contain the authoritative machine-linked results.
+
+For a code-grounded explanation of the active implementation, see
+[`docs/GOVMEM_V8_ARCHITECTURE.md`](docs/GOVMEM_V8_ARCHITECTURE.md). It explicitly
+documents that the Governed Slot Graph is built from the full observable prefix,
+not from Dense RAG Top-20.
+
 This workspace uses GateMem as the default benchmark dataset for Gov-Mem.
+
+Baseline统一OpenLux全量实验入口见 [baselines/README.md](baselines/README.md)：
+`a_mem/`、`mem0/`、`remem_i/`、`remem_s/`各自维护方法配置与入口，
+`models/`独立维护base LLM设置，支持后续固定方法更换模型。
+
+## V8 全量2218 query（2026-09-19，已结束）
+
+91个完整episode全部覆盖。四领域平均官方可用标签 **MGS 30.02%**，
+失败最坏情况 **21.09%**；执行错误 **275/2218（12.40%）**，
+其中113条网络/连接失败、162条解析/校验失败。
+唯一Medical隐私标签经限定补评仍为空；全分母MGS边界 **29.97%–30.04%**，
+不是置信区间。原始判分保留，未人工补标签；没有全量baseline配对或新训练。
+详见 [全量结果、费用与评分缺口](experiments/result/2026-09-19_Gov-Mem-v8_full2218.md)。
+
+当前 V8 调用链、每步职责、状态写入时机与诊断边界见
+[Pipeline 源码核对说明（2026-09-19）](docs/GOVMEM_V8_PIPELINE_AUDIT_20260919.md)。
+LoRA 暂缓，先梳理现有 pipeline 和历史失败轨迹；该说明不代表新实验成绩。
+
+## V8 确认性评测与本地训练判断（2026-09-19）
+
+另选未进入此前 V8 调优的四领域各3集、**306 checkpoints/组**，关闭旧更新折叠的
+收益未复现：Full **31.18%**，全部保留旧更新 **24.90%**；错误 **12 vs 18**。
+因此**未切换默认折叠行为**。旧开发集46.98%不能作为通用收益。
+历史 V7 已跑过全部91集，新的样本也不能称 pristine holdout。
+
+已确认 A100 80GB 资源；暂不训练，先准备独立可靠的权限/生命周期抽取标注。
+新增嵌套拒绝格式兼容，358份历史响应仅恢复1份、无新增失败；相关测试108项通过。
+此修复不在上述冻结评测中，当前源码新增修复后尚无端到端MGS。
+[完整确认性结果、费用与训练判断](experiments/result/2026-09-19_Gov-Mem-v8_confirmation_and_training_readiness.md)。
+
+## V8 模块消融（2026-09-19）
+
+已完成 **5 组端到端消融＋4 组末端规则消融**，每组覆盖同样的 12 个完整 episode、
+303 checkpoints。回退新语义提示：MGS **32.24%**；移除持久化账本：**33.14%**；
+同信息平铺：**38.62%**；关闭来源扩展：**35.90%**；关闭旧更新折叠：**46.98%**。
+默认 V8 仍为下述 **40.06%**，本轮未修改生产实现，不能将消融最优分替换成默认成绩。
+
+主要发现：语义审查和累积状态有正向证据；复杂图表示的增益尚不明确；旧更新折叠
+出现反向信号，应优先复核。末端 critic 的直接净效应仅约 **+0.64 个百分点**，
+不能用它解释此前全部涨幅。开发集区间较宽，另发现一条官方 judge 的不稳定标签，
+原始评分完整保留。详见 [完整消融、区间、费用与机制检查](experiments/result/2026-09-19_Gov-Mem-v8_module_ablation_results.md)。
+
+## 当前 V8 完整复测（2026-09-19）
+
+固定四领域各 3 个完整 episode、303 checkpoints 已完成：**官方平均 MGS
+40.06%，RAG-Naive 19.75%（+20.31 个百分点）**。四领域 MGS 均超过 baseline；
+将技术失败按最坏情况计入后仍为 **32.91%**。这是反复使用的开发样本，不是独立
+holdout 或整个 GateMem 的结论。
+
+- 原文 bank、浅层权限/生命周期表、Stage 2 语言审查和 Stage 3 前的符号否决保留。
+  实测有 **8 次符号层独立将 LLM 放行改为拦截**，其中 6 次涉及删除。
+- 候选引用统一为源 turn ID；只使用已提供的检索/graph/ingestion 原文。
+  有效事件先入库，随后验证 query claim，避免重复抽取。
+- 执行错误 **47 → 17**，仍未清零；Office Utility 低于 baseline，Education
+  删除泄露率仍有 50%。这些限制没有从评分中剔除。
+- Memory/answering 全部使用 **Gemini 2.5 Flash-Lite**。推理调用 **619 → 522**，
+  但 token **3,164,624 → 3,336,077**，仍约为 baseline 的 **5.21 倍**；费用问题
+  尚未解决。新官方评分另用 303 次 GPT-4o。前置失败联调费用单独列出。
+- 当前源码与冻结实测版本一致。相关测试 **79 passed**；仓库 tests 共 **463 passed、
+  13 项既有失败**。未新增 dev 版本。
+
+[完整结果、费用、失败与复现身份](experiments/result/2026-09-19_Gov-Mem-v8_source_projection_random3_per_domain_paired.md)。
+
+## 浅层方案建立与上一轮评测记录（2026-09-19）
+
+用户明确要求：symbolic/neuro-symbolic reasoning 必须实际参与，graph 尽量浅用。
+当前默认配置已选择 shallow 模式，直接修改 V8，没有新增 dev 版本。
+模型接口使用精简 JSON（候选引用＋扁平 events），history 仍保留原文。
+首次真实 TAB 协议联调系统性失败后已停止，未将不完整结果当成 MGS。
+
+**原文 bank → RAG Top-20 → LLM 权限审查 → 符号时间/绑定核验与明确否决 → Answering。**
+
+- 普通 history 不再重建 scene/entity/fact/通用 relation 图，只抽取权限与
+  生命周期 EVENT；保留请求者一跳身份/职责证据，不多跳推理或按角色自动授权。
+- 对整段安全记录，LLM 用 KEEP 引用 candidate ID，程序原样保留信息；
+  混合记录仍按具体受限区间处理，避免重述压缩造成 Utility 损失。
+- 符号层始终执行。端到端测试故意让 LLM 放行绑定到 deny 的信息，确认它被
+  符号层拦下；另有权限到期与跨 checkpoint 状态复用测试。
+- 默认仍是 Gemini Flash-Lite，通常两次主要调用。固定 12 集、303 checkpoints
+  已全部测完：**官方平均 MGS 22.19%，RAG-Naive 19.75%**。但 V8 有 47 个执行
+  错误，失败按最坏情况计分仅 **8.28%**；只有 Medical 超过 baseline，尚不能称稳定胜出。
+- 实测有 3 次符号层独立将 LLM 放行改为拦截。推理 619 次、3,164,624 tokens，
+  仍约为 baseline 的 4.95 倍。评分另用 GPT-4o；memory 全部为 Gemini Flash-Lite。
+- 评测后继续离线修复通用协议：相同 413 份响应从 257 份通过增至 330 份，
+  修复 73 份、无新增失败。**当前修复未重测 MGS，不能沿用冻结版本成绩。**
+
+[完整评测、费用与限制](experiments/result/2026-09-19_Gov-Mem-v8_shallow_random3_per_domain_paired.md)。
+
+[浅层方案、实现边界与验证](docs/GOVMEM_V8_SHALLOW_MEMORY.md)。
+以下来源校验回放和完整图版本记录保留为历史，不作为浅层方案的评测成绩。
+
+## V8 来源校验回放结果（2026-09-19）
+
+继续修复了“Stage 2 看得到检索/graph 引文，但入库校验不认这些来源”的错误。
+现在 claim 和 graph 共用实际提示词来源集合；旧记录不重复入库，新增记录
+仍须有精确 NEW_TURN 引文。跨来源的相同被拒值不再被去重丢失。
+
+相同的 310 份可校验历史抽取响应，关键校验失败由 **46 份降至 11 份**：
+35 份修复，0 份新增失败。相关测试 **91 passed**；全仓库 **416 passed，
+13 项既有失败**。这是不调用 API 的固定响应回放，**不是新的 MGS 结果**。
+详见 [来源校验修复与回放](experiments/result/2026-09-19_Gov-Mem-v8_source_validation_replay.md)。
+
+## V8 前序修复记录（2026-09-19）
+
+在现有 V8 中继续修复，未新增版本入口、未启动付费重测：
+
+- 默认配置显式提供官方 baseline 使用的四领域公开 access policy，逐字对照
+  vendored 官方源码。它是应用规则输入，不是从 episode/答案生成的词表；
+  通用推理代码不按领域硬编码授权。规则来源与 SHA256 记录在 prompt audit。
+- lifecycle EVENT（包含不带 grantee 的删除/更新/取消）完整进入可见前缀的
+  Stage 2 graph context；原先只传 FACT tombstone，会漏掉另一种合法表示。
+- 其他 scene 的 allow 不再抵消当前 scene 的明确绑定 deny。
+- 已通过来源/schema 校验的独立 graph delta 先入库；claim 出错后的修复或重启
+  复用已处理 history，不再因回答字段错误重复抽取。无效治理事件仍不入库。
+- 可选无损 text-pool 压缩离线回放 275 份已保存 prompt 全部还原一致，但输入
+  字符仅减少约 3.1%，默认关闭；尚未测量模型理解和 token 费用影响。
+- 相关离线测试 84 项通过。**这不是 MGS 提升证明**；已公布的 4.37%/19.75%
+  属于之前冻结实现，历史结果不覆盖。
+
+详情见 [本次修复与验证](experiments/result/2026-09-19_Gov-Mem-v8_correctness_followup.md)。
+
+## 现行 V8：语言权限审查与合并调用（2026-09-18）
+
+按用户要求，直接维护 `src/gov_mem/backbones/govmem_v8_late_governance.py`，
+不创建 dev2。`govmem_v8_dev1_late_governance` 现在是同一实现的兼容入口，
+并非独立冻结算法。此前 Medical/Atlas/Beacon 结果保留为历史诊断。
+
+现行流程：Dense Top-20 + 有限相邻上下文 → 一次 Stage-2 调用同时抽取新增
+权限/关系事件并做语言权限审查 → 确定性状态投影、精确来源/绑定校验 →
+经过审查的原文 claims（含安全上下文）→ Answering Agent。
+
+- 默认每个正常 checkpoint 两次主要 LLM 调用，完全拦截时一次；新增事件
+  抽取包含在 Stage 2 中。超过 64 个新 turns 或 24,000 字符的冷启动前缀
+  使用显式计数的预填充调用，默认每 checkpoint 最多四次；不会静默丢掉历史。
+- 使用公开的小型通用结构 ontology，所有领域使用相同 schema；没有 GateMem
+  实体/答案词表或按 domain 分支的推理代码。2026-09-19 起通过配置显式注入
+  官方公开的任务访问规则；此规则输入与通用 ontology 分开管理。
+- 权限图保留带原文来源的事件和关系；按可见前缀合并 scene、参与者和职责边。
+  状态区分主体、资源、动作、范围、条件、签发者和时间，未来记录不会进入早期投影。
+- LLM 判断权限的语义适用性。去除词语重叠、缺图边、场景名单和同主体传播的
+  硬拦截；符号层只执行明确绑定的限制和结构校验。
+- 拦截必须引用可见原文；同一原文中的受限区间不会夹带在放行长句里。
+  Stage 3 不接收被拦值、原始混合记录或自由文本拒绝理由。
+- `json_max_attempts: 1`，HTTP 最多两次尝试。完整 episode 联调发现协议错误后，
+  新增 `max_contract_repairs: 1`：Stage 2 仅在协议校验失败时最多再生成一次，单独计费。
+  默认遇错即停；固定样本评测开启 `record_execution_errors`，将最终失败明确记为
+  `action=error` 并继续整集，不冒充成功拒答，也不删除失败 checkpoint。
+  费用审计含重试、延迟及
+  provider 返回的 tokens；没有 usage 时不凭空估算费用。
+
+默认配置仍是 `configs/govmem_v8_late_governance_gemini25flashlite.yaml`：
+`gemini-2.5-flash-lite`、temperature 0、`text-embedding-3-small`、Top-20。
+新实现须使用新输出目录，避免加载旧 schema 的 event cache；不覆盖历史实验输出。
+
+本地验证与详细边界见 [V8 设计说明](docs/GOVMEM_V8_LATE_GOVERNANCE.md) 和
+[实现验证记录](experiments/result/2026-09-18_Gov-Mem-v8_inplace_implementation_validation.md)。
+固定随机样本配对评测已经完成（seed 20260918，四领域各 3 个完整 episode，
+每种方法 303 checkpoints）：**冻结 V8 平均官方 MGS 4.37%，官方 RAG-Naive
+19.75%**；V8 有 28 个执行错误，chat tokens 为基线 5.47 倍。该快照未达到目标。
+详见 [完整结果与口径限制](experiments/result/2026-09-18_Gov-Mem-v8_random3_per_domain_paired.md)。
+
+随后按用户要求，当前 V8 原地切换为 `response_protocol: lines`：Stage 2
+每条信息一行，字段以 TAB 分隔；来源单独一行。history 提取和 Stage 2
+不再要求模型生成 JSON；入库仍由 Python 序列化为结构化 JSON。Stage 3 保持
+原有接口：JSON 包装中包含文本 answer 和引用信息，最终回答仍是文本。
+Stage 2 原文响应保存在 `v8_text_responses/<dataset>/*.stage2.txt`。
+每条 claim 必须显式填写 `bind=事件ID` 或 `bind=NONE`，程序根据选中的已知事件
+生成符号绑定，不再依赖模型重复输出 resource/action/scene 字段。
+
+**逐行文本修订只完成离线验证，尚未付费重测。上述 MGS 属于此前冻结 JSON
+快照，不能当作当前文本协议的成绩。** 模型仍是 Gemini，未新增 dev2。
+
+## 历史接管说明：原地修改前的诊断与计划（2026-09-18）
+
+本节保留原地修改前的研究约束和诊断背景；涉及冻结 dev1、另建 dev2 的旧计划
+已由本文开头的用户要求取代。下述性能数字均属于旧实现，不能当作现行 V8 的结果。
+工作树包含尚未提交的 v8 开发文件，接管前先运行
+`git status --short`，不得覆盖或清理用户已有修改。
+
+### 不可变研究约束
+
+以下约束是 Gov-Mem 后续所有版本和实验的硬性要求，不得为提高某个 episode
+分数而放宽：
+
+1. 默认数据集是 GateMem。`dataset/GateMem/` 中的原始数据只读，不得修改。
+2. 实验选择单位必须是一个完整 episode 的全部 checkpoints。禁止随机抽取、
+   人工挑选或只运行 episode 内部分 checkpoints 后声称获得可比较结果。
+3. 运行时只能看到当前 checkpoint 的 observable prefix，禁止读取未来 episode
+   suffix、gold answer/evidence、`expected_action`、`judge_spec`、`leak_targets`、
+   数据集 `query_type`、oracle evidence、rationale 或 scorer 字段。
+4. memory-system base LLM 固定使用 `gemini-2.5-flash-lite`（除非用户之后明确
+   改变要求），temperature 为 `0.0`。当前 embedding 是
+   `text-embedding-3-small`，Stage-1 dense retrieval 保留 RAG-Naive Top-20。
+5. Gov-Mem 必须保留 symbolic reasoning；不得退化成纯 LLM/RAG。Symbolic 的
+   职责是保存可审计的 entity/relation/permission/lifecycle/state、做确定性的
+   source grounding、时间投影和末端 claim-level hard veto。Symbolic 不应在
+   早期大面积删除候选内容，也不能用“未知即拒绝”的方式牺牲 Utility。
+6. Language reasoning 是主要的语义抽取和细粒度授权判断能力；symbolic
+   reasoning 辅助、校验并拦截明确违规。最终 Answering Agent 只能看到通过
+   late governance 的 safe claims，不能看到被拦截值。
+7. 可以使用一个小型、冻结、公开、benchmark-independent 的结构 ontology，
+   例如 principal、role、scene、resource、allow、deny、revoke、update、delete、
+   current、historical 以及通用 relation types。禁止预置 GateMem 实体名、答案
+   值、case-specific 短语、从 GateMem 提前统计出的词表或 dataset classifier。
+8. entity、relation、permission、lifecycle 抽取必须由 observable prefix 实例化，
+   并保留精确 source span。抽取质量是图、缓存和状态投影可用的前提，不能只看
+   最终分数而跳过抽取审计。
+9. 必须保住 RAG-Naive 的 Utility：dense Top-20 是主召回通道，图和状态是辅助
+   信号；不能假设“query 阶段只做图检索和状态投影”就足够。
+10. 用户已明确要求直接修改现有 V8，不再创建 dev2。保留历史结果，
+    在 Git 和 `VERSION_LOG.md` 中记录变更；旧 dev1 入口仅为兼容别名。
+11. 本地 action accuracy、结构审计和少量 complete-episode 结果都只是诊断。
+    U/A/F/MGS 只有在规定的 official GateMem scorer/protocol 下才能作为正式
+    benchmark 指标；不得把诊断结果包装成官方或论文结果。
+12. 目标调用量是接近 RAG：正常 checkpoint 原则上不超过两次主要 LLM 调用，
+    repair 必须是有统计依据的异常路径。每次实验必须记录 provider requests、
+    retries、latency 和 requests/checkpoint。
+
+### 当前实现
+
+当前新架构为 v8 Late Governance：
+
+```text
+observable prefix
+  -> dense Top-20（保持 RAG 主召回）
+  -> bounded adjacent-turn context
+  -> incremental scene/entity/relation/permission/lifecycle extraction
+  -> append-only episode event cache
+  -> checkpoint-time state projection
+  -> Stage-2 atomic claim ledger（language reasoning）
+  -> late symbolic critic（仅明确证据触发 hard veto）
+  -> value-minimal safe claims
+  -> Answering Agent
+```
+
+版本入口：
+
+- 冻结诊断版本：`src/gov_mem/backbones/govmem_v8_dev1_late_governance.py`
+- 冻结 mode：`govmem_v8_dev1_late_governance`
+- 配置：`configs/govmem_v8_dev1_late_governance_gemini25flashlite.yaml`
+- 配对 baseline：`configs/rag_naive_v3_paired_dev1_gemini25flashlite.yaml`
+- 设计说明：`docs/GOVMEM_V8_LATE_GOVERNANCE.md`
+- 完整版本记录：`VERSION_LOG.md`
+
+v8 已实现 scene schema、closed observable principal registry、精确 source-span
+验证、增量 event cache、checkpoint 投影、permission/revoke/delete/cancel、删除
+tombstone、claim ledger、末端 symbolic critic、safe-evidence boundary，以及完整
+episode manifest 强校验。v8 按 visible-prefix 长度处理 checkpoints，即使原数据
+按 query type 分组，也不会破坏 episode 时间顺序。
+
+### 已完成的完整 episode 验证
+
+已经创建并保留三个完整 episode manifests：
+
+- `experiments/manifests/v8_education_atlas_complete_episode.json`
+- `experiments/manifests/v8_education_beacon_complete_episode.json`
+- `experiments/manifests/v8_medical_early_pregnancy_complete_episode.json`
+
+Atlas（18 checkpoints）最终诊断为 17/18 action correct，Safety 6/6，未观察到
+privacy/forgetting violation；最后一个 mixed-record 问题随后用通用规则修复。
+Beacon（18 checkpoints）用于发现 summary redaction、虚假 explicit permission、
+operational-duty provenance 和 sibling propagation 问题；为避免针对同一 episode
+反复调参，没有持续刷 Beacon。
+
+最新 Medical 完整 episode 包含 28 checkpoints（10 Utility、9 Privacy、9
+Safety），Gov-Mem v8-dev1 与 RAG-Naive 配对运行均正常完成，均为零 HTTP retry。
+本地诊断如下；它不是 official MGS：
+
+| System | Action | Utility action | Privacy action | Safety action | Privacy violations | Forgetting violations |
+|---|---:|---:|---:|---:|---:|---:|
+| Gov-Mem v8-dev1 | 20/28 | 5/10 | 6/9 | 9/9 | 1/28 | 0/28 |
+| Paired RAG-Naive | 17/28 | 8/10 | 3/9 | 6/9 | 3/28 | 0/28 |
+
+v8 共调用 chat provider 65 次（2.32/checkpoint），配对 RAG 为 59 次
+（2.11/checkpoint）。v8 不再是 RAG 十倍调用量，但仍需减少非必要的 query-time
+调用。完整诊断和逐项根因见：
+
+`experiments/result/2026-09-18_Gov-Mem-v8-dev1_medical_complete_episode_paired_diagnostic.md`
+
+输出目录：
+
+- `outputs/govmem_v8_dev1_medical_early_pregnancy_complete28_20260918`
+- `outputs/rag_naive_v3_paired_medical_early_pregnancy_complete28_r2_20260918`
+
+Medical 结构审计：225 visible turns，25 次 logical incremental extraction，最终
+event store 有 2 scenes、46 entities、33 facts、26 relations、20 governance
+events；跨 checkpoints 共 release 17 claims、block 31 claims。结构/source-grounding
+审计通过不等于语义 F1；真正的 extraction F1 仍需 episode-disjoint 人工标注。
+
+### 当前最重要的已知问题
+
+1. **Scene 增量合并不一致。** Relation store 已抽到
+   `nurse_casey_liu participates_in`，但 canonical scene participant roster 没有
+   回填；`scheduler_jules` 也缺失。late critic 因此把护士和 scheduler 的合法
+   operational-duty 请求误判为 scene mismatch，造成 Utility 过拒。
+2. **Scene membership 太粗。** `billing_cho` 在大场景 roster 中，当前 critic
+   就错误地把它当成访问 hCG 临床解释的 operational duty，造成 Medical
+   checkpoint 16 的唯一隐私泄漏。同一 episode 的参与者身份不等于字段权限。
+3. **Permission resource 对齐太弱。** 当前 hard veto 仍依赖 claim 与 resource
+   surface/scope 的 token overlap，出现无关电话限制误伤 family-access setting。
+4. **Sibling veto 边界过宽。** 一个 clinical field 被拦后，会按同一 subject
+   传播到独立的安全字段，例如 suite location。
+5. **Action label 有边界错误。** scoped permission 下已经完整回答所有 requested
+   fields 时仍输出 `answer_redacted`；只有确实存在被拦 requested slot 时才应使用
+   redacted。
+6. **抽取评测尚不充分。** 当前只有 schema/source-grounding audit，没有独立的
+   entity/relation/permission semantic precision/recall/F1 标注集。
+
+### 下一步执行计划（按顺序）
+
+1. **先保持 dev1 冻结。** 不得基于本次 Medical episode 原地修改
+   `govmem_v8_dev1_late_governance.py`。
+2. **建立 v8-dev2 独立文件/config。** 文件名必须可直接辨认版本，并在
+   `VERSION_LOG.md` 登记；不要把实验性修复写回 dev1。
+3. **修 scene/event projection。** 将 `participates_in` relation 确定性合并进
+   canonical scene roster；处理同 ID scene 的 participant/status/source-span
+   增量 union，并补充一致性测试。
+4. **重做 operational duty 表示。** 抽取/投影 typed duty edge：
+   `(principal, role, action, resource_category, subject/scene, source_span)`。
+   同场景 membership 只能做候选信号，不能单独授权。billing、reception、nurse、
+   scheduler、pharmacist 等必须按请求字段和可见职责语言判断。
+5. **重做 permission matching。** 优先匹配 source-grounded resource ID、resource
+   category、action 和 scope；自然语言模型处理模糊范围；token overlap 只能做
+   advisory，不能单独 hard veto。
+6. **收窄 sibling propagation。** 仅在同一 protected record/resource family
+   内传播，不能只凭 subject 相同。
+7. **修 action rendering。** `answer_redacted` 必须由“至少一个 requested slot
+   被 block 且至少一个被 release”推导；完整 scoped answer 仍是 `answer`。
+8. **先写 synthetic/unit regressions。** 覆盖 Medical 2/3/5/8/9/13/16/19 的
+   失败机制，但测试和运行时代码不得硬编码 GateMem 答案值或专属触发短语。
+9. **建立 extraction gold audit。** 从与调参 episode 隔离的完整 episode 选取
+   observable prefixes，由人工标 scene/entity/relation/permission/lifecycle，
+   单独报告 micro/macro precision、recall、F1、source-span exactness 和 invalid
+   record rate。
+10. **验证顺序防止过拟合。** unit/synthetic -> 一个新的完整 episode -> 第二个
+    未见完整 episode -> 最后才回归 Medical/Atlas/Beacon。任何阶段都不能随机抽
+    checkpoints。
+11. **每轮配对 RAG。** 使用相同 episode、LLM、embedding、Top-20、temperature
+    和 evaluator；比较 Utility、Privacy、Safety、泄漏、调用量和 latency。
+12. **达到 promotion gate 后再跑全量 2,218。** 建议 gate：Safety 不低于 RAG，
+    Privacy violations 明显更低，Utility action 不低于 RAG 超过可解释容差，
+    chat requests/checkpoint 接近 2，且 extraction audit 无结构性缺陷。未达到前
+    禁止用昂贵全量实验代替诊断。
+
+### 接管后的第一组命令
+
+```bash
+cd /mnt/data_disk/home/fuyali/codes/2027_TOIS_Gov-Mem
+git status --short
+PYTHONPATH=src pytest -q \
+  tests/test_v8_event_extractor.py \
+  tests/test_v8_late_governance.py \
+  tests/test_v8_late_governance_backbone.py \
+  tests/test_v8_state_projector.py
+PYTHONPATH=src python scripts/audit_v8_extraction.py \
+  --output_dir outputs/govmem_v8_dev1_medical_early_pregnancy_complete28_20260918
+```
+
+Focused v8 tests 在本次交接前为 `24 passed`。全项目测试的已知基线是
+`350 passed, 13 failed`；13 个失败属于 clean HEAD 已存在的 legacy
+`field_state_projection` / `stateful_policy` 测试，不是 v8 新回归。接管者应重新
+运行确认，并对比失败集合，不能为了变绿而删除或放宽 legacy 测试。
 
 ## Current Research Snapshot (2026-09-17)
 
@@ -412,7 +818,7 @@ model, evaluator, and whether the comparison is on U, A, F, or MGS.
 - [DeepSeek-V4-Flash strict full result (2026-08-11)](experiments/result/2026-08-11_Gov-Mem_v3_full_all_2218_openlux_deepseekv4flash_strict.md)
 - [Llama-3.3-70B-Instruct strict full result (2026-08-11)](experiments/result/2026-08-11_Gov-Mem_v3_full_all_2218_openlux_llama33_70b_instruct_strict.md)
 - [Full U/A/F/MGS Markdown summary table (2026-08-11)](experiments/result/2026-08-11_Gov-Mem_v3_full_all_2218_performance_summary.md)
-- [Current implementation and contribution reconstruction](report.md)
+- [Current V8 implementation and contribution notes](handoff.md)
 
 When reporting a new result, record the commit, config, model/provider,
 manifest, evaluator, and whether long-context or gold-derived feedback was
@@ -421,7 +827,7 @@ current snapshot.
 
 ## 迁移到新服务器
 
-当前项目目录为：
+历史迁移说明中的旧项目目录为（仅供溯源）：
 
 ```text
 /data_nvme/user/jli/codes/2027_ICLR_Gov-Mem
@@ -457,7 +863,7 @@ git log --oneline --decorate -8
 - `.git/`：Git 历史和回滚点，必须保留；
 - `src/`、`scripts/`、`tests/`、`run_govmem.py`：实现、运行器和测试；
 - `configs/`、`experiments/gatemem_suites/`：实验配置和 checkpoint manifest；
-- `experiments/result/`、`README.md`、`report.md`、`VERSION_LOG.md`：结果、协议和版本记录；
+- `experiments/result/`、`README.md`、`handoff.md`、`VERSION_LOG.md`：结果、协议和版本记录；
 - `dataset/GateMem/`：GateMem 原始数据，只读，不要修改；
 - `third_party/GateMem-official/`：官方 GateMem 评测工具；
 - `third_party/python_deps/gatemem_eval/`：当前服务器已有的评测依赖包；

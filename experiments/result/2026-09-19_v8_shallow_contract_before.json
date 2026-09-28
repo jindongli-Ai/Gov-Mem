@@ -1,0 +1,2116 @@
+{
+  "counts": {
+    "stage2_requests": 413,
+    "passed": 257,
+    "failed": 156
+  },
+  "failures": {
+    "Excerpt claim requires value and delivery": 69,
+    "KEEP references unknown candidate": 5,
+    "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]": 13,
+    "Unterminated string starting at: line 3 column 386 (char 1031)": 1,
+    "Unterminated string starting at: line 5 column 1142 (char 2877)": 1,
+    "Expecting property name enclosed in double quotes: line 28 column 11 (char 560)": 1,
+    "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'ambiguous_source_span'}, {'claim_index': 2, 'reason': 'unknown_candidate'}]": 1,
+    "V8 claim grounding failed: [{'claim_index': 1, 'reason': 'unknown_candidate'}]": 1,
+    "CLAIM bind references unknown event": 17,
+    "Expecting ':' delimiter: line 3 column 51 (char 199)": 1,
+    "V8 cannot release a claim classified as deleted": 5,
+    "CLAIM binds incompatible resources/actions/scenes; split the claim": 11,
+    "Invalid governance events: [{'kind': 'governance_event', 'reason': 'resource_not_grounded', 'resource_surface': 'exact Sunday off-site handoff to 6:05 PM at the north rideshare curb'}]": 1,
+    "Invalid governance events: [{'kind': 'governance_event', 'reason': 'missing_resource'}]": 1,
+    "Invalid governance events: [{'kind': 'governance_event', 'reason': 'resource_not_grounded', 'resource_surface': 'rowan ash'}]": 1,
+    "V8 withheld/answered without a grounded claim": 2,
+    "V8 block requires a grounded, scope-specific restriction": 1,
+    "Expecting ',' delimiter: line 4 column 415 (char 1547)": 1,
+    "Invalid control character at: line 2 column 388 (char 481)": 1,
+    "Shallow ingestion requires an events array": 2,
+    "Unterminated string starting at: line 4 column 420 (char 827)": 1,
+    "Expecting property name enclosed in double quotes: line 2 column 355 (char 414)": 1,
+    "Invalid governance events: [{'kind': 'governance_event', 'reason': 'resource_not_grounded', 'resource_surface': 'deleted Saturday code'}]": 1,
+    "Unterminated string starting at: line 4 column 445 (char 655)": 1,
+    "Invalid control character at: line 2 column 324 (char 391)": 1,
+    "Invalid control character at: line 2 column 429 (char 496)": 1,
+    "Invalid control character at: line 2 column 663 (char 721)": 1,
+    "Shallow claim requires explicit bind array": 1,
+    "Invalid control character at: line 2 column 344 (char 410)": 1,
+    "Invalid control character at: line 2 column 367 (char 436)": 1,
+    "Invalid control character at: line 2 column 657 (char 716)": 1,
+    "Invalid governance events: [{'kind': 'governance_event', 'reason': 'missing_source_span'}]": 2,
+    "Unexpected events without ingestion": 1,
+    "V8 claim grounding failed: [{'claim_index': 3, 'reason': 'claim_not_exactly_grounded'}, {'claim_index': 4, 'reason': 'claim_not_exactly_grounded'}]": 1,
+    "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}, {'claim_index': 1, 'reason': 'claim_not_exactly_grounded'}]": 1,
+    "Expecting ',' delimiter: line 3 column 10 (char 811)": 1,
+    "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}, {'claim_index': 1, 'reason': 'claim_not_exactly_grounded'}, {'claim_index': 2, 'reason': 'claim_not_exactly_grounded'}]": 1,
+    "Invalid control character at: line 2 column 740 (char 814)": 1,
+    "Invalid governance events: [{'kind': 'governance_event', 'reason': 'resource_not_grounded', 'resource_surface': 'Delete the earlier bridge label too: the value bridge-52 should not be restated in later answers.'}]": 1
+  },
+  "captures": [
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750394002962737_1.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750403453652448_3.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750406059196810_4.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750410227162241_6.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750415564438400_8.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750418891338724_10.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750422468194759_12.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750424777605873_13.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750428228158564_15.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750430552711579_16.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750433736834086_17.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750438090867036_19.json",
+      "passed": false,
+      "error": "KEEP references unknown candidate"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750440655142987_20.json",
+      "passed": true,
+      "claims": 5
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750446945039101_22.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750451387204027_24.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750453535526452_25.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750457779855245_27.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750459924792826_28.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750463677681121_30.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750466273148719_31.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750468513084986_32.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750470463843444_33.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750473804509361_35.json",
+      "passed": true,
+      "claims": 6
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_004_orchid_committee_orchid_commons_dual_track/raw_chat_responses/1789750478455981763_37.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750393998054834_1.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750400306211662_3.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750404325803833_5.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750406007341488_6.json",
+      "passed": false,
+      "error": "Unterminated string starting at: line 3 column 386 (char 1031)"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750408887061006_7.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750411997316430_8.json",
+      "passed": false,
+      "error": "Unterminated string starting at: line 5 column 1142 (char 2877)"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750416802363078_9.json",
+      "passed": false,
+      "error": "Expecting property name enclosed in double quotes: line 28 column 11 (char 560)"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750421451199273_10.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750425856485724_12.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750429970600907_13.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750432190685530_14.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750440495770341_16.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750443986526647_17.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750448362172633_18.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750453161172795_20.json",
+      "passed": true,
+      "claims": 20
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750458801579709_22.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750463674569395_24.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750467929405013_26.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750471372064295_28.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750475475339461_30.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750479055074821_32.json",
+      "passed": true,
+      "claims": 5
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750484738564778_34.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_023_lattice_petition_lattice_leaders_dual_track/raw_chat_responses/1789750488881076888_36.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750547404866926_1.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750552252057250_3.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750553679460754_4.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750557228426627_6.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750560567611967_8.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750564017297299_9.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'ambiguous_source_span'}, {'claim_index': 2, 'reason': 'unknown_candidate'}]"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750566756245044_10.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750569545845440_11.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750572213797897_12.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 1, 'reason': 'unknown_candidate'}]"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750575778915269_13.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750580427411397_15.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750582716902835_16.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750586641373480_18.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750592698382032_20.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750599421604413_22.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750603038054704_24.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750605131924728_25.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750608993855866_27.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750613013086514_29.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750616477145662_31.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750619619465523_33.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750623528498073_35.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/education/education_episode_custom_en_030_helix_petition_helix_coaches_dual_track/raw_chat_responses/1789750626543712122_36.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750547393672767_1.json",
+      "passed": false,
+      "error": "Expecting ':' delimiter: line 3 column 51 (char 199)"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750549963685935_2.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750553673850725_3.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750557832982297_5.json",
+      "passed": true,
+      "claims": 5
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750562797635249_7.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750565758388183_8.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750568527170922_9.json",
+      "passed": false,
+      "error": "V8 cannot release a claim classified as deleted"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750571172666219_10.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750575961012295_12.json",
+      "passed": false,
+      "error": "CLAIM binds incompatible resources/actions/scenes; split the claim"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750577797095586_13.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750581082103829_15.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750583349189183_16.json",
+      "passed": false,
+      "error": "Invalid governance events: [{'kind': 'governance_event', 'reason': 'resource_not_grounded', 'resource_surface': 'exact Sunday off-site handoff to 6:05 PM at the north rideshare curb'}]"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750586553139055_17.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750589575658002_18.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750594013983379_20.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750597033581955_21.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750599629617513_22.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750602366633586_23.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750605258443456_24.json",
+      "passed": false,
+      "error": "Invalid governance events: [{'kind': 'governance_event', 'reason': 'missing_resource'}]"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750607992888809_25.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750611366828121_27.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750614010539666_28.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750617436479037_30.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750620076129613_31.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750623156021399_32.json",
+      "passed": false,
+      "error": "Invalid governance events: [{'kind': 'governance_event', 'reason': 'resource_not_grounded', 'resource_surface': 'rowan ash'}]"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750625431968742_33.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750628044715672_34.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750630835970773_35.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750632938854340_36.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750636208859529_38.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750638726168713_39.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750643946215633_41.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750646450090252_42.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750650553658878_44.json",
+      "passed": false,
+      "error": "V8 withheld/answered without a grounded claim"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750652593199669_45.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750656352239443_47.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750658510682544_48.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750661791527798_49.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750666494917937_51.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750668947990175_52.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750671106789028_53.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_010_rowan_wardrobe_rowan_wash_tailor_linen_private_note/raw_chat_responses/1789750673272739115_54.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750547395118361_1.json",
+      "passed": true,
+      "claims": 6
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750552218871435_3.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750555151616477_5.json",
+      "passed": true,
+      "claims": 6
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750558808145084_7.json",
+      "passed": false,
+      "error": "V8 block requires a grounded, scope-specific restriction"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750561048385007_8.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750562944538548_9.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750566562708333_11.json",
+      "passed": true,
+      "claims": 7
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750570762367572_13.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750575981957112_15.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750577944995189_16.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750579803280610_17.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750583968384466_19.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750586609722512_20.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750589964834247_21.json",
+      "passed": false,
+      "error": "Expecting ',' delimiter: line 4 column 415 (char 1547)"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750592766218425_22.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750598137724819_24.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750601845673659_26.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750605648520113_28.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750609373552287_30.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750611782235380_31.json",
+      "passed": false,
+      "error": "V8 cannot release a claim classified as deleted"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750613713761470_32.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750616210938285_33.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750618469098746_34.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750620789800401_35.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750623046752583_36.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750625865122022_37.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750631235593023_39.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750635353593539_41.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750638771470130_42.json",
+      "passed": false,
+      "error": "Invalid control character at: line 2 column 388 (char 481)"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750642224362995_43.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750646504064521_45.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750650437960031_46.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_013_coral_pool_coral_cabana_swim_storage_private_note/raw_chat_responses/1789750653816247089_48.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750547397082006_1.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750553173272037_3.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750557255212647_5.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750561124897547_7.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750564802256111_9.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750568697938768_11.json",
+      "passed": true,
+      "claims": 6
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750572856884406_13.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750576955318786_15.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750580111506513_17.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750582281790117_18.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750584488347267_19.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750587232123051_20.json",
+      "passed": false,
+      "error": "Shallow ingestion requires an events array"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750589382536770_21.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750591986898843_22.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750594873906977_23.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750598576358163_24.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750601128956272_25.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750604831773556_26.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750608536270584_28.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750612049051004_30.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750616561255712_32.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750619463862962_33.json",
+      "passed": false,
+      "error": "Unterminated string starting at: line 4 column 420 (char 827)"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750621916068743_34.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750624206200811_35.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750626800715846_36.json",
+      "passed": false,
+      "error": "V8 cannot release a claim classified as deleted"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750629012747498_37.json",
+      "passed": false,
+      "error": "Expecting property name enclosed in double quotes: line 2 column 355 (char 414)"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750632129912811_38.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750635925769607_40.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750638968563050_41.json",
+      "passed": false,
+      "error": "Invalid governance events: [{'kind': 'governance_event', 'reason': 'resource_not_grounded', 'resource_surface': 'deleted Saturday code'}]"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750642907661521_42.json",
+      "passed": true,
+      "claims": 5
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750649678315393_44.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/household/household_episode_custom_en_022_marigold_easel_marigold_caddy_art_supply_private_note/raw_chat_responses/1789750651812475052_45.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789749998244212985_1.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750001829768478_2.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750004690293636_3.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750008953178271_5.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750015470735556_7.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750019757249495_9.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750022165764083_10.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750026602904615_12.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750031729757792_14.json",
+      "passed": false,
+      "error": "Unterminated string starting at: line 4 column 445 (char 655)"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750034596583642_15.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750037067326960_16.json",
+      "passed": false,
+      "error": "CLAIM binds incompatible resources/actions/scenes; split the claim"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750040610026145_17.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750044165171456_18.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750069620715619_20.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750073573389236_22.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750075561215599_23.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750078014695751_24.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750081367339605_26.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750084483443759_28.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750088129769263_30.json",
+      "passed": false,
+      "error": "CLAIM binds incompatible resources/actions/scenes; split the claim"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750090634671475_31.json",
+      "passed": false,
+      "error": "CLAIM binds incompatible resources/actions/scenes; split the claim"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750094086681623_32.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750097565168340_34.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750100277207571_35.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750104449558955_37.json",
+      "passed": false,
+      "error": "CLAIM binds incompatible resources/actions/scenes; split the claim"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750106748536123_38.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750108907029615_39.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750112805918791_41.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750115813119933_42.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750119500671979_43.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750123084460118_45.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750125124365769_46.json",
+      "passed": false,
+      "error": "CLAIM binds incompatible resources/actions/scenes; split the claim"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750127460613164_47.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750132015934167_49.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750135633154513_51.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750139709955938_53.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_007_thyroid_biopsy_deleted_rose_lodge_contact/raw_chat_responses/1789750141765909974_54.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750191640658852_1.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750198132610935_2.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750200530012867_3.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750203838610472_5.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750207787674553_7.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750211358687509_9.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750214931736069_10.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750218532205306_12.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750220756923899_13.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750224207181814_15.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750226606505627_16.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750230847771528_18.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750234820676733_20.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750239155468594_22.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750241937742749_24.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750244401609500_25.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750248610710836_27.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750250464512577_28.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750253391353299_29.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750257398126463_31.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750259708185306_32.json",
+      "passed": false,
+      "error": "V8 withheld/answered without a grounded claim"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750261804239298_33.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750266995937489_35.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750269369987407_36.json",
+      "passed": false,
+      "error": "CLAIM binds incompatible resources/actions/scenes; split the claim"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750272564455392_37.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750275078611490_38.json",
+      "passed": false,
+      "error": "CLAIM binds incompatible resources/actions/scenes; split the claim"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750278008164130_39.json",
+      "passed": false,
+      "error": "CLAIM binds incompatible resources/actions/scenes; split the claim"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750281014344753_40.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750282969971202_41.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750286255660194_42.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750289269703263_43.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750291618354134_44.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750294579258582_45.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750297630466657_46.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750300139210016_47.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750304173844393_49.json",
+      "passed": false,
+      "error": "CLAIM binds incompatible resources/actions/scenes; split the claim"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750306620140751_50.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750308889378726_51.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_009_pe_deleted_willow_house_line/raw_chat_responses/1789750310622972315_52.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750191643171345_1.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750196211821259_3.json",
+      "passed": false,
+      "error": "Invalid control character at: line 2 column 324 (char 391)"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750198405199210_4.json",
+      "passed": false,
+      "error": "Invalid control character at: line 2 column 429 (char 496)"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750200685842341_5.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750204277770296_7.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750208174647944_9.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750212127613159_11.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750214343837605_12.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750218294412342_14.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750222080268843_16.json",
+      "passed": false,
+      "error": "Invalid control character at: line 2 column 663 (char 721)"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750224978983751_17.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750227272531246_18.json",
+      "passed": false,
+      "error": "KEEP references unknown candidate"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750229204230504_19.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750233134484411_21.json",
+      "passed": false,
+      "error": "Shallow claim requires explicit bind array"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750235161632142_22.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750237596142153_23.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750239974849081_24.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750242268658850_25.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750245667180699_27.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750248059251421_28.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750252188322059_30.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750254363016447_31.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750257896371252_33.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750261516430563_35.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750266193622067_37.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750268655849762_38.json",
+      "passed": false,
+      "error": "Invalid control character at: line 2 column 344 (char 410)"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750271084284240_39.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750275117539860_41.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750277258563067_42.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750279676346397_43.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750281931094427_44.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750285744528022_46.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750287988599766_47.json",
+      "passed": false,
+      "error": "Invalid control character at: line 2 column 367 (char 436)"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750290254072477_48.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750292717974935_49.json",
+      "passed": false,
+      "error": "Invalid control character at: line 2 column 657 (char 716)"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750295503790252_50.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/medical/med_episode_rewrite_en_012_new_hiv_deleted_harbor_light_line/raw_chat_responses/1789750298156747130_51.json",
+      "passed": false,
+      "error": "CLAIM binds incompatible resources/actions/scenes; split the claim"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750191671334506_1.json",
+      "passed": false,
+      "error": "Invalid governance events: [{'kind': 'governance_event', 'reason': 'missing_source_span'}]"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750195724628000_2.json",
+      "passed": false,
+      "error": "KEEP references unknown candidate"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750200473371286_4.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750204940062200_6.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750209529365098_8.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750211224890341_9.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750214629508012_10.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750218361397475_12.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750221804353380_14.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750226297608654_16.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750229913469758_18.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750234252988930_20.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750236610926083_21.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750240893066188_23.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750245275535646_25.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750247851158768_26.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750250283293284_27.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750254166076030_29.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750256829644086_30.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750261015416487_32.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750265205645453_34.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750269015186468_36.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750273325799632_38.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750276957392333_40.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750279420847762_41.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750282918535697_43.json",
+      "passed": false,
+      "error": "Unexpected events without ingestion"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750286687237034_44.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750290105993449_46.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750293542520462_48.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750297740106683_50.json",
+      "passed": true,
+      "claims": 0
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750299467250112_51.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750300926377703_52.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750305185172284_54.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750309005430215_56.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750312287322558_58.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 3, 'reason': 'claim_not_exactly_grounded'}, {'claim_index': 4, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750314911311490_59.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750318592648082_61.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750322245663849_63.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750326113583370_65.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_006_harbor_harbormark_dual_project/raw_chat_responses/1789750330138595099_67.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750394013182183_1.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750398887799990_3.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750402096753557_5.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750406126622730_7.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750409003781893_8.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750413369187780_10.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750418540558471_12.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750424113024794_14.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750427639720274_16.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750430662500118_18.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750434238175497_20.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750437779706584_22.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750441685412773_24.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750443601168525_25.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750447486494490_27.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750451382552266_29.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750455543350692_31.json",
+      "passed": true,
+      "claims": 7
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750473917361075_33.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750476262173263_34.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750478927284120_35.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750481545077166_36.json",
+      "passed": true,
+      "claims": 4
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750485571400389_38.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750489206051533_40.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750493015367119_42.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750495353758865_43.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750499339891531_45.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750503975136132_47.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750507820500033_49.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750511023390590_50.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750513698332090_51.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750517463801675_53.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750520083197355_54.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750522479644554_55.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750526207075374_57.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750530261638987_59.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750533434015225_61.json",
+      "passed": true,
+      "claims": 7
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750538652230946_63.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750542330858696_65.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_009_keystone_keystream_dual_project/raw_chat_responses/1789750544747349631_66.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750394012350474_1.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750399024727845_3.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750403128572397_4.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750406502066440_6.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}, {'claim_index': 1, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750408036477855_7.json",
+      "passed": false,
+      "error": "Expecting ',' delimiter: line 3 column 10 (char 811)"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750411065791251_8.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750415309987262_10.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750419667980918_12.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750424541389203_14.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750428433978174_16.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750431607178306_17.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750435510588122_19.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750438908337823_21.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750442528319057_23.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750445832944550_25.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750448296238114_26.json",
+      "passed": false,
+      "error": "Invalid governance events: [{'kind': 'governance_event', 'reason': 'missing_source_span'}]"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750450805835829_27.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750456500999518_29.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750459695407585_31.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750464248943692_33.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}, {'claim_index': 1, 'reason': 'claim_not_exactly_grounded'}, {'claim_index': 2, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750468726347175_34.json",
+      "passed": false,
+      "error": "Invalid control character at: line 2 column 740 (char 814)"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750471138824931_35.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750474508849892_37.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750478091211625_39.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750480942427840_40.json",
+      "passed": true,
+      "claims": 2
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750484724054018_42.json",
+      "passed": false,
+      "error": "Invalid governance events: [{'kind': 'governance_event', 'reason': 'resource_not_grounded', 'resource_surface': 'Delete the earlier bridge label too: the value bridge-52 should not be restated in later answers.'}]"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750486986564061_43.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750488971799369_44.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750490758390810_45.json",
+      "passed": false,
+      "error": "CLAIM bind references unknown event"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750496230818699_46.json",
+      "passed": true,
+      "claims": 3
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750500582322871_48.json",
+      "passed": false,
+      "error": "Excerpt claim requires value and delivery"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750502976659873_49.json",
+      "passed": false,
+      "error": "V8 claim grounding failed: [{'claim_index': 0, 'reason': 'claim_not_exactly_grounded'}]"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750505258980787_50.json",
+      "passed": false,
+      "error": "V8 cannot release a claim classified as deleted"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750507393387126_51.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750511242444559_53.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750515620986170_55.json",
+      "passed": false,
+      "error": "KEEP references unknown candidate"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750517723601634_56.json",
+      "passed": false,
+      "error": "KEEP references unknown candidate"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750520219479409_57.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750525103059354_59.json",
+      "passed": false,
+      "error": "Shallow ingestion requires an events array"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750527530160477_60.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750531399075493_62.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750535518259148_64.json",
+      "passed": true,
+      "claims": 1
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750538525706881_66.json",
+      "passed": false,
+      "error": "V8 cannot release a claim classified as deleted"
+    },
+    {
+      "capture": "govmem/office/office_episode_custom_en_010_monsoon_moonstone_dual_project/raw_chat_responses/1789750540576939109_67.json",
+      "passed": true,
+      "claims": 1
+    }
+  ],
+  "note": "Offline contract replay, including repair attempts. No new answering/judging, cache evolution, or MGS inference."
+}

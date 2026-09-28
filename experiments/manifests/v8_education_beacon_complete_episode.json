@@ -1,0 +1,26 @@
+{
+  "schema_version": "govmem-complete-episode-manifest-1",
+  "selection_unit": "complete_episode",
+  "episode_id": "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track",
+  "checkpoint_count": 18,
+  "checkpoint_ids": [
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_01",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_02",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_03",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_04",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_05",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_06",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_07",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_08",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_09",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_10",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_11",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_12",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_13",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_14",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_15",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_16",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_17",
+    "education_episode_custom_en_002_beacon_grant_beacon_hall_dual_track_ckpt_18"
+  ]
+}
