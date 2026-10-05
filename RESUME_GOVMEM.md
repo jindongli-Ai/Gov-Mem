@@ -6,8 +6,8 @@ kept concise so that stale historical run instructions do not look active.
 ## Read First
 
 1. `AGENTS.md` for storage, experiment, key, and provenance constraints.
-2. `handoff.md` for the current research state and next decisions.
-3. `README.md` for the current system summary and result index.
+2. `README.md` for the current system summary and result index.
+3. `docs/GOVMEM_V8_ARCHITECTURE.md` for the code-grounded pipeline.
 4. `VERSION_LOG.md` for immutable historical version identity.
 
 ## Current Canonical Pipeline
