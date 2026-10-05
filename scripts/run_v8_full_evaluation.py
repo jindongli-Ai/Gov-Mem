@@ -153,7 +153,10 @@ def infer(output, identity, workers, keys):
     groups = [[j for j in identity['jobs'] if j['domain'] == d] for d in DOMAINS]
     jobs = [g[i] for i in range(max(map(len, groups))) for g in groups if i < len(g)]
     jobs = [j for j in jobs if not (output / 'govmem' / j['domain'] / j['episode_id'] / 'complete.json').exists()]
-    width = min(max(1, workers), 8, len(keys))
+    # Keep one isolated provider key per episode worker.  The project-wide
+    # protocol permits up to 30 distinct keys; callers still choose a smaller
+    # width when fewer independent jobs remain.
+    width = min(max(1, workers), 30, len(keys))
     for start in range(0, len(jobs), width):
         with ThreadPoolExecutor(max_workers=width) as pool:
             futures = [pool.submit(run_job, 'govmem', job, output, identity, keys[i], True)
