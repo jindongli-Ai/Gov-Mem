@@ -1,3 +1,10 @@
+"""Run the canonical Gov-Mem V8 Late Governance pipeline.
+
+The historical experiment modes remain accepted so frozen artifacts can be
+reproduced, but new runs should use ``govmem_v8_late_governance`` and the V8
+configuration documented in the project README.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -75,7 +82,7 @@ def _load_checkpoint_manifest(path: str | None, *, data_path: str) -> list[str] 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the Gov-Mem pipeline.")
+    parser = argparse.ArgumentParser(description="Run the canonical Gov-Mem V8 pipeline.")
     parser.add_argument("--dataset_name", required=True)
     parser.add_argument("--data_path", required=True)
     parser.add_argument("--output_dir", required=True)
@@ -96,7 +103,7 @@ def main() -> None:
     parser.add_argument("--skip_official_eval", action="store_true")
     parser.add_argument(
         "--experiment_mode",
-        default=None,
+        default="govmem_v8_late_governance",
         choices=[
             "rag_naive",
             "rag_naive_v3_typed_rerank",
@@ -188,7 +195,7 @@ def main() -> None:
         checkpoint_ids=_load_checkpoint_manifest(args.checkpoint_manifest, data_path=args.data_path),
         resume=args.resume,
         run_official_benchmark_eval=not args.skip_official_eval,
-        experiment_mode=str((config.get("experiment") or {}).get("mode") or "govmem_structured_old"),
+        experiment_mode=str((config.get("experiment") or {}).get("mode") or "govmem_v8_late_governance"),
     )
     runner.run()
 
