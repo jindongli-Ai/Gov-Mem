@@ -40,6 +40,21 @@ def test_explicit_keep_false_omission_is_ignored_without_contract_failure():
     assert normalized["claims"] == []
 
 
+def test_incomplete_claim_is_ignored_and_audited_without_release():
+    normalized = normalize_shallow_json({
+        "query_slots": [{"slot": "note"}],
+        "claims": [
+            {"candidate_id": "candidate_0", "value": "amber", "delivery": "exact"},
+            {"slot": "note", "candidate_id": "candidate_0", "keep": True},
+        ],
+    }, ingestion=False)
+    assert len(normalized["claims"]) == 1
+    assert normalized["claims"][0]["slot"] == "note"
+    assert normalized["contract_rejections"] == [
+        {"claim_index": 0, "reason": "missing_slot_or_candidate_id"}
+    ]
+
+
 def test_candidate_only_denial_stays_blocked_and_requires_grounded_restriction():
     raw = normalize({"delivery": "block", "restriction_kind": "explicit_restriction",
         "restriction_evidence": [{"turn_id": "policy", "span": "Do not share the note."}]})

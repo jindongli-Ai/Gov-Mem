@@ -231,9 +231,17 @@ def normalize_shallow_json(raw: dict, *, ingestion: bool, extraction_only: bool 
             raise ValueError("Unexpected events without ingestion")
         raw.pop("events")
     normalized_claims = []
-    for claim in raw["claims"]:
-        if not isinstance(claim, dict) or not claim.get("slot") or not claim.get("candidate_id"):
-            raise ValueError("Shallow claim requires slot and candidate_id")
+    contract_rejections = []
+    for claim_index, claim in enumerate(raw["claims"]):
+        # A model can emit an otherwise well-formed response with one
+        # incomplete claim. That claim has no safe provenance key and must be
+        # ignored, rather than repaired into an authorization decision.
+        if (not isinstance(claim, dict)
+                or ((not claim.get("slot") or not claim.get("candidate_id"))
+                    and "block" not in claim)):
+            contract_rejections.append({"claim_index": claim_index,
+                                        "reason": "missing_slot_or_candidate_id"})
+            continue
         keep_value = claim.get("keep", False)
         # Whole-candidate KEEP claims are safe only as already supplied
         # evidence. Treat an omitted bind as NONE for compatibility with
@@ -241,8 +249,9 @@ def normalize_shallow_json(raw: dict, *, ingestion: bool, extraction_only: bool 
         # permission or bypasses the symbolic critic.
         if "bind" not in claim and keep_value is True:
             claim["bind"] = []
-        elif "bind" not in claim and keep_value is False and not any(
-                claim.get(key) for key in ("value", "quote", "delivery")):
+        elif ("bind" not in claim and keep_value is False
+              and "block" not in claim and not any(
+                  claim.get(key) for key in ("value", "quote", "delivery"))):
             continue
         if "block" in claim:
             # An explicit nested denial is the same decision as delivery=block.
@@ -298,6 +307,8 @@ def normalize_shallow_json(raw: dict, *, ingestion: bool, extraction_only: bool 
                 raise ValueError("Excerpt claim requires value and delivery")
         normalized_claims.append(claim)
     raw["claims"] = normalized_claims
+    if contract_rejections:
+        raw.setdefault("contract_rejections", []).extend(contract_rejections)
     return raw
 
 
