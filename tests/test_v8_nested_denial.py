@@ -36,9 +36,12 @@ def test_incomplete_or_ambiguous_denial_fails(block):
     with pytest.raises(ValueError):normalize_shallow_json(raw,ingestion=False)
 
 
-def test_missing_bind_on_release_still_fails():
+def test_legacy_keep_without_bind_does_not_create_permission():
+    # Current compatibility behavior: a whole-candidate KEEP defaults to bind=[].
     raw=payload();raw['claims']=[{'slot':'note','candidate_id':'t1','keep':True}]
-    with pytest.raises(ValueError,match='explicit bind'):normalize_shallow_json(raw,ingestion=False)
+    claim=normalize_shallow_json(raw,ingestion=False)['claims'][0]
+    assert claim['permission_event_ids']==[]
+    assert claim['_keep_candidate'] is True
 
 
 def test_nested_denial_cannot_bypass_exact_source_validation():
