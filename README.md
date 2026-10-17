@@ -19,6 +19,10 @@ The default model is `gpt-5.4-nano`. The experimental model set is GPT-5.4-nano,
 
 Edit `configs/govmem.yaml` to select the model, API endpoint, and retrieval `naive_top_k` (default: 20). Credentials are read from environment variables.
 
+## Dataset
+
+We use the **GateMem dataset** to evaluate Gov-Mem across four domains: Medical, Office, Education, and Household (91 episodes and 2,218 queries). The dataset and official evaluation code are available in the [GateMem repository](https://github.com/rzhub/GateMem).
+
 ## Run
 
 Obtain the [GateMem benchmark](https://github.com/rzhub/GateMem) separately. Point `--data_path` at a domain directory containing `episodes.jsonl` and `checkpoints.jsonl`.
