@@ -23,6 +23,14 @@ Edit `configs/govmem.yaml` to select the model, API endpoint, and retrieval `nai
 
 We use the **GateMem dataset** to evaluate Gov-Mem across four domains: Medical, Office, Education, and Household (91 episodes and 2,218 queries). The dataset and official evaluation code are available in the [GateMem repository](https://github.com/rzhub/GateMem).
 
+| Domain | Episodes | Queries |
+|---|---:|---:|
+| Medical | 21 | 579 |
+| Office | 17 | 547 |
+| Education | 30 | 540 |
+| Household | 23 | 552 |
+| **Total** | **91** | **2,218** |
+
 ## Run
 
 Obtain the [GateMem benchmark](https://github.com/rzhub/GateMem) separately. Point `--data_path` at a domain directory containing `episodes.jsonl` and `checkpoints.jsonl`.
