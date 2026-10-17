@@ -43,3 +43,7 @@ For official scoring, set `GOVMEM_OFFICIAL_BENCHMARK_ROOT` to the GateMem checko
 ```bash
 pytest
 ```
+
+## Acknowledgment
+
+The code implementation for this study was assisted by Codex (GPT-6.1).
