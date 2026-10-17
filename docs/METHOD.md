@@ -2,6 +2,8 @@
 
 This document describes the checked-in implementation. The paper is under review.
 
+The [framework-to-code correspondence](FRAMEWORK.md) maps Fig. 2 of the October 16 manuscript to the current execution path. Gov-Mem is neuro-symbolic: LLMs perform extraction and semantic adjudication, while deterministic source/binding checks, event-state projection, symbolic criticism and safe-evidence construction constrain evidence release. The Governed Slot Graph is enabled in the default Full configuration and feeds source-grounded advisory findings into the language reasoner.
+
 ## Canonical execution path
 
 `run_govmem.py` → `GovMemRunner` in `src/gov_mem/pipeline.py` → `GovMemV8LateGovernanceBackbone.run_instance` in `src/gov_mem/backbones/govmem_v8_late_governance.py`.
@@ -11,7 +13,7 @@ Use `govmem_v8_late_governance` and `configs/govmem.yaml` for the current method
 1. Load a checkpoint's visible conversation prefix and requester; build the principal registry. Preserve sequential history within each episode.
 2. Prepare the source-grounded event store and incremental ingestion. Shallow memory keeps raw turns and a compact policy/lifecycle ledger rather than a full world graph.
 3. Embed visible turn chunks and retrieve dense Top-K evidence. Expand with bounded adjacent context (`v8_query.max_adjacent_context`). K is the initial dense retrieval size, not an upper bound on all subsequent context.
-4. When enabled, run the governed slot graph channel and attach its observer audit. **In this backbone, graph candidates are not merged into Stage-2 evidence:** `graph_selected=0`, `mode=observer_only`. The reasoner receives the graph audit. Do not describe this as graph replacement of dense retrieval.
+4. Run the enabled Governed Slot Graph channel and attach its observer audit. **The graph participates in Stage-2 reasoning through `governed_slot_graph_audit`**: source-grounded policy and deletion findings are advisory inputs to semantic claim review. Graph-derived factual candidates remain separate from dense evidence (`graph_selected=0`, `mode=observer_only`), as specified in Fig. 2. Graph silence does not bypass the remaining governance stages.
 5. Generate a source-grounded claim ledger and semantic bindings. Joint extraction can append validated events and refresh projected state. Configuration permits bounded contract repair; malformed contracts can fail closed to `no_memory`.
 6. Apply the symbolic governance critic against projected state. Language models perform semantic matching; the critic checks explicit bindings and state constraints. This does not imply unrestricted symbolic understanding of natural-language policies.
 7. Build safe evidence from reviewed claims. Final answer generation receives released evidence plus sanitized blocked-slot metadata, the question, and requester information; denied values and source quotes are removed from that metadata. Refusal/no-memory paths differ from the supported-answer generation path.
