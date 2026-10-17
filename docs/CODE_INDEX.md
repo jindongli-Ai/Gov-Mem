@@ -12,7 +12,7 @@ The publication excludes experiment outputs, caches, API-key files, benchmark da
 | `run_govmem.py` | Original CLI entry point. |
 | `pyproject.toml` | Installation metadata, core dependencies and test settings. |
 | `.gitignore` | Exclude credentials, caches, generated files and local environments. |
-| `configs/govmem.yaml` | Portable example derived from the canonical Gemini configuration; relative embedding cache, K=20. |
+| `configs/govmem.yaml` | Default GPT-5.4-nano configuration; relative embedding cache, K=20. |
 | `docs/METHOD.md` | Current method/code correspondence and evaluation definitions. |
 | `docs/CODE_INDEX.md` | This complete file index. |
 

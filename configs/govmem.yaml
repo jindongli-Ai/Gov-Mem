@@ -7,12 +7,12 @@ llm:
   provider: openlux
   api_key_env: OPENLUX_API_KEY
   api_base: https://api.openlux.ai/v1
-  base_model: gemini-2.5-flash-lite
+  base_model: gpt-5.4-nano
   role_models: {}
-  memory_ingestion_model: gemini-2.5-flash-lite
-  query_planner_model: gemini-2.5-flash-lite
-  reasoning_model: gemini-2.5-flash-lite
-  answering_model: gemini-2.5-flash-lite
+  memory_ingestion_model: gpt-5.4-nano
+  query_planner_model: gpt-5.4-nano
+  reasoning_model: gpt-5.4-nano
+  answering_model: gpt-5.4-nano
   temperature: 0.0
   max_output_tokens: 4096
   max_retries: 2

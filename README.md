@@ -15,6 +15,8 @@ pip install -e ".[test]"
 export OPENLUX_API_KEY="your-api-key"
 ```
 
+The default model is `gpt-5.4-nano`. The experimental model set is GPT-5.4-nano, GPT-5-nano, GLM-4-AirX, and Kimi-K2 (`kimi-k2-0711-preview`).
+
 Edit `configs/govmem.yaml` to select the model, API endpoint, and retrieval `naive_top_k` (default: 20). Credentials are read from environment variables.
 
 ## Run
