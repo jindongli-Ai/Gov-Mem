@@ -19,6 +19,14 @@ The default model is `gpt-5.4-nano`. The experimental model set is GPT-5.4-nano,
 
 Edit `configs/govmem.yaml` to select the model, API endpoint, and retrieval `naive_top_k` (default: 20). Credentials are read from environment variables.
 
+When changing the Gov-Mem base LLM, update all five entries under `llm` together:
+`base_model`, `memory_ingestion_model`, `query_planner_model`, `reasoning_model`,
+and `answering_model`. For example, `configs/govmem_glm4_airx.yaml` sets all
+five entries to `glm-4-airx`. The embedding model remains fixed at
+`text-embedding-3-small`, and the official GateMem judge remains fixed at
+`gpt-4o`, so backbone and retrieval-limit comparisons use the same encoder and
+evaluation protocol.
+
 ## Dataset
 
 We use the **GateMem dataset** to evaluate Gov-Mem across four domains: Medical, Office, Education, and Household (91 episodes and 2,218 queries). The dataset and official evaluation code are available in the [GateMem repository](https://github.com/rzhub/GateMem).
