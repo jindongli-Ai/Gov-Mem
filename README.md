@@ -2,7 +2,7 @@
 
 This repository contains the code for **Gov-Mem**. The paper is currently **under review**.
 
-Gov-Mem is a governance-aware **neuro-symbolic** framework for memory access and reasoning. It combines an incremental **Governed Slot Graph**, LLM-based semantic governance reasoning, event-state projection, a symbolic governance critic, and a safe-evidence boundary.
+Gov-Mem is a governance-aware **neuro-symbolic** framework for memory access and reasoning. It combines an incremental **Governed Slot Graph**, **Language Governance Reasoning (LLM)**, **Grounding & State Projection**, a **Symbolic Governance Critic**, and a **Safe-Evidence Boundary**.
 
 See [the framework-to-code correspondence](docs/FRAMEWORK.md) for the Fig. 2 execution path, [the method reference](docs/METHOD.md) for evaluation definitions, and [the file index](docs/CODE_INDEX.md) for the repository layout. The Governed Slot Graph is enabled in the default configuration and supplies advisory governance findings to the language reasoner; final disclosure is checked by the symbolic critic and safe-evidence boundary.
 
